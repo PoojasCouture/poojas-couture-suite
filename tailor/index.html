@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pooja's Couture — Tailor Workstation (India)</title>
+  <link rel="icon" type="image/png" href="../assets/logo-mark.png">
+  <link rel="stylesheet" href="../css/index.css">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Supabase client + config (shared with main app) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/config.js"></script>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- Loading / gate screen (shown while we check the shared session) -->
+    <div id="gate-screen" class="auth-overlay active">
+      <div class="login-card text-center">
+        <div class="brand-header">
+          <img src="../assets/logo-wordmark-light.png" alt="Pooja's Couture" class="brand-wordmark">
+          <h2 class="font-display">Karigar Workstation</h2>
+          <p class="text-muted text-xs" id="gate-message">Checking your session…</p>
+        </div>
+        <div id="gate-actions" class="d-none">
+          <a href="../index.html" class="btn btn-primary w-full">Go to Login</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div id="tailor-workspace" class="d-none">
+      <header class="workspace-header">
+        <div class="user-profile">
+          <div class="avatar avatar-sm" id="user-avatar">??</div>
+          <div>
+            <div class="user-name" id="user-display-name">Loading...</div>
+            <div class="user-role text-xs text-gold" id="user-display-role">Karigar</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary btn-sm" id="btn-logout">Logout</button>
+        </div>
+      </header>
+
+      <main class="workspace-content">
+        <!-- Punch Card Section -->
+        <section class="card p-4 mb-4">
+          <div class="d-flex justify-between items-center">
+            <div>
+              <h3 class="text-sm font-semibold text-gold">Shift Punch Card</h3>
+              <p class="text-xs text-muted" id="punch-status-text">Not clocked in today</p>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-punch">Clock In</button>
+          </div>
+        </section>
+
+        <!-- Task Selection / Filters -->
+        <section class="mb-4">
+          <div class="d-flex justify-between items-center mb-2">
+            <h3 class="text-sm font-semibold text-gold m-0">My Assignments</h3>
+            <span class="badge badge-muted font-mono" id="task-counter">0 Tasks</span>
+          </div>
+          <div class="tab-filters">
+            <button class="filter-tab active" data-filter="pending">Active Work</button>
+            <button class="filter-tab" data-filter="completed">Completed Piecework</button>
+          </div>
+        </section>
+
+        <!-- Tasks List -->
+        <div class="d-flex flex-col gap-3" id="tasks-list">
+          <!-- Dynamically populated -->
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Reusable Toast notifications -->
+  <div id="toast-container"></div>
+
+  <!-- JS Scripts -->
+  <script src="../js/utils.js"></script>
+  <script src="../js/store.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

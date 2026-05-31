@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pooja's Couture — International Shipping (India)</title>
+  <link rel="icon" type="image/png" href="../assets/logo-mark.png">
+  <link rel="stylesheet" href="../css/index.css">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Supabase client + config (shared with main app) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/config.js"></script>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- Loading / gate screen (shown while we check the shared session) -->
+    <div id="gate-screen" class="auth-overlay active">
+      <div class="login-card text-center">
+        <div class="brand-header">
+          <img src="../assets/logo-wordmark-light.png" alt="Pooja's Couture" class="brand-wordmark">
+          <h2 class="font-display">Shipping &amp; Logistics</h2>
+          <p class="text-muted text-xs" id="gate-message">Checking your session…</p>
+        </div>
+        <div id="gate-actions" class="d-none">
+          <a href="../index.html" class="btn btn-primary w-full">Go to Login</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div id="shipping-workspace" class="d-none">
+      <header class="workspace-header">
+        <div class="user-profile">
+          <div class="avatar avatar-sm" id="user-avatar">??</div>
+          <div>
+            <div class="user-name" id="user-display-name">Loading...</div>
+            <div class="user-role text-xs text-gold" id="user-display-role">Logistics Operator</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary btn-sm" id="btn-logout">Logout</button>
+        </div>
+      </header>
+
+      <main class="workspace-content">
+        <!-- Dashboard Statistics -->
+        <section class="metrics-grid mb-6">
+          <div class="metric-box">
+            <div class="metric-val" id="count-ready">0</div>
+            <div class="metric-lbl">Awaiting Packing</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val" id="count-transit">0</div>
+            <div class="metric-lbl">In Transit (Australia)</div>
+          </div>
+        </section>
+
+        <!-- Packing List Table -->
+        <section class="card p-0 mb-6">
+          <div class="card-header">
+            <div class="card-title">📦 Ready for Collection / Packing List</div>
+          </div>
+          <div class="table-container" style="border: none; border-radius: 0;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Order Ref</th>
+                  <th>Client</th>
+                  <th>Value</th>
+                  <th>Deadline</th>
+                  <th style="width: 120px; text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="packing-table-body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Shipped / Transit Tracking Table -->
+        <section class="card p-0">
+          <div class="card-header">
+            <div class="card-title">✈️ Active Export Shipments &amp; Tracking</div>
+          </div>
+          <div class="table-container" style="border: none; border-radius: 0;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Tracking Code</th>
+                  <th>Carrier</th>
+                  <th>Outfit Item</th>
+                  <th>Shipment Value</th>
+                  <th style="width: 120px; text-align: right;">Mark Delivered</th>
+                </tr>
+              </thead>
+              <tbody id="transit-table-body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Reusable Toast notifications -->
+  <div id="toast-container"></div>
+
+  <!-- JS Scripts -->
+  <script src="../js/utils.js"></script>
+  <script src="../js/store.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

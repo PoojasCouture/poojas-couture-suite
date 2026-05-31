@@ -1,0 +1,10 @@
+/* ============================================================
+   POOJA'S COUTURE — HRM Specific Styles
+   ============================================================ */
+
+.list-item.active {
+  background: var(--pc-amber-glow) !important;
+  border-left: 3px solid var(--pc-gold);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding-left: calc(var(--sp-4) - 3px);
+}

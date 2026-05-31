@@ -1,0 +1,25 @@
+/* ============================================================
+   POOJA'S COUTURE — Admin Specific Styles
+   ============================================================ */
+
+/* Customize permission checkboxes to look premium */
+.perm-chk {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--pc-gold);
+  border: 1px solid var(--pc-border);
+  background: var(--pc-bg-input);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.perm-chk:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Custom alignment for tables cells */
+.data-table td input[type="checkbox"] {
+  vertical-align: middle;
+}

@@ -1,0 +1,173 @@
+/* ============================================================
+   POOJA'S COUTURE — Tailor Workstation Mobile Styles
+   ============================================================ */
+
+body {
+  background-color: var(--pc-bg-dark);
+  font-family: var(--font-body);
+}
+
+.app-container {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--pc-bg-body);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Auth Overlay CSS */
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--pc-bg-dark);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  transition: all 0.3s ease;
+}
+
+.auth-overlay:not(.active) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border-gold);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  box-shadow: var(--pc-shadow-xl);
+}
+
+.brand-header {
+  text-align: center;
+  margin-bottom: var(--sp-6);
+}
+
+.brand-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--pc-gradient-gold);
+  color: var(--pc-text-inverse);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--sp-3) auto;
+  box-shadow: var(--pc-shadow-gold);
+}
+
+/* Header styling */
+.workspace-header {
+  height: 64px;
+  background-color: var(--pc-bg-sidebar);
+  border-bottom: 1px solid var(--pc-border);
+  padding: 0 var(--sp-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.user-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+}
+
+.workspace-content {
+  flex: 1;
+  padding: var(--sp-4);
+  overflow-y: auto;
+}
+
+/* Tab Filters */
+.tab-filters {
+  display: flex;
+  gap: var(--sp-2);
+  background-color: var(--pc-bg-sidebar);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--pc-border);
+}
+
+.filter-tab {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: var(--sp-2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--pc-text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-tab.active {
+  background-color: var(--pc-bg-card);
+  color: var(--pc-gold);
+  font-weight: 600;
+  box-shadow: var(--pc-shadow-sm);
+}
+
+/* Tasks / Cards styling */
+.task-card {
+  background-color: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  transition: all var(--transition-fast);
+}
+
+.task-card:hover {
+  border-color: var(--pc-border-gold);
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.task-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+  margin: 0;
+}
+
+.measurement-badge {
+  background-color: rgba(236, 182, 118, 0.05);
+  border: 1px solid var(--pc-border-gold);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--pc-text-secondary);
+  white-space: pre-line;
+}

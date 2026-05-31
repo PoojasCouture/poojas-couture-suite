@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pooja's Couture — Enterprise Management Suite</title>
+  <!-- SEO & Brand Metadata -->
+  <meta name="description" content="Luxury internal operations management panel for Pooja's Couture. Clients, orders pipeline, bridal journeys, Australian payroll and accounting dashboard.">
+  <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>👑</text></svg>">
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/crm.css">
+  <link rel="stylesheet" href="css/hrm.css">
+  <link rel="stylesheet" href="css/accounting.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <!-- Login Overlay -->
+  <div id="login-overlay" class="auth-overlay active">
+    <div class="login-card">
+      <div class="brand-header">
+        <div class="brand-logo">PC</div>
+        <h2 class="font-display">Studio Suite</h2>
+        <p class="text-muted text-xs">Pooja's Couture Operations Login</p>
+      </div>
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label">Employee Email</label>
+          <input type="email" id="login-email" class="form-input" placeholder="name@poojascouture.com.au" required value="pooja@poojascouture.com.au">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="login-password" class="form-input" placeholder="••••••••" required value="couture123">
+        </div>
+        <button type="submit" class="btn btn-primary w-full">Sign In to Dashboard</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    
+    <!-- Sidebar Layout -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-logo">PC</div>
+        <div class="sidebar-brand-text">
+          <div class="sidebar-brand-name">Pooja's Couture</div>
+          <div class="sidebar-brand-tagline">Studio Suite</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <!-- Dashboard Section -->
+        <div class="sidebar-section">
+          <button class="sidebar-link active" data-route="dashboard">
+            <span class="sidebar-link-icon">📊</span>
+            <span class="sidebar-link-text">Overview Dashboard</span>
+          </button>
+        </div>
+
+        <!-- CRM Section -->
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Client Relations</div>
+          <button class="sidebar-link" data-route="crm">
+            <span class="sidebar-link-icon">👑</span>
+            <span class="sidebar-link-text">CRM Center</span>
+          </button>
+        </div>
+
+        <!-- HRM Section -->
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Staff Operations</div>
+          <button class="sidebar-link" data-route="hrm">
+            <span class="sidebar-link-icon">👥</span>
+            <span class="sidebar-link-text">HRM Center</span>
+          </button>
+        </div>
+
+        <!-- Accounting Section -->
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Ledger & Invoices</div>
+          <button class="sidebar-link" data-route="accounting">
+            <span class="sidebar-link-icon">💰</span>
+            <span class="sidebar-link-text">Accounting Portal</span>
+          </button>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Configuration</div>
+          <button class="sidebar-link" data-route="settings">
+            <span class="sidebar-link-icon">⚙️</span>
+            <span class="sidebar-link-text">Boutique Settings</span>
+          </button>
+        </div>
+
+        <!-- Admin Section -->
+        <div class="sidebar-section" id="sidebar-admin-section">
+          <div class="sidebar-section-title">Administration</div>
+          <button class="sidebar-link" data-route="admin">
+            <span class="sidebar-link-icon">🔒</span>
+            <span class="sidebar-link-text">Admin Center</span>
+          </button>
+        </div>
+
+        <!-- India Workshop Portals Section -->
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">India Workstations</div>
+          <a class="sidebar-link" href="tailor/index.html" target="_blank">
+            <span class="sidebar-link-icon">🪡</span>
+            <span class="sidebar-link-text">Tailor Portal</span>
+          </a>
+          <a class="sidebar-link" href="shipping/index.html" target="_blank">
+            <span class="sidebar-link-icon">✈️</span>
+            <span class="sidebar-link-text">Logistics Cargo</span>
+          </a>
+        </div>
+      </nav>
+
+      <!-- Sidebar Footer User Profile -->
+      <div class="sidebar-footer">
+        <div class="sidebar-user" id="sidebar-user-trigger">
+          <div class="sidebar-user-avatar">PS</div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-user-name">Pooja Shah</div>
+            <div class="sidebar-user-role">Creative Director</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Main Container -->
+    <main class="main-content">
+      
+      <!-- Top Header Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="topbar-toggle" id="sidebar-toggle" aria-label="Toggle Sidebar">☰</button>
+          
+          <div class="topbar-breadcrumb">
+            <span class="topbar-breadcrumb-item">Pooja's Couture Suite</span>
+            <span class="topbar-breadcrumb-separator">/</span>
+            <span class="topbar-breadcrumb-current" id="topbar-breadcrumb-active">Overview Dashboard</span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Live Clock -->
+          <div class="topbar-datetime" id="topbar-clock">22 May 2026, 12:00 PM</div>
+          
+          <!-- Actions & Notifications -->
+          <button class="topbar-btn" id="btn-notifications" title="Notifications">
+            🔔
+            <span class="topbar-btn-badge"></span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Render Area -->
+      <div id="main-content-area" class="page-content">
+        <!-- Rendered screens dynamically placed here -->
+      </div>
+      
+    </main>
+  </div>
+
+  <!-- Reusable Toast notifications -->
+  <div id="toast-container"></div>
+
+  <!-- Supabase client library (loaded from CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Supabase config (your keys) -->
+  <script src="js/config.js"></script>
+
+  <!-- Shared Javascript Libraries -->
+  <script src="js/utils.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/charts.js"></script>
+  
+  <!-- Modules logic -->
+  <script src="js/crm.js"></script>
+  <script src="js/hrm.js"></script>
+  <script src="js/accounting.js"></script>
+  <script src="js/admin.js"></script>
+  
+  <!-- Core application routing / initialization -->
+  <script src="js/app.js"></script>
+</body>
+</html>

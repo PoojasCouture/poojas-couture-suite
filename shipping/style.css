@@ -1,0 +1,143 @@
+/* ============================================================
+   POOJA'S COUTURE — Shipping Portal Workspace Styles
+   ============================================================ */
+
+body {
+  background-color: var(--pc-bg-dark);
+  font-family: var(--font-body);
+}
+
+.app-container {
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--pc-bg-body);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Auth Overlay CSS */
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--pc-bg-dark);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  transition: all 0.3s ease;
+}
+
+.auth-overlay:not(.active) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border-gold);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  box-shadow: var(--pc-shadow-xl);
+}
+
+.brand-header {
+  text-align: center;
+  margin-bottom: var(--sp-6);
+}
+
+.brand-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--pc-gradient-gold);
+  color: var(--pc-text-inverse);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--sp-3) auto;
+  box-shadow: var(--pc-shadow-gold);
+}
+
+/* Header styling */
+.workspace-header {
+  height: 64px;
+  background-color: var(--pc-bg-sidebar);
+  border-bottom: 1px solid var(--pc-border);
+  padding: 0 var(--sp-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.user-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+}
+
+.workspace-content {
+  flex: 1;
+  padding: var(--sp-6);
+  overflow-y: auto;
+}
+
+/* Metrics grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-4);
+}
+
+.metric-box {
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  text-align: center;
+}
+
+.metric-val {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: bold;
+  color: var(--pc-gold);
+}
+
+.metric-lbl {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  margin-top: 4px;
+}
+
+/* Customs Form styling inside modal */
+.customs-form-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.shipping-label-preview {
+  background: #fff;
+  color: #000;
+  padding: var(--sp-5);
+  border-radius: var(--radius-sm);
+  font-family: monospace;
+  font-size: 11px;
+}
