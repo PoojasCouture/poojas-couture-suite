@@ -1,0 +1,27 @@
+# ===== Pooja's Couture — Git ignore =====
+# Keep the repo clean: no junk, no secrets, no stray folders.
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# Stray duplicate folders that crept in during dev (do NOT deploy these)
+files/
+products/
+
+# Node / build artifacts (not used now, but safe to ignore)
+node_modules/
+dist/
+build/
+
+# Local environment / secrets (if you ever add any)
+.env
+.env.local
+*.key
+
+# Backups
+*.bak
+*_backup.*
