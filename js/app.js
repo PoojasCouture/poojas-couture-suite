@@ -159,7 +159,8 @@ const App = (() => {
     }
   }
 
-  // Holding screen for tailor/logistics until their real portals are built.
+// Welcome screen for tailor/logistics, then auto-redirect (same tab)
+  // into their dedicated workstation page.
   function renderWorkstationHolding(kind) {
     const container = Utils.$('#main-content-area');
     if (!container) return;
@@ -172,16 +173,17 @@ const App = (() => {
       <div class="card p-8 text-center animate-fade-in" style="max-width:520px;margin:60px auto">
         <div style="font-size:52px;margin-bottom:16px">${icon}</div>
         <h2 class="font-display text-gold">Welcome, ${Utils.sanitizeHTML(user.name || 'there')}</h2>
-        <p class="text-muted mt-2">You are signed in to the ${portalName}.</p>
-        <a class="btn btn-primary mt-4" href="${portalHref}" target="_blank" rel="noopener">Open ${portalName}</a>
-        <p class="text-xs text-muted mt-4">Your dedicated workstation is being prepared. For now this opens the current portal page.</p>
+        <p class="text-muted mt-2">Opening your ${portalName}…</p>
+        <p class="text-xs text-muted mt-4">If it does not open automatically,
+          <a href="${portalHref}" style="color:var(--pc-gold,#d4af37);text-decoration:underline;">click here</a>.</p>
       </div>
     `;
     // Update breadcrumb
     const bc = Utils.$('#topbar-breadcrumb-active');
     if (bc) bc.textContent = portalName;
+    // Auto-redirect into the workstation (same tab) after a short welcome pause.
+    setTimeout(() => { window.location.href = portalHref; }, 1500);
   }
-
   // ==========================================
   // OVERVIEW DASHBOARD SCREEN
   // ==========================================
