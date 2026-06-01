@@ -1,58 +1,154 @@
 /* ============================================================
-   POOJA'S COUTURE — International Shipping Controller (v2)
-   Inherits the session from the main app (shared Supabase auth).
-   No separate login — if not signed in, redirect to main login.
+   POOJA'S COUTURE — Shashank Logistics Portal (Stage 2d)
+   Supabase-native. Replaces old Store-based shipping/app.js.
+   Inline modals only — no portal CSS modal classes used.
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', async () => {
   let currentUser = null;
+  let supabase = null;
 
-  const gateScreen = Utils.$('#gate-screen');
-  const gateMessage = Utils.$('#gate-message');
-  const gateActions = Utils.$('#gate-actions');
-  const shippingWorkspace = Utils.$('#shipping-workspace');
-  const userAvatar = Utils.$('#user-avatar');
-  const userDisplayName = Utils.$('#user-display-name');
-  const userDisplayRole = Utils.$('#user-display-role');
-  const btnLogout = Utils.$('#btn-logout');
+  const gateScreen    = document.querySelector('#gate-screen');
+  const gateMessage   = document.querySelector('#gate-message');
+  const gateActions   = document.querySelector('#gate-actions');
+  const workspace     = document.querySelector('#shipping-workspace');
 
-  const countReady = Utils.$('#count-ready');
-  const countTransit = Utils.$('#count-transit');
-  const packingTbody = Utils.$('#packing-table-body');
-  const transitTbody = Utils.$('#transit-table-body');
-
-  function validateRole(user) {
-    const appRole = (user.appRole || user.app_role || '').toLowerCase();
-    // Logistics, social_crm (Sakshi), operations, and admins may access shipping
-    return ['logistics', 'social_crm', 'operations', 'admin'].includes(appRole);
+  // ── helpers ──────────────────────────────────────────────
+  function esc(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
-  function showGate(message, allowLogin) {
+  function fmtDate(val) {
+    if (!val) return '—';
+    return new Date(val).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function fmtDateTime(val) {
+    if (!val) return '—';
+    return new Date(val).toLocaleString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function toast(msg, type = 'success') {
+    const el = document.createElement('div');
+    el.style.cssText = `
+      position:fixed; bottom:24px; right:24px; z-index:99999;
+      background:${type === 'error' ? '#c0392b' : '#2d6a4f'};
+      color:#fff; padding:12px 20px; border-radius:8px;
+      font-size:13px; font-family:sans-serif; box-shadow:0 4px 16px rgba(0,0,0,0.3);
+      max-width:340px; line-height:1.4;
+    `;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  // ── gate ─────────────────────────────────────────────────
+  function showGate(msg, allowLogin = false) {
     gateScreen.classList.add('active');
-    shippingWorkspace.classList.add('d-none');
-    gateMessage.textContent = message;
+    workspace.classList.add('d-none');
+    gateMessage.textContent = msg;
     gateActions.classList.toggle('d-none', !allowLogin);
   }
 
-  function showWorkspace() {
-    gateScreen.classList.remove('active');
-    shippingWorkspace.classList.remove('d-none');
+  // ── modal (fully inline styled) ──────────────────────────
+  function openModal({ title, bodyHTML, submitLabel = 'Save', onSubmit }) {
+    closeModal();
 
-    userAvatar.textContent = Utils.getInitials(currentUser.name);
-    userAvatar.style.backgroundColor = Utils.getAvatarColor(currentUser.name);
-    userAvatar.style.color = 'var(--pc-text-inverse)';
-    userDisplayName.textContent = currentUser.name;
-    userDisplayRole.textContent = `${currentUser.role} (Export Hub)`;
+    const overlay = document.createElement('div');
+    overlay.id = 'pc-modal-overlay';
+    overlay.style.cssText = `
+      position:fixed; inset:0; background:rgba(0,0,0,0.65);
+      display:flex; align-items:center; justify-content:center;
+      z-index:9999; padding:16px;
+    `;
 
-    loadShipments();
+    overlay.innerHTML = `
+      <div id="pc-modal-box" style="
+        background:#1a1a2e; color:#e0e0e0; border-radius:12px;
+        width:100%; max-width:560px; max-height:90vh; overflow-y:auto;
+        box-shadow:0 8px 32px rgba(0,0,0,0.6);
+        font-family:sans-serif; font-size:14px;
+      ">
+        <div style="display:flex; justify-content:space-between; align-items:center;
+                    padding:16px 20px; border-bottom:1px solid #333;">
+          <div style="font-weight:700; font-size:15px; color:#d4af37;">${esc(title)}</div>
+          <button id="pc-modal-close" style="
+            background:none; border:none; color:#999; font-size:20px;
+            cursor:pointer; line-height:1; padding:0 4px;
+          ">×</button>
+        </div>
+        <div style="padding:20px 20px 8px;">${bodyHTML}</div>
+        <div style="display:flex; gap:10px; justify-content:flex-end;
+                    padding:12px 20px 16px; border-top:1px solid #333; margin-top:8px;">
+          <button id="pc-modal-cancel" style="
+            padding:8px 18px; border-radius:6px; border:1px solid #555;
+            background:transparent; color:#ccc; cursor:pointer; font-size:13px;
+          ">Cancel</button>
+          <button id="pc-modal-submit" style="
+            padding:8px 18px; border-radius:6px; border:none;
+            background:#d4af37; color:#1a1a2e; font-weight:700;
+            cursor:pointer; font-size:13px;
+          ">${esc(submitLabel)}</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#pc-modal-close').onclick = closeModal;
+    overlay.querySelector('#pc-modal-cancel').onclick = closeModal;
+    overlay.querySelector('#pc-modal-submit').onclick = async () => {
+      const box = overlay.querySelector('#pc-modal-box');
+      const ok = await onSubmit(box);
+      if (ok !== false) closeModal();
+    };
+
+    // close on backdrop click
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
   }
 
-  // ---------- Session bootstrap (inherits main-app login) ----------
+  function closeModal() {
+    const el = document.getElementById('pc-modal-overlay');
+    if (el) el.remove();
+  }
+
+  // ── inline form field helpers ─────────────────────────────
+  function fieldStyle() {
+    return `width:100%; box-sizing:border-box; padding:8px 10px;
+      background:#0f0f1e; border:1px solid #444; border-radius:6px;
+      color:#e0e0e0; font-size:13px; font-family:sans-serif;`;
+  }
+  function labelStyle() {
+    return `display:block; font-size:11px; color:#aaa;
+      text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px;`;
+  }
+  function rowStyle() { return `display:flex; gap:14px; margin-bottom:14px;`; }
+  function halfStyle() { return `flex:1; min-width:0;`; }
+  function fullStyle() { return `margin-bottom:14px;`; }
+  function sectionHeadStyle() {
+    return `font-size:11px; font-weight:700; color:#d4af37;
+      text-transform:uppercase; letter-spacing:.6px;
+      border-bottom:1px solid #333; padding-bottom:6px; margin:16px 0 12px;`;
+  }
+
+  // ── session bootstrap ────────────────────────────────────
   try {
     await Store.ready();
   } catch (e) {
-    console.error('Could not connect to database:', e);
-    showGate('Could not connect to the database. Check your connection and try again.', true);
+    showGate('Could not connect to the database. Check your connection.', true);
+    return;
+  }
+
+  // Grab Supabase instance from Store (Store exposes Store.sb or Store.supabase)
+  supabase = Store.sb || Store.supabase || window._supabase;
+
+  if (!supabase) {
+    showGate('Supabase client not available. Reload and try again.', true);
     return;
   }
 
@@ -62,240 +158,432 @@ document.addEventListener('DOMContentLoaded', async () => {
     showGate('You are not signed in. Please log in through the main app first.', true);
     return;
   }
-  if (!validateRole(currentUser)) {
-    showGate('This portal is for logistics staff only. Your account does not have shipping access.', true);
+
+  const appRole = (currentUser.appRole || currentUser.app_role || '').toLowerCase();
+  if (!['logistics', 'operations', 'admin'].includes(appRole)) {
+    showGate('This portal is for Shashank (logistics) only. Your account does not have access.', true);
     return;
   }
 
-  showWorkspace();
+  // ── render workspace shell ────────────────────────────────
+  gateScreen.classList.remove('active');
+  workspace.classList.remove('d-none');
 
-  // ---------- Logout ----------
-  btnLogout.addEventListener('click', async () => {
-    await Store.logout();
-    currentUser = null;
-    window.location.href = '../index.html';
-  });
+  // Set user header
+  const avatar = workspace.querySelector('#user-avatar');
+  if (avatar) {
+    const initials = (currentUser.name || 'SP').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    avatar.textContent = initials;
+    avatar.style.background = '#d4af37';
+    avatar.style.color = '#1a1a2e';
+  }
+  const nameEl = workspace.querySelector('#user-display-name');
+  if (nameEl) nameEl.textContent = currentUser.name || 'Shashank Patil';
+  const roleEl = workspace.querySelector('#user-display-role');
+  if (roleEl) roleEl.textContent = 'Logistics · India Hub';
 
-  // ---------- Load Shipments lists ----------
-  function loadShipments() {
-    packingTbody.innerHTML = '';
-    transitTbody.innerHTML = '';
+  // Replace workspace-content with our 3-section layout
+  const content = workspace.querySelector('.workspace-content');
+  content.innerHTML = `
+    <!-- ── METRICS ── -->
+    <section style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
+      <div id="metric-incoming" style="${metricBoxStyle('#c0392b')}">
+        <div id="cnt-incoming" style="font-size:32px; font-weight:800;">0</div>
+        <div style="font-size:11px; opacity:.8; margin-top:4px;">Incoming Pieces</div>
+      </div>
+      <div id="metric-ready" style="${metricBoxStyle('#2d6a4f')}">
+        <div id="cnt-ready" style="font-size:32px; font-weight:800;">0</div>
+        <div style="font-size:11px; opacity:.8; margin-top:4px;">Ready to Ship</div>
+      </div>
+      <div id="metric-transit" style="${metricBoxStyle('#1a4a7a')}">
+        <div id="cnt-transit" style="font-size:32px; font-weight:800;">0</div>
+        <div style="font-size:11px; opacity:.8; margin-top:4px;">In Transit → AU</div>
+      </div>
+    </section>
 
-    const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
+    <!-- ── SECTION 1: INCOMING ── -->
+    <section style="${sectionCardStyle()}" class="mb-6">
+      <div style="${cardHeaderStyle()}">
+        <span>📬 Incoming from Tailors</span>
+        <span style="font-size:11px; font-weight:400; opacity:.7;">Status: Shipped to Shashank</span>
+      </div>
+      <div id="incoming-wrap" style="padding:0 4px 4px;"></div>
+    </section>
 
-    const readyOrders = orders.filter(o => o.status === 'Ready');
-    countReady.textContent = readyOrders.length;
+    <!-- ── SECTION 2: READY TO SHIP ── -->
+    <section style="${sectionCardStyle()}" class="mb-6">
+      <div style="${cardHeaderStyle()}">
+        <span>📦 Ready to Ship Internationally</span>
+        <span style="font-size:11px; font-weight:400; opacity:.7;">Status: At Shashank — all pieces received</span>
+      </div>
+      <div id="ready-wrap" style="padding:0 4px 4px;"></div>
+    </section>
 
-    if (readyOrders.length === 0) {
-      packingTbody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-muted text-xs">No orders ready for packing. Check workshop workstations.</td></tr>`;
-    } else {
-      readyOrders.forEach(o => {
-        const tr = Utils.createElement('tr');
-        tr.innerHTML = `
-          <td class="font-mono font-semibold">${o.id}</td>
-          <td>
-            <div class="font-medium">${Utils.sanitizeHTML(o.clientName)}</div>
-            <div class="text-xs text-muted truncate" style="max-width: 200px;">${Utils.sanitizeHTML(o.title)}</div>
-          </td>
-          <td class="font-mono">${Utils.formatCurrency(o.price)}</td>
-          <td class="font-mono text-danger">${Utils.formatDate(o.deadline)}</td>
-          <td>
-            <div class="table-actions justify-end">
-              <button class="btn btn-primary btn-sm" onclick="shipOutfit('${o.id}')">Ship Cargo</button>
-            </div>
-          </td>
-        `;
-        packingTbody.appendChild(tr);
-      });
-    }
+    <!-- ── SECTION 3: IN TRANSIT ── -->
+    <section style="${sectionCardStyle()}">
+      <div style="${cardHeaderStyle()}">
+        <span>✈️ In Transit → Australia</span>
+        <span style="font-size:11px; font-weight:400; opacity:.7;">Status: In Transit</span>
+      </div>
+      <div id="transit-wrap" style="padding:0 4px 4px;"></div>
+    </section>
+  `;
 
-    const transitOrders = orders.filter(o => o.status === 'In Transit');
-    countTransit.textContent = transitOrders.length;
-
-    if (transitOrders.length === 0) {
-      transitTbody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-muted text-xs">No active exports in transit.</td></tr>`;
-    } else {
-      transitOrders.forEach(o => {
-        const tr = Utils.createElement('tr');
-        tr.innerHTML = `
-          <td class="font-mono font-semibold">${o.trackingNumber || 'DHL-IN-98271'}</td>
-          <td><span class="badge badge-info">${o.carrier || 'DHL Express'}</span></td>
-          <td>
-            <div class="font-medium">${Utils.sanitizeHTML(o.title)}</div>
-            <div class="text-xs text-muted">Destination: Australia</div>
-          </td>
-          <td class="font-mono">${Utils.formatCurrency(o.price)}</td>
-          <td>
-            <div class="table-actions justify-end">
-              <button class="btn btn-success btn-sm" onclick="markDelivered('${o.id}')">Delivered</button>
-            </div>
-          </td>
-        `;
-        transitTbody.appendChild(tr);
-      });
-    }
+  // logout
+  const btnLogout = workspace.querySelector('#btn-logout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+      await Store.logout();
+      window.location.href = '../index.html';
+    });
   }
 
-  // ---------- Ship Cargo Form ----------
-  window.shipOutfit = function(orderId) {
-    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
-    if (!o) return;
+  await loadAll();
 
-    const mockTrack = `DHL-IN-${Utils.randomBetween(10000, 99999)}`;
+  // ── STYLE HELPERS ────────────────────────────────────────
+  function metricBoxStyle(bg) {
+    return `background:${bg}; color:#fff; border-radius:10px;
+      padding:16px 24px; min-width:140px; text-align:center;`;
+  }
+  function sectionCardStyle() {
+    return `background:#12122a; border:1px solid #2a2a4a;
+      border-radius:12px; overflow:hidden; margin-bottom:24px;`;
+  }
+  function cardHeaderStyle() {
+    return `display:flex; justify-content:space-between; align-items:center;
+      padding:14px 20px; background:#1a1a3e; font-weight:700;
+      font-size:14px; color:#d4af37; border-bottom:1px solid #2a2a4a;`;
+  }
+  function tableStyle() {
+    return `width:100%; border-collapse:collapse; font-size:13px;`;
+  }
+  function thStyle() {
+    return `text-align:left; padding:10px 14px; font-size:11px;
+      text-transform:uppercase; letter-spacing:.5px; color:#888;
+      background:#111128; border-bottom:1px solid #2a2a4a;`;
+  }
+  function tdStyle(idx) {
+    const bg = idx % 2 === 0 ? '#12122a' : '#0f0f22';
+    return `padding:10px 14px; border-bottom:1px solid #1e1e38; background:${bg}; vertical-align:top;`;
+  }
+  function emptyRowHTML(cols, msg) {
+    return `<tr><td colspan="${cols}" style="text-align:center;
+      padding:20px; color:#555; font-size:12px;">${msg}</td></tr>`;
+  }
+  function btnStyle(bg, color = '#1a1a2e') {
+    return `padding:6px 14px; border-radius:6px; border:none;
+      background:${bg}; color:${color}; font-weight:700;
+      font-size:12px; cursor:pointer; white-space:nowrap;`;
+  }
+  function badgeStyle(bg) {
+    return `display:inline-block; padding:2px 8px; border-radius:4px;
+      font-size:11px; font-weight:700; background:${bg}; color:#fff;`;
+  }
 
-    const formHTML = `
-      <form id="shipping-form" class="customs-form-wrapper animate-fade-in-scale">
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Carrier Partner</label>
-            <select name="carrier" class="form-select">
-              <option value="DHL Express">DHL Express Cargo</option>
-              <option value="FedEx Aviation">FedEx Priority</option>
-              <option value="India Post EMS">India Post EMS Speed</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Tracking Number</label>
-            <input type="text" name="trackingNumber" class="form-input font-mono" required value="${mockTrack}">
-          </div>
+  // ── LOAD ALL DATA ────────────────────────────────────────
+  async function loadAll() {
+    const [incoming, ready, transit] = await Promise.all([
+      fetchOrders('Shipped to Shashank'),
+      fetchOrders('At Shashank'),
+      fetchOrders('In Transit'),
+    ]);
+
+    document.getElementById('cnt-incoming').textContent = incoming.length;
+    document.getElementById('cnt-ready').textContent    = ready.length;
+    document.getElementById('cnt-transit').textContent  = transit.length;
+
+    renderIncoming(incoming);
+    renderReady(ready);
+    renderTransit(transit);
+  }
+
+  async function fetchOrders(status) {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('status', status)
+      .order('created_at', { ascending: false });
+    if (error) { console.error('fetchOrders', status, error); return []; }
+    return data || [];
+  }
+
+  // ── SECTION 1: INCOMING ──────────────────────────────────
+  function renderIncoming(orders) {
+    const wrap = document.getElementById('incoming-wrap');
+    if (!orders.length) {
+      wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">
+        No pieces currently in transit to you.</p>`;
+      return;
+    }
+
+    let html = `<table style="${tableStyle()}">
+      <thead><tr>
+        <th style="${thStyle()}">Order</th>
+        <th style="${thStyle()}">Client</th>
+        <th style="${thStyle()}">Courier / Tracking</th>
+        <th style="${thStyle()}">Shipped</th>
+        <th style="${thStyle()}">Action</th>
+      </tr></thead><tbody>`;
+
+    orders.forEach((o, i) => {
+      html += `<tr>
+        <td style="${tdStyle(i)}">
+          <div style="font-family:monospace; font-weight:700; color:#d4af37;">${esc(o.id)}</div>
+        </td>
+        <td style="${tdStyle(i)}">
+          <div style="font-weight:600;">${esc(o.client_name || o.clientName || '—')}</div>
+          <div style="font-size:11px; color:#888; margin-top:2px;">${esc(o.title || '')}</div>
+        </td>
+        <td style="${tdStyle(i)}">
+          <div style="font-family:monospace; color:#7ecfff;">${esc(o.domestic_tracking || '—')}</div>
+          <div style="font-size:11px; color:#888;">${esc(o.domestic_courier || '')}</div>
+        </td>
+        <td style="${tdStyle(i)}" nowrap>${fmtDateTime(o.shipped_to_shashank_date)}</td>
+        <td style="${tdStyle(i)}">
+          <button style="${btnStyle('#2d6a4f','#fff')}"
+            onclick="window._pcMarkReceived('${esc(o.id)}')">
+            ✓ Mark Received
+          </button>
+        </td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+
+  window._pcMarkReceived = async function(orderId) {
+    const { error } = await supabase
+      .from('orders')
+      .update({
+        status: 'At Shashank',
+        received_by_shashank_date: new Date().toISOString()
+      })
+      .eq('id', orderId);
+
+    if (error) { toast('Error: ' + error.message, 'error'); return; }
+    toast('Marked as received — order is now At Shashank.');
+    await loadAll();
+  };
+
+  // ── SECTION 2: READY TO SHIP ─────────────────────────────
+  function renderReady(orders) {
+    const wrap = document.getElementById('ready-wrap');
+    if (!orders.length) {
+      wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">
+        No orders fully received and ready to ship.</p>`;
+      return;
+    }
+
+    let html = `<table style="${tableStyle()}">
+      <thead><tr>
+        <th style="${thStyle()}">Order</th>
+        <th style="${thStyle()}">Client</th>
+        <th style="${thStyle()}">Garment</th>
+        <th style="${thStyle()}">Received</th>
+        <th style="${thStyle()}">Action</th>
+      </tr></thead><tbody>`;
+
+    orders.forEach((o, i) => {
+      html += `<tr>
+        <td style="${tdStyle(i)}">
+          <div style="font-family:monospace; font-weight:700; color:#d4af37;">${esc(o.id)}</div>
+        </td>
+        <td style="${tdStyle(i)}">
+          <div style="font-weight:600;">${esc(o.client_name || o.clientName || '—')}</div>
+        </td>
+        <td style="${tdStyle(i)}">
+          <div style="font-size:12px; color:#ccc;">${esc(o.title || '—')}</div>
+        </td>
+        <td style="${tdStyle(i)}" nowrap>${fmtDate(o.received_by_shashank_date)}</td>
+        <td style="${tdStyle(i)}">
+          <button style="${btnStyle('#d4af37')}"
+            onclick="window._pcShipIntl('${esc(o.id)}')">
+            ✈️ Ship International
+          </button>
+        </td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+
+  window._pcShipIntl = function(orderId) {
+    const carrierOptions = [
+      'DHL Express', 'FedEx International Priority',
+      'Australia Post International', 'Aramex', 'UPS Worldwide'
+    ].map(c => `<option value="${c}">${c}</option>`).join('');
+
+    const bodyHTML = `
+      <div style="${rowStyle()}">
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Carrier</label>
+          <select id="f-carrier" style="${fieldStyle()}">${carrierOptions}</select>
         </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Gross weight (kg)</label>
-            <input type="number" name="weight" class="form-input font-mono" required min="0.1" step="0.1" value="2.5">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Box Size (L x W x H cm)</label>
-            <input type="text" name="dimensions" class="form-input font-mono" required value="40 x 30 x 15">
-          </div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Tracking Number</label>
+          <input id="f-tracking" type="text" style="${fieldStyle()}" placeholder="e.g. DHL-12345678" required>
         </div>
-
-        <div style="border-top: 1px solid var(--pc-border); padding-top: var(--sp-3);">
-          <h4 class="text-xs font-semibold text-gold mb-2">Australian Customs &amp; Border Force declaration</h4>
-          <div class="form-group">
-            <label class="form-label">Export HS Code / Tariff Description</label>
-            <input type="text" name="hsDesc" class="form-input" required value="100% Handloom Silk Embroideries (Tariff Code: 5007.20)">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Customs declared value (AUD)</label>
-            <input type="number" name="customsValue" class="form-input font-mono" required value="${o.price}">
-          </div>
+      </div>
+      <div style="${rowStyle()}">
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Shipping Cost (AUD)</label>
+          <input id="f-cost" type="number" step="0.01" min="0" style="${fieldStyle()}" placeholder="0.00" required>
         </div>
-      </form>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Gross Weight (kg)</label>
+          <input id="f-weight" type="number" step="0.1" min="0.1" value="2.5" style="${fieldStyle()}" required>
+        </div>
+      </div>
+      <div style="${rowStyle()}">
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Box Dimensions (L × W × H cm)</label>
+          <input id="f-dims" type="text" style="${fieldStyle()}" placeholder="40 x 30 x 15" value="40 x 30 x 15">
+        </div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Incoterms</label>
+          <select id="f-incoterms" style="${fieldStyle()}">
+            <option value="DAP">DAP — Delivered At Place</option>
+            <option value="FOB">FOB — Free On Board</option>
+            <option value="CIF">CIF — Cost, Insurance, Freight</option>
+          </select>
+        </div>
+      </div>
+      <div style="${sectionHeadStyle()}">Customs Declaration</div>
+      <div style="${rowStyle()}">
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">HS Code</label>
+          <input id="f-hscode" type="text" style="${fieldStyle()}" value="5007.20" placeholder="e.g. 5007.20">
+        </div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Customs Value (AUD)</label>
+          <input id="f-customs-val" type="number" step="0.01" min="0" style="${fieldStyle()}" placeholder="0.00" required>
+        </div>
+      </div>
+      <div style="${fullStyle()}">
+        <label style="${labelStyle()}">Goods Description (for customs)</label>
+        <input id="f-goods-desc" type="text" style="${fieldStyle()}"
+          value="100% Handloom Silk Embroideries — Bridal Garments" placeholder="Plain English description">
+      </div>
+      <div style="${rowStyle()}">
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Country of Origin</label>
+          <input id="f-origin" type="text" style="${fieldStyle()}" value="India">
+        </div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Dispatch Date</label>
+          <input id="f-dispatch-date" type="date" style="${fieldStyle()}"
+            value="${new Date().toISOString().split('T')[0]}">
+        </div>
+      </div>
     `;
 
-    showModal({
-      title: `Prepare Export Cargo — Order: ${o.id}`,
-      content: formHTML,
-      submitText: 'Dispatch & Print Label',
-      onSubmit: async (modalEl) => {
-        const form = Utils.$('#shipping-form', modalEl);
-        const formData = new FormData(form);
+    openModal({
+      title: `Ship International — Order ${orderId}`,
+      bodyHTML,
+      submitLabel: '✈️ Confirm Dispatch',
+      onSubmit: async (box) => {
+        const carrier      = box.querySelector('#f-carrier').value.trim();
+        const tracking     = box.querySelector('#f-tracking').value.trim();
+        const cost         = parseFloat(box.querySelector('#f-cost').value) || 0;
+        const weight       = box.querySelector('#f-weight').value.trim();
+        const dims         = box.querySelector('#f-dims').value.trim();
+        const incoterms    = box.querySelector('#f-incoterms').value;
+        const hsCode       = box.querySelector('#f-hscode').value.trim();
+        const customsVal   = parseFloat(box.querySelector('#f-customs-val').value) || 0;
+        const goodsDesc    = box.querySelector('#f-goods-desc').value.trim();
+        const origin       = box.querySelector('#f-origin').value.trim();
+        const dispatchDate = box.querySelector('#f-dispatch-date').value;
 
-        const carrier = formData.get('carrier');
-        const tracker = formData.get('trackingNumber');
+        if (!tracking) { toast('Tracking number is required.', 'error'); return false; }
+        if (!cost)     { toast('Shipping cost is required.', 'error'); return false; }
+        if (!customsVal) { toast('Customs value is required.', 'error'); return false; }
 
-        await Store.update(Store.COLLECTIONS.ORDERS, o.id, {
-          status: 'In Transit',
-          carrier: carrier,
-          trackingNumber: tracker,
-          shippingWeight: formData.get('weight') + ' kg',
-          shippingDims: formData.get('dimensions'),
-          customsDecl: formData.get('hsDesc'),
-          customsValue: parseFloat(formData.get('customsValue'))
-        });
+        const { error } = await supabase
+          .from('orders')
+          .update({
+            status: 'In Transit',
+            carrier,
+            tracking_number: tracking,
+            shipping_cost: cost,
+            shipping_weight: weight + ' kg',
+            shipping_dims: dims,
+            incoterms,
+            hs_code: hsCode,
+            customs_value: customsVal,
+            customs_description: goodsDesc,
+            country_of_origin: origin,
+            dispatched_date: dispatchDate ? new Date(dispatchDate).toISOString() : new Date().toISOString()
+          })
+          .eq('id', orderId);
 
-        Utils.showToast(`Cargo dispatched. Tracking Code: ${tracker}.`);
-        loadShipments();
-        setTimeout(() => printAirwayBill(o.id), 250);
+        if (error) { toast('Error: ' + error.message, 'error'); return false; }
+        toast(`Dispatched! Tracking: ${tracking}`);
+        await loadAll();
         return true;
       }
     });
   };
 
-  function printAirwayBill(orderId) {
-    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
-    if (!o) return;
+  // ── SECTION 3: IN TRANSIT ────────────────────────────────
+  function renderTransit(orders) {
+    const wrap = document.getElementById('transit-wrap');
+    if (!orders.length) {
+      wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">
+        No active shipments in transit to Australia.</p>`;
+      return;
+    }
 
-    const labelHTML = `
-      <div class="shipping-label-preview animate-fade-in" style="background:#fff; color:#000; border:3px solid #000; font-family:monospace; padding:15px; width:340px; margin:0 auto;">
-        <div style="text-align:center; font-weight:bold; font-size:16px; border-bottom:2px dashed #000; padding-bottom:8px; margin-bottom:8px;">
-          ${(o.carrier || 'DHL EXPRESS').toUpperCase()} AIR WAYBILL
-        </div>
-        <div>
-          <strong>FROM:</strong> Pooja's Couture India Workshop<br>
-          Chandi Chowk Bazaar, New Delhi, India 110006<br>
-          <br>
-          <strong>TO:</strong> ${(o.clientName || '').toUpperCase()}<br>
-          Studio 4, Double Bay, Sydney NSW, Australia 2028<br>
-          <br>
-          <strong>DESC:</strong> ${o.customsDecl || ''}<br>
-          <strong>WEIGHT:</strong> ${o.shippingWeight || ''} | <strong>BOX:</strong> ${o.shippingDims || ''}<br>
-          <strong>VALUE:</strong> $${(o.customsValue || 0).toLocaleString()} AUD
-        </div>
-        <div style="border-top:2px dashed #000; margin-top:8px; padding-top:8px; text-align:center;">
-          <div style="font-weight:bold; font-size:14px; margin-bottom:4px;">BARCODE TRACKING</div>
-          <div style="background:#000; color:#fff; padding:6px; letter-spacing:4px; font-weight:bold;">${o.trackingNumber || ''}</div>
-        </div>
-      </div>
-    `;
+    let html = `<table style="${tableStyle()}">
+      <thead><tr>
+        <th style="${thStyle()}">Tracking</th>
+        <th style="${thStyle()}">Carrier</th>
+        <th style="${thStyle()}">Client / Order</th>
+        <th style="${thStyle()}">Shipping Cost</th>
+        <th style="${thStyle()}">Dispatched</th>
+        <th style="${thStyle()}">Action</th>
+      </tr></thead><tbody>`;
 
-    showModal({
-      title: 'Airway Cargo Print Label Advice',
-      content: labelHTML,
-      submitText: 'Print Barcode Label',
-      onSubmit: () => {
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-          <html>
-            <head><title>Print Airway Bill</title></head>
-            <body>
-              ${labelHTML}
-              <script>window.onload = function() { window.print(); window.close(); }<\/script>
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-        return true;
-      }
+    orders.forEach((o, i) => {
+      const cost = o.shipping_cost
+        ? `AUD $${parseFloat(o.shipping_cost).toFixed(2)}`
+        : '—';
+      html += `<tr>
+        <td style="${tdStyle(i)}">
+          <div style="font-family:monospace; color:#7ecfff;">${esc(o.tracking_number || o.trackingNumber || '—')}</div>
+        </td>
+        <td style="${tdStyle(i)}">
+          <span style="${badgeStyle('#1a4a7a')}">${esc(o.carrier || '—')}</span>
+        </td>
+        <td style="${tdStyle(i)}">
+          <div style="font-weight:600;">${esc(o.client_name || o.clientName || '—')}</div>
+          <div style="font-size:11px; color:#888; margin-top:2px; font-family:monospace;">${esc(o.id)}</div>
+        </td>
+        <td style="${tdStyle(i)}" nowrap>${cost}</td>
+        <td style="${tdStyle(i)}" nowrap>${fmtDate(o.dispatched_date)}</td>
+        <td style="${tdStyle(i)}">
+          <button style="${btnStyle('#2d6a4f','#fff')}"
+            onclick="window._pcMarkDelivered('${esc(o.id)}')">
+            ✓ Mark Delivered
+          </button>
+        </td>
+      </tr>`;
     });
+
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
   }
 
-  // ---------- Mark Delivered ----------
-  window.markDelivered = async function(orderId) {
-    await Store.update(Store.COLLECTIONS.ORDERS, orderId, { status: 'Delivered' });
-    Utils.showToast('Outfits delivered safely to client.');
-    loadShipments();
+  window._pcMarkDelivered = async function(orderId) {
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: 'Delivered' })
+      .eq('id', orderId);
+
+    if (error) { toast('Error: ' + error.message, 'error'); return; }
+    toast('Delivered — order marked complete.');
+    await loadAll();
   };
 
-  // ---------- Reusable Modal Drawer ----------
-  function showModal({ title, content, submitText = 'Submit', onSubmit }) {
-    closeModal();
-    const overlay = Utils.createElement('div', { className: 'modal-overlay active' });
-    overlay.innerHTML = `
-      <div class="modal">
-        <div class="modal-header">
-          <div class="modal-title">${Utils.sanitizeHTML(title)}</div>
-          <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
-        </div>
-        <div class="modal-body">${content}</div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
-          <button class="btn btn-primary" id="modal-submit-btn">${submitText}</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    Utils.$('#modal-submit-btn', overlay).addEventListener('click', async () => {
-      const result = await onSubmit(overlay);
-      if (result !== false) overlay.remove();
-    });
-  }
-
-  function closeModal() {
-    const exist = Utils.$('.modal-overlay');
-    if (exist) exist.remove();
-  }
 });
