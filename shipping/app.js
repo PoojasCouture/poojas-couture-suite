@@ -183,6 +183,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const content = workspace.querySelector('.workspace-content');
   content.innerHTML = `
+    <div style="margin-bottom:20px;">
+      <h1 style="font-size:22px; font-weight:800; color:#d4af37; margin:0;">
+        Welcome, ${esc(currentUser.name || 'Shashank')}
+      </h1>
+      <p style="font-size:13px; color:#888; margin:4px 0 0;">Logistics Workstation · India Hub</p>
+    </div>
+    <section style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
+    
+   content.innerHTML = `
     <section style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
       <div style="${metricBoxStyle('#c0392b')}">
         <div id="cnt-incoming" style="font-size:32px; font-weight:800;">0</div>
