@@ -1,8 +1,10 @@
 /* ============================================================
    POOJA'S COUTURE — Shashank Logistics Portal (Stage 2d)
    Built against the Store API (NOT the raw Supabase client).
-   Self-diagnosing build: writes progress to the gate message so a
-   silent hang shows WHERE it stopped, on the page itself.
+   - Reads: Store.getAll('orders') — synchronous, from cache.
+   - Writes: Store.update('orders', id, {...}) — camelCase keys.
+   - Field names are camelCase (Store translates to snake_case).
+   Inline modals only — no portal CSS modal classes used.
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -12,20 +14,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const gateMessage = document.querySelector('#gate-message');
   const gateActions = document.querySelector('#gate-actions');
   const workspace   = document.querySelector('#shipping-workspace');
-
-  // Visible step tracer — shows on the gate screen itself.
-  function step(label) {
-    console.log('STEP:', label);
-    if (gateMessage) gateMessage.textContent = 'Loading: ' + label;
-  }
-
-  // Catch ANY error and show it on the page, not just the console.
-  window.addEventListener('error', (e) => {
-    if (gateMessage) gateMessage.textContent = 'ERROR: ' + e.message + ' @ ' + (e.lineno || '?');
-    if (gateActions) gateActions.classList.remove('d-none');
-  });
-
-  step('script started');
 
   // ── helpers ──────────────────────────────────────────────
   function esc(str) {
@@ -59,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     gateActions.classList.toggle('d-none', !allowLogin);
   }
 
-  // ── modal (inline) ───────────────────────────────────────
+  // ── modal (inline styled — no portal CSS dependency) ─────
   function openModal({ title, bodyHTML, submitLabel='Save', onSubmit }) {
     closeModal();
     const overlay = document.createElement('div');
@@ -94,6 +82,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (ok !== false) closeModal();
     };
     overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+    // Focus the first input so required fields are obviously editable.
+    const firstInput = overlay.querySelector('input, select');
+    if (firstInput) firstInput.focus();
   }
   function closeModal() {
     const el = document.getElementById('pc-modal-overlay');
@@ -116,27 +107,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   function btnStyle(bg, color='#1a1a2e') { return `padding:6px 14px; border-radius:6px; border:none; background:${bg}; color:${color}; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;`; }
   function badgeStyle(bg) { return `display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; background:${bg}; color:#fff;`; }
 
-  // ── bootstrap ────────────────────────────────────────────
-  step('connecting to database');
+  // ── session bootstrap ────────────────────────────────────
   try {
     await Store.ready();
   } catch (e) {
-    showGate('Could not connect to the database: ' + e.message, true);
+    console.error('Store.ready failed:', e);
+    showGate('Could not connect to the database. Check your connection.', true);
     return;
   }
-  step('database ready');
 
   currentUser = Store.getCurrentUser();
-  step('getCurrentUser: ' + (currentUser ? currentUser.name : 'null'));
   if (!currentUser && typeof Store.reconcileUser === 'function') {
-    step('reconciling session...');
-    try {
-      currentUser = await Store.reconcileUser();
-    } catch (e) {
-      showGate('Session check failed: ' + e.message, true);
-      return;
-    }
-    step('reconciled: ' + (currentUser ? currentUser.name : 'null'));
+    try { currentUser = await Store.reconcileUser(); } catch (e) { currentUser = null; }
   }
 
   if (!currentUser) {
@@ -145,14 +127,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const appRole = (currentUser.appRole || currentUser.app_role || '').toLowerCase();
-  step('role check: ' + appRole);
   if (!['logistics','operations','admin'].includes(appRole)) {
     showGate('This portal is for logistics (Shashank) only. Your account does not have access.', true);
     return;
   }
 
   // ── render shell ─────────────────────────────────────────
-  step('rendering workspace');
   gateScreen.classList.remove('active');
   workspace.classList.remove('d-none');
 
@@ -205,11 +185,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  step('loading orders');
   loadAll();
-  step('done');
 
-  // ── load ─────────────────────────────────────────────────
+  // ── load (sync reads from cache) ─────────────────────────
   function loadAll() {
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
     const incoming = orders.filter(o => o.status === 'Shipped to Shashank');
@@ -223,6 +201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderTransit(transit);
   }
 
+  // ── section 1: incoming ──────────────────────────────────
   function renderIncoming(orders) {
     const wrap = document.getElementById('incoming-wrap');
     if (!orders.length) { wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No pieces currently in transit to you.</p>`; return; }
@@ -252,6 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadAll();
   };
 
+  // ── section 2: ready to ship ─────────────────────────────
   function renderReady(orders) {
     const wrap = document.getElementById('ready-wrap');
     if (!orders.length) { wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No orders received and ready to ship.</p>`; return; }
@@ -279,10 +259,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const bodyHTML = `
       <div style="${rowStyle()}">
         <div style="${halfStyle()}"><label style="${labelStyle()}">Carrier</label><select id="f-carrier" style="${fieldStyle()}">${carrierOptions}</select></div>
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Tracking Number</label><input id="f-tracking" type="text" style="${fieldStyle()}" placeholder="e.g. DHL-12345678"></div>
+        <div style="${halfStyle()}"><label style="${labelStyle()}">Tracking Number <span style="color:#e06;">*</span></label><input id="f-tracking" type="text" style="${fieldStyle()}" placeholder="e.g. DHL-12345678"></div>
       </div>
       <div style="${rowStyle()}">
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Shipping Cost (AUD)</label><input id="f-cost" type="number" step="0.01" min="0" style="${fieldStyle()}" placeholder="0.00"></div>
+        <div style="${halfStyle()}"><label style="${labelStyle()}">Shipping Cost (AUD) <span style="color:#e06;">*</span></label><input id="f-cost" type="number" step="0.01" min="0" style="${fieldStyle()}" placeholder="0.00"></div>
         <div style="${halfStyle()}"><label style="${labelStyle()}">Gross Weight (kg)</label><input id="f-weight" type="number" step="0.1" min="0.1" value="2.5" style="${fieldStyle()}"></div>
       </div>
       <div style="${rowStyle()}">
@@ -292,7 +272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div style="${sectionHeadStyle()}">Customs Declaration</div>
       <div style="${rowStyle()}">
         <div style="${halfStyle()}"><label style="${labelStyle()}">HS Code</label><input id="f-hscode" type="text" style="${fieldStyle()}" value="5007.20"></div>
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Customs Value (AUD)</label><input id="f-customs-val" type="number" step="0.01" min="0" style="${fieldStyle()}" value="${esc(defaultCustoms)}" placeholder="0.00"></div>
+        <div style="${halfStyle()}"><label style="${labelStyle()}">Customs Value (AUD) <span style="color:#e06;">*</span></label><input id="f-customs-val" type="number" step="0.01" min="0" style="${fieldStyle()}" value="${esc(defaultCustoms)}" placeholder="0.00"></div>
       </div>
       <div style="${fullStyle()}"><label style="${labelStyle()}">Goods Description (for customs)</label><input id="f-goods-desc" type="text" style="${fieldStyle()}" value="100% Handloom Silk Embroideries — Bridal Garments"></div>
       <div style="${rowStyle()}">
@@ -329,6 +309,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
+  // ── section 3: in transit ────────────────────────────────
   function renderTransit(orders) {
     const wrap = document.getElementById('transit-wrap');
     if (!orders.length) { wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No active shipments in transit to Australia.</p>`; return; }
