@@ -147,19 +147,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     showGate('Could not connect to the database. Check your connection.', true);
     return;
   }
-
+console.log('LOG 1: ready done');
   // Make sure the user is resolved from the live Supabase session
   // (works when arriving from the main app's welcome screen).
   currentUser = Store.getCurrentUser();
-  if (!currentUser) {
+  console.log('LOG 2: getCurrentUser =', currentUser);
+   if (!currentUser) {
     currentUser = await Store.reconcileUser();
+   console.log('LOG 3: reconcileUser =', currentUser);
   }
 
   if (!currentUser) {
     showGate('You are not signed in. Please log in through the main app first.', true);
     return;
   }
-
+ console.log('LOG 4: past auth, role =', (currentUser.appRole || currentUser.app_role));
   const appRole = (currentUser.appRole || currentUser.app_role || '').toLowerCase();
   if (!['logistics', 'operations', 'admin'].includes(appRole)) {
     showGate('This portal is for logistics (Shashank) only. Your account does not have access.', true);
