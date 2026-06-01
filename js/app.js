@@ -685,7 +685,13 @@ const App = (() => {
       try { user = await Store.reconcileUser(); } catch (e) { user = null; }
     }
 
-    if (user) {
+if (user) {
+      const role = (user.appRole || user.app_role || '').toLowerCase();
+      // Logistics & tailor have no use for the business dashboard — send them
+      // straight into their workstation page. replace() keeps this launchpad
+      // out of back-history so the back button can't bounce them here.
+      if (role === 'tailor')    { window.location.replace('tailor/index.html');   return; }
+      if (role === 'logistics') { window.location.replace('shipping/index.html'); return; }
       loginOverlay.classList.remove('active');
       applySidebarPermissions(user);
       navigate(landingRouteFor(user));
