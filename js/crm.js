@@ -882,7 +882,7 @@ poojascouture.com.au`
           </div>
         </form>`,
       submitText: isEdit ? 'Save Order' : 'Create Order',
-      onSubmit: (modalEl) => {
+      onSubmit: asynnc (modalEl) => {
         const form = Utils.$('#order-form', modalEl);
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
@@ -957,20 +957,36 @@ poojascouture.com.au`
 
       let lastClientNotes = notesField.value; // baseline (blank for new orders)
 
-      clientSelect.addEventListener('change', () => {
+clientSelect.addEventListener('change', () => {
         const c = clientSelect.value
           ? Store.getById(Store.COLLECTIONS.CLIENTS, clientSelect.value)
           : null;
         const clientNotes = (c && c.notes) ? c.notes : '';
-
         const boxIsEmpty = notesField.value.trim() === '';
         const boxUnchangedFromLastClient = notesField.value === lastClientNotes;
-
         if (boxIsEmpty || boxUnchangedFromLastClient) {
           notesField.value = clientNotes;
         }
         lastClientNotes = clientNotes;
       });
+
+      // deposit percentage hint
+      const priceField = document.querySelector('#order-form [name="price"]');
+      const depField   = document.querySelector('#order-form [name="depositPaid"]');
+      const hint       = document.getElementById('deposit-pct-hint');
+      if (priceField && depField && hint) {
+        const updatePct = () => {
+          const p = parseFloat(priceField.value) || 0;
+          const d = parseFloat(depField.value) || 0;
+          if (p > 0 && d > 0) {
+            hint.textContent = `${Math.round((d / p) * 100)}% of total. Balance due: ${Utils.formatCurrency(p - d)}.`;
+          } else {
+            hint.textContent = 'Optional. Leave blank if no deposit taken yet.';
+          }
+        };
+        priceField.addEventListener('input', updatePct);
+        depField.addEventListener('input', updatePct);
+      }
     }, 50);
   }
   function showOrderDetails(orderId) {
@@ -1014,22 +1030,7 @@ poojascouture.com.au`
   }
 
   function editOrder(id) { App.closeModal(); setTimeout(() => showOrderModal(id), 200); }
-const priceField = document.querySelector('#order-form [name="price"]');
-      const depField   = document.querySelector('#order-form [name="depositPaid"]');
-      const hint       = document.getElementById('deposit-pct-hint');
-      if (priceField && depField && hint) {
-        const updatePct = () => {
-          const p = parseFloat(priceField.value) || 0;
-          const d = parseFloat(depField.value) || 0;
-          if (p > 0 && d > 0) {
-            hint.textContent = `${Math.round((d / p) * 100)}% of total. Balance due: ${Utils.formatCurrency(p - d)}.`;
-          } else {
-            hint.textContent = 'Optional. Leave blank if no deposit taken yet.';
-          }
-        };
-        priceField.addEventListener('input', updatePct);
-        depField.addEventListener('input', updatePct);
-      }
+
   function deleteOrder(id) {
     App.showConfirm({
       title: 'Delete Order', text: 'Permanently remove this order?', confirmText: 'Delete',
