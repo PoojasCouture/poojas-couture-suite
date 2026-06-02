@@ -882,7 +882,7 @@ poojascouture.com.au`
           </div>
         </form>`,
       submitText: isEdit ? 'Save Order' : 'Create Order',
-      onSubmit: asynnc (modalEl) => {
+      onSubmit: async (modalEl) => {
         const form = Utils.$('#order-form', modalEl);
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
