@@ -854,6 +854,16 @@ poojascouture.com.au`
               <input type="date" name="deadline" class="form-input" required value="${order?order.deadline:''}">
             </div>
           </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Deposit Paid Now (AUD)</label>
+              <input type="number" name="depositPaid" class="form-input" min="0" step="0.01" placeholder="0.00" value="">
+              <div class="text-xs text-muted mt-1" id="deposit-pct-hint">Optional. Leave blank if no deposit taken yet.</div>
+            </div>
+            <div class="form-group">
+              <!-- spacer to keep layout aligned -->
+            </div>
+          </div>
           <div class="form-group">
             <label class="form-label">Status</label>
             <select name="status" class="form-select">
@@ -888,20 +898,49 @@ poojascouture.com.au`
           Store.update(Store.COLLECTIONS.ORDERS, orderId, orderData);
           Utils.showToast('Order updated.');
         } else {
-          Store.create(Store.COLLECTIONS.ORDERS, orderData);
-          const subtotal = Math.round((price/2)/1.1*100)/100;
-          const gst = Math.round((price/2-subtotal)*100)/100;
-          Store.create(Store.COLLECTIONS.INVOICES, {
+          const createdOrder = await Store.create(Store.COLLECTIONS.ORDERS, orderData);
+          const depositPaid = parseFloat(fd.get('depositPaid')) || 0;
+
+          // One invoice for the FULL order total. GST is included once
+          // (price is GST-inclusive, so GST = total / 11). The deposit is
+          // recorded as amount paid against this total, not taxed separately.
+          const gstTotal = Math.round((price / 11) * 100) / 100;
+          const subtotal = Math.round((price - gstTotal) * 100) / 100;
+          const balance  = Math.round((price - depositPaid) * 100) / 100;
+
+          let invStatus = 'Draft';
+          if (depositPaid >= price && price > 0) invStatus = 'Paid';
+          else if (depositPaid > 0)              invStatus = 'Partially Paid';
+
+          await Store.create(Store.COLLECTIONS.INVOICES, {
+            orderId: createdOrder ? createdOrder.id : null,
             clientId: fd.get('clientId'),
-            clientName: selectedClient?selectedClient.name:'Unknown',
-            invoiceNumber: 'INV-'+new Date().getFullYear()+'-'+Utils.randomBetween(100,999),
+            clientName: selectedClient ? selectedClient.name : 'Unknown',
+            invoiceNumber: 'INV-' + new Date().getFullYear() + '-' + Utils.randomBetween(100, 999),
             issueDate: new Date().toISOString().split('T')[0],
-            dueDate: new Date(Date.now()+14*24*60*60*1000).toISOString().split('T')[0],
-            subtotal, gstTotal: gst, total: Math.round((price/2)*100)/100,
-            status: 'Draft', notes: `50% deposit for: ${orderData.title}`,
-            items: [{ description: `${orderData.title} (Deposit)`, quantity:1, unitPrice:subtotal, gst, amount:Math.round((price/2)*100)/100 }]
+            dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            subtotal: subtotal,
+            gstTotal: gstTotal,
+            total: Math.round(price * 100) / 100,
+            amountPaid: depositPaid,
+            status: invStatus,
+            notes: depositPaid > 0
+              ? `Deposit of ${Utils.formatCurrency(depositPaid)} received. Balance due: ${Utils.formatCurrency(balance)}.`
+              : `Full invoice for: ${orderData.title}. No deposit recorded yet.`,
+            items: [{
+              description: orderData.title,
+              quantity: 1,
+              unitPrice: subtotal,
+              gst: gstTotal,
+              amount: Math.round(price * 100) / 100
+            }]
           });
-          Utils.showToast('Order created. Draft deposit invoice generated.', 'info');
+          Utils.showToast(
+            depositPaid > 0
+              ? `Order created. Invoice generated — deposit ${Utils.formatCurrency(depositPaid)} recorded.`
+              : 'Order created. Full invoice generated (no deposit yet).',
+            'info'
+          );
         }
         renderSubTab();
         return true;
@@ -975,7 +1014,22 @@ poojascouture.com.au`
   }
 
   function editOrder(id) { App.closeModal(); setTimeout(() => showOrderModal(id), 200); }
-
+const priceField = document.querySelector('#order-form [name="price"]');
+      const depField   = document.querySelector('#order-form [name="depositPaid"]');
+      const hint       = document.getElementById('deposit-pct-hint');
+      if (priceField && depField && hint) {
+        const updatePct = () => {
+          const p = parseFloat(priceField.value) || 0;
+          const d = parseFloat(depField.value) || 0;
+          if (p > 0 && d > 0) {
+            hint.textContent = `${Math.round((d / p) * 100)}% of total. Balance due: ${Utils.formatCurrency(p - d)}.`;
+          } else {
+            hint.textContent = 'Optional. Leave blank if no deposit taken yet.';
+          }
+        };
+        priceField.addEventListener('input', updatePct);
+        depField.addEventListener('input', updatePct);
+      }
   function deleteOrder(id) {
     App.showConfirm({
       title: 'Delete Order', text: 'Permanently remove this order?', confirmText: 'Delete',
