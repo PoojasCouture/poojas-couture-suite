@@ -160,7 +160,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     filtered.forEach(order => {
       const card = Utils.createElement('div', { className: 'task-card' });
-      const inrWage = Math.round(order.price * 0.05 * 55);
 
       let actionButton = '';
       if (activeFilter === 'pending') {
@@ -176,15 +175,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       card.innerHTML = `
-        <div class="task-header">
+      <div class="task-header">
           <div>
             <span class="badge badge-gold text-xs">${order.status}</span>
             <h4 class="task-title mt-1">${Utils.sanitizeHTML(order.title)}</h4>
             <div class="text-xs text-muted mt-1">Client: ${Utils.sanitizeHTML(order.clientName)}</div>
-          </div>
-          <div class="text-right">
-            <div class="text-xs text-gold font-semibold">₹${inrWage.toLocaleString('en-IN')}</div>
-            <div class="text-muted" style="font-size: 9px;">Piece Payout</div>
           </div>
         </div>
         <div class="measurement-badge mt-2">
