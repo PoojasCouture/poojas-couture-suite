@@ -400,10 +400,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     const sorted = parcels.slice().sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0));
-    let html = `<table style="${tableStyle()}"><thead><tr>
+let html = `<table style="${tableStyle()}"><thead><tr>
       <th style="${thStyle()}">Parcel</th><th style="${thStyle()}">Source</th>
       <th style="${thStyle()}">Courier / Tracking</th><th style="${thStyle()}">Items</th>
-      <th style="${thStyle()}">Shipping</th><th style="${thStyle()}">Per-item Share</th>
       <th style="${thStyle()}">Status</th><th style="${thStyle()}">Actions</th></tr></thead><tbody>`;
     sorted.forEach((p, i) => {
       const statusBadge = p.status === 'Received'
@@ -416,8 +415,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="${tdStyle(i)}">${esc(p.sourceCity || '—')}</td>
         <td style="${tdStyle(i)}"><div style="font-family:monospace; color:#7ecfff;">${esc(p.trackingNo || '—')}</div><div style="font-size:11px; color:#888;">${esc(p.courier || '')}</div></td>
         <td style="${tdStyle(i)}" nowrap>${p.totalItems || 0}</td>
-        <td style="${tdStyle(i)}" nowrap>${money(p.shippingCost)}</td>
-        <td style="${tdStyle(i)}" nowrap>${money(p.perItemCost)}</td>
         <td style="${tdStyle(i)}"><span style="${statusBadge}">${esc(p.status || '—')}</span></td>
         <td style="${tdStyle(i)}">
           <button style="${btnStyle('#444','#fff')}" onclick="window._pcViewParcel('${esc(p.id)}')">View Items</button>
@@ -436,12 +433,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       toast('No products found. The product catalogue may be unavailable for this account.', 'error');
       return;
     }
-    const productOptions = products
+const productOptions = products
       .slice()
       .sort((a,b) => (a.title||'').localeCompare(b.title||''))
-      .map(p => `<option value="${esc(p.id)}" data-cost="${p.costPrice || 0}">${esc(p.sku || '')} — ${esc(p.title || 'Unnamed')} (${money(p.costPrice)})</option>`)
+      .map(p => `<option value="${esc(p.id)}" data-cost="${p.costPrice || 0}">${esc(p.sku || '')} — ${esc(p.title || 'Unnamed')}</option>`)
       .join('');
-
     const cityOptions = SOURCE_CITIES.map(c => `<option value="${c}">${c}</option>`).join('');
 
     const bodyHTML = `
@@ -459,7 +455,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:12px; flex-wrap:wrap;">
         <div style="flex:2; min-width:160px;"><label style="${labelStyle()}">Product</label><select id="sp-prod" style="${fieldStyle()}">${productOptions}</select></div>
         <div style="width:70px;"><label style="${labelStyle()}">Qty</label><input id="sp-qty" type="number" min="1" step="1" value="1" style="${fieldStyle()}"></div>
-        <div style="width:110px;"><label style="${labelStyle()}">Unit Cost</label><input id="sp-unitcost" type="number" min="0" step="0.01" style="${fieldStyle()}"></div>
+        <input id="sp-unitcost" type="hidden">
         <button id="sp-add" type="button" style="${btnStyle('#d4af37')}">+ Add</button>
       </div>
       <div id="sp-items"></div>
@@ -494,14 +490,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (!items.length) {
             wrap.innerHTML = `<p style="color:#555; font-size:12px; padding:8px 0;">No items added yet.</p>`;
           } else {
-            let h = `<table style="${tableStyle()}"><thead><tr>
+         let h = `<table style="${tableStyle()}"><thead><tr>
               <th style="${thStyle()}">Product</th><th style="${thStyle()}">Qty</th>
-              <th style="${thStyle()}">Unit Cost</th><th style="${thStyle()}"></th></tr></thead><tbody>`;
+              <th style="${thStyle()}"></th></tr></thead><tbody>`;
             items.forEach((it, idx) => {
               h += `<tr>
                 <td style="${tdStyle(idx)}">${esc(it.label)}</td>
                 <td style="${tdStyle(idx)}">${it.quantity}</td>
-                <td style="${tdStyle(idx)}">${money(it.unitCost)}</td>
                 <td style="${tdStyle(idx)}"><button type="button" data-rm="${idx}" style="${btnStyle('#c0392b','#fff')}">Remove</button></td>
               </tr>`;
             });
@@ -513,13 +508,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         };
 
-        const renderPreview = () => {
+         const renderPreview = () => {
           const totalItems = items.reduce((s, it) => s + it.quantity, 0);
-          const shipping = parseFloat(shipIn.value) || 0;
-          const perItem = totalItems > 0 ? shipping / totalItems : 0;
           box.querySelector('#sp-preview').innerHTML =
-            `Total items: <strong style="color:#d4af37;">${totalItems}</strong> &nbsp;·&nbsp; ` +
-            `Shipping spread per item: <strong style="color:#d4af37;">${money(perItem)}</strong>`;
+            `Total items: <strong style="color:#d4af37;">${totalItems}</strong>`;
         };
 
         addBtn.addEventListener('click', () => {
@@ -596,14 +588,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       bodyHTML = `<p style="color:#888; font-size:13px;">No items recorded for this parcel.</p>`;
     } else {
       bodyHTML = `<table style="${tableStyle()}"><thead><tr>
-        <th style="${thStyle()}">Item</th><th style="${thStyle()}">Qty</th>
-        <th style="${thStyle()}">Unit Cost</th><th style="${thStyle()}">Landed Cost (each)</th></tr></thead><tbody>`;
+        <th style="${thStyle()}">Item</th><th style="${thStyle()}">Qty</th></tr></thead><tbody>`;
       items.forEach((it, i) => {
         bodyHTML += `<tr>
           <td style="${tdStyle(i)}">${esc(it.description || it.productId)}</td>
           <td style="${tdStyle(i)}">${it.quantity}</td>
-          <td style="${tdStyle(i)}">${money(it.unitCost)}</td>
-          <td style="${tdStyle(i)}"><strong style="color:#d4af37;">${money(it.landedCost)}</strong></td>
         </tr>`;
       });
       bodyHTML += '</tbody></table>';
