@@ -244,6 +244,7 @@ const Accounting = (() => {
               <option value="all">All Invoices</option>
               <option value="Draft">Drafts</option>
               <option value="Sent">Sent</option>
+              <option value="Partially Paid">Partially Paid</option>
               <option value="Paid">Paid</option>
               <option value="Overdue">Overdue</option>
             </select>
@@ -260,6 +261,8 @@ const Accounting = (() => {
                 <th>Due Date</th>
                 <th>GST Included</th>
                 <th>Total (inc GST)</th>
+                <th>Paid</th>
+                <th>Balance</th>
                 <th>Status</th>
                 <th style="width: 120px; text-align: right;">Action</th>
               </tr>
@@ -289,11 +292,25 @@ const Accounting = (() => {
       tbody.innerHTML = '';
 
       if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-muted">No invoices found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center p-8 text-muted">No invoices found.</td></tr>`;
         return;
       }
 
-      filtered.forEach(i => {
+filtered.forEach(i => {
+        // Paid amount: use recorded value; for legacy 'Paid' invoices with no
+        // recorded payment, treat as fully paid so the balance doesn't lie.
+        const paid = (i.amountPaid != null && i.amountPaid !== '')
+          ? i.amountPaid
+          : (i.status === 'Paid' ? i.total : 0);
+        const balance = Math.round((i.total - paid) * 100) / 100;
+
+        const badgeClass =
+          i.status === 'Paid' ? 'badge-success'
+          : i.status === 'Partially Paid' ? 'badge-warning'
+          : i.status === 'Sent' ? 'badge-info'
+          : i.status === 'Overdue' ? 'badge-danger'
+          : 'badge-muted';
+
         const tr = Utils.createElement('tr');
         tr.innerHTML = `
           <td class="font-mono font-semibold">${i.invoiceNumber}</td>
@@ -302,23 +319,21 @@ const Accounting = (() => {
           <td class="font-mono">${Utils.formatDate(i.dueDate)}</td>
           <td class="font-mono">${Utils.formatCurrency(i.gstTotal)}</td>
           <td class="font-mono font-bold text-gold">${Utils.formatCurrency(i.total)}</td>
+          <td class="font-mono text-success">${Utils.formatCurrency(paid)}</td>
+          <td class="font-mono ${balance > 0 ? 'text-danger font-semibold' : 'text-muted'}">${Utils.formatCurrency(balance)}</td>
           <td>
-            <span class="badge ${i.status === 'Paid' ? 'badge-success' : i.status === 'Sent' ? 'badge-info' : i.status === 'Overdue' ? 'badge-danger' : 'badge-muted'}">
-              ${i.status}
-            </span>
+            <span class="badge ${badgeClass}">${i.status}</span>
           </td>
           <td>
             <div class="table-actions justify-end">
               <button class="btn btn-icon btn-ghost sm" title="View & Print Invoice" onclick="Accounting.viewInvoicePreview('${i.id}')">📄</button>
-              ${i.status !== 'Paid' ? `<button class="btn btn-icon btn-ghost sm text-success" title="Mark as Paid" onclick="Accounting.markInvoicePaid('${i.id}')">✓</button>` : ''}
+              ${i.status !== 'Paid' ? `<button class="btn btn-icon btn-ghost sm text-success" title="Mark Fully Paid" onclick="Accounting.markInvoicePaid('${i.id}')">✓</button>` : ''}
               <button class="btn btn-icon btn-ghost sm text-danger" title="Delete" onclick="Accounting.deleteInvoice('${i.id}')">🗑️</button>
             </div>
           </td>
         `;
         tbody.appendChild(tr);
       });
-    };
-
     statusFilter.addEventListener('change', refreshTable);
     refreshTable();
   }
@@ -534,8 +549,16 @@ const Accounting = (() => {
               <span style="font-family: monospace;">${Utils.formatCurrency(inv.gstTotal)}</span>
             </div>
             <div class="d-flex justify-between" style="padding: 8px 0; font-weight: bold; font-size: 15px; color: #ECB676;">
-              <span>Total Amount Due:</span>
+              <span>Total (inc GST):</span>
               <span style="font-family: monospace;">${Utils.formatCurrency(inv.total)}</span>
+            </div>
+            <div class="d-flex justify-between" style="padding: 4px 0; color: #10B981;">
+              <span>Amount Paid:</span>
+              <span style="font-family: monospace;">${Utils.formatCurrency((inv.amountPaid != null && inv.amountPaid !== '') ? inv.amountPaid : (inv.status === 'Paid' ? inv.total : 0))}</span>
+            </div>
+            <div class="d-flex justify-between" style="padding: 8px 0; font-weight: bold; font-size: 15px; border-top: 1px solid #eee; color: #111;">
+              <span>Balance Due:</span>
+              <span style="font-family: monospace;">${Utils.formatCurrency(Math.round((inv.total - ((inv.amountPaid != null && inv.amountPaid !== '') ? inv.amountPaid : (inv.status === 'Paid' ? inv.total : 0))) * 100) / 100)}</span>
             </div>
           </div>
         </div>
@@ -578,9 +601,11 @@ const Accounting = (() => {
     });
   }
 
-  function markInvoicePaid(id) {
-    Store.update(Store.COLLECTIONS.INVOICES, id, { status: 'Paid' });
-    Utils.showToast('Invoice marked as Paid.');
+   function markInvoicePaid(id) {
+    const inv = Store.getById(Store.COLLECTIONS.INVOICES, id);
+    if (!inv) return;
+    Store.update(Store.COLLECTIONS.INVOICES, id, { status: 'Paid', amountPaid: inv.total });
+    Utils.showToast('Invoice marked as fully paid.');
     renderSubTab();
   }
 
