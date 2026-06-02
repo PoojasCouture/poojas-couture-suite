@@ -868,7 +868,7 @@ poojascouture.com.au`
           </div>
           <div class="form-group m-0">
             <label class="form-label">Measurements & Specs</label>
-            <textarea name="notes" class="form-textarea" placeholder="Fabric, embroidery, measurements...">${order?Utils.sanitizeHTML(order.notes||''):''}</textarea>
+            <textarea name="notes" id="order-notes-field" class="form-textarea" placeholder="Fabric, embroidery, measurements...">${order?Utils.sanitizeHTML(order.notes||''):''}</textarea>
           </div>
         </form>`,
       submitText: isEdit ? 'Save Order' : 'Create Order',
@@ -907,8 +907,33 @@ poojascouture.com.au`
         return true;
       }
     });
-  }
 
+    // Auto-fill order specs from the selected client's notes.
+    // Only overwrites when the box is empty or still holds the previous
+    // client's notes — so anything you've typed yourself is never wiped.
+    setTimeout(() => {
+      const clientSelect = document.querySelector('#order-form [name="clientId"]');
+      const notesField = document.getElementById('order-notes-field');
+      if (!clientSelect || !notesField) return;
+
+      let lastClientNotes = notesField.value; // baseline (blank for new orders)
+
+      clientSelect.addEventListener('change', () => {
+        const c = clientSelect.value
+          ? Store.getById(Store.COLLECTIONS.CLIENTS, clientSelect.value)
+          : null;
+        const clientNotes = (c && c.notes) ? c.notes : '';
+
+        const boxIsEmpty = notesField.value.trim() === '';
+        const boxUnchangedFromLastClient = notesField.value === lastClientNotes;
+
+        if (boxIsEmpty || boxUnchangedFromLastClient) {
+          notesField.value = clientNotes;
+        }
+        lastClientNotes = clientNotes;
+      });
+    }, 50);
+  }
   function showOrderDetails(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
     if (!o) return;
