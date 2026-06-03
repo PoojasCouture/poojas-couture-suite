@@ -308,13 +308,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
     openModal({
       title: `Ship International — Order ${orderId}`, bodyHTML, submitLabel: '✈️ Confirm Dispatch',
-      onSubmit: async (box) => {
+    onSubmit: async (box) => {
         const tracking = box.querySelector('#f-tracking').value.trim();
         const cost = parseFloat(box.querySelector('#f-cost').value) || 0;
-        const customsVal = parseFloat(box.querySelector('#f-customs-val').value) || 0;
         if (!tracking) { toast('Tracking number is required.', 'error'); return false; }
         if (!cost) { toast('Shipping cost is required.', 'error'); return false; }
-        if (!customsVal) { toast('Customs value is required.', 'error'); return false; }
+        // Customs value is set automatically from the order's recorded price.
+        // Shashank does not see or enter it.
+        const customsVal = (o && o.price) ? o.price : 0;
         const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
           status: 'In Transit',
           carrier: box.querySelector('#f-carrier').value.trim(),
