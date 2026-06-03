@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     gateActions.classList.toggle('d-none', !allowLogin);
   }
 
-  // ── modal (inline; supports onRender for interactive bodies) ──
+  // ── modal ────────────────────────────────────────────────
   function openModal({ title, bodyHTML, submitLabel='Save', wide=false, onRender, onSubmit }) {
     closeModal();
     const overlay = document.createElement('div');
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       color:${active ? '#d4af37' : '#888'}; border-bottom:${active ? '2px solid #d4af37' : '2px solid transparent'};`;
   }
 
-  // ── session bootstrap ────────────────────────────────────
+  // ── session bootstrap ─────────────────────────────────────
   try {
     await Store.ready();
   } catch (e) {
@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try { await Store.refresh('stock_parcels'); } catch (e) {}
   try { await Store.refresh('stock_parcel_items'); } catch (e) {}
 
-  // ── render shell ─────────────────────────────────────────
+  // ── render shell ──────────────────────────────────────────
   gateScreen.classList.remove('active');
   workspace.classList.remove('d-none');
 
@@ -178,9 +178,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // ── tab switching ────────────────────────────────────────
-  const tabOrders = document.getElementById('tab-orders');
-  const tabStock  = document.getElementById('tab-stock');
+  // ── tab switching ─────────────────────────────────────────
+  const tabOrders   = document.getElementById('tab-orders');
+  const tabStock    = document.getElementById('tab-stock');
   const panelOrders = document.getElementById('panel-orders');
   const panelStock  = document.getElementById('panel-stock');
 
@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderOrdersPanel();
 
   /* ==========================================================
-     TAB 1 — CUSTOM ORDERS (Stage 2d)
+     TAB 1 — CUSTOM ORDERS
      ========================================================== */
   function renderOrdersPanel() {
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
@@ -211,19 +211,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     panelOrders.innerHTML = `
       <section style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
         <div style="${metricBoxStyle('#c0392b')}"><div style="font-size:32px; font-weight:800;">${incoming.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Incoming Pieces</div></div>
-        <div style="${metricBoxStyle('#2d6a4f')}"><div style="font-size:32px; font-weight:800;">${ready.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Ready to Ship</div></div>
-        <div style="${metricBoxStyle('#1a4a7a')}"><div style="font-size:32px; font-weight:800;">${transit.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">In Transit → AU</div></div>
+        <div style="${metricBoxStyle('#2d6a4f')}"><div style="font-size:32px; font-weight:800;">${ready.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Ready to Dispatch</div></div>
+        <div style="${metricBoxStyle('#1a4a7a')}"><div style="font-size:32px; font-weight:800;">${transit.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">In Transit</div></div>
       </section>
       <section style="${sectionCardStyle()}">
         <div style="${cardHeaderStyle()}"><span>📬 Incoming from Tailors</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: Shipped to Shashank</span></div>
         <div id="incoming-wrap" style="padding:0 4px 4px;"></div>
       </section>
       <section style="${sectionCardStyle()}">
-        <div style="${cardHeaderStyle()}"><span>📦 Ready to Ship Internationally</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: At Shashank</span></div>
+        <div style="${cardHeaderStyle()}"><span>📦 Ready to Dispatch</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: At Shashank</span></div>
         <div id="ready-wrap" style="padding:0 4px 4px;"></div>
       </section>
       <section style="${sectionCardStyle()}">
-        <div style="${cardHeaderStyle()}"><span>✈️ In Transit → Australia</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: In Transit</span></div>
+        <div style="${cardHeaderStyle()}"><span>✈️ In Transit</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: In Transit</span></div>
         <div id="transit-wrap" style="padding:0 4px 4px;"></div>
       </section>
     `;
@@ -232,20 +232,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderTransit(transit);
   }
 
+  // ── Incoming from tailors ─────────────────────────────────
   function renderIncoming(orders) {
     const wrap = document.getElementById('incoming-wrap');
-    if (!orders.length) { wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No pieces currently in transit to you.</p>`; return; }
+    if (!orders.length) {
+      wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No pieces currently in transit to you.</p>`;
+      return;
+    }
     let html = `<table style="${tableStyle()}"><thead><tr>
       <th style="${thStyle()}">Order</th><th style="${thStyle()}">Client</th>
       <th style="${thStyle()}">Courier / Tracking</th><th style="${thStyle()}">Shipped</th>
       <th style="${thStyle()}">Action</th></tr></thead><tbody>`;
     orders.forEach((o, i) => {
       html += `<tr>
-        <td style="${tdStyle(i)}"><div style="font-family:monospace; font-weight:700; color:#d4af37;">${esc(o.id)}</div></td>
-        <td style="${tdStyle(i)}"><div style="font-weight:600;">${esc(o.clientName || '—')}</div><div style="font-size:11px; color:#888; margin-top:2px;">${esc(o.title || '')}</div></td>
-        <td style="${tdStyle(i)}"><div style="font-family:monospace; color:#7ecfff;">${esc(o.domesticTracking || '—')}</div><div style="font-size:11px; color:#888;">${esc(o.domesticCourier || '')}</div></td>
+        <td style="${tdStyle(i)}">
+          <div style="font-family:monospace; font-weight:700; color:#d4af37;">${esc(o.orderCode || o.id)}</div>
+        </td>
+        <td style="${tdStyle(i)}">
+          <div style="font-weight:600;">${esc(o.clientName || '—')}</div>
+          <div style="font-size:11px; color:#888; margin-top:2px;">${esc(o.title || '')}</div>
+        </td>
+        <td style="${tdStyle(i)}">
+          <div style="font-family:monospace; color:#7ecfff;">${esc(o.domesticTracking || '—')}</div>
+          <div style="font-size:11px; color:#888;">${esc(o.domesticCourier || '')}</div>
+        </td>
         <td style="${tdStyle(i)}" nowrap>${fmtDateTime(o.shippedToShashankDate)}</td>
-        <td style="${tdStyle(i)}"><button style="${btnStyle('#2d6a4f','#fff')}" onclick="window._pcMarkReceived('${esc(o.id)}')">✓ Mark Received</button></td>
+        <td style="${tdStyle(i)}">
+          <button style="${btnStyle('#2d6a4f','#fff')}" onclick="window._pcMarkReceived('${esc(o.id)}')">✓ Mark Received</button>
+        </td>
       </tr>`;
     });
     html += '</tbody></table>';
@@ -254,70 +268,178 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window._pcMarkReceived = async function(orderId) {
     const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
-      status: 'At Shashank', receivedByShashankDate: new Date().toISOString()
+      status: 'At Shashank',
+      receivedByShashankDate: new Date().toISOString()
     });
     if (!res) return;
-    toast('Marked as received — order is now At Shashank.');
+    toast('Marked as received — order is now ready to dispatch.');
     renderOrdersPanel();
   };
 
+  // ── Ready to dispatch ─────────────────────────────────────
   function renderReady(orders) {
     const wrap = document.getElementById('ready-wrap');
-    if (!orders.length) { wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No orders received and ready to ship.</p>`; return; }
+    if (!orders.length) {
+      wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No orders received and ready to dispatch.</p>`;
+      return;
+    }
     let html = `<table style="${tableStyle()}"><thead><tr>
       <th style="${thStyle()}">Order</th><th style="${thStyle()}">Client</th>
-      <th style="${thStyle()}">Garment</th><th style="${thStyle()}">Received</th>
-      <th style="${thStyle()}">Action</th></tr></thead><tbody>`;
+      <th style="${thStyle()}">Garment</th><th style="${thStyle()}">Destination</th>
+      <th style="${thStyle()}">Received</th><th style="${thStyle()}">Action</th>
+    </tr></thead><tbody>`;
     orders.forEach((o, i) => {
+      const dest = o.deliveryDestination || 'Australia';
+      const destColor = dest === 'Australia' ? '#1a4a7a' : dest === 'India' ? '#2d6a4f' : '#6a2d6a';
       html += `<tr>
-        <td style="${tdStyle(i)}"><div style="font-family:monospace; font-weight:700; color:#d4af37;">${esc(o.id)}</div></td>
+        <td style="${tdStyle(i)}">
+          <div style="font-family:monospace; font-weight:700; color:#d4af37;">${esc(o.orderCode || o.id)}</div>
+        </td>
         <td style="${tdStyle(i)}"><div style="font-weight:600;">${esc(o.clientName || '—')}</div></td>
         <td style="${tdStyle(i)}"><div style="font-size:12px; color:#ccc;">${esc(o.title || '—')}</div></td>
+        <td style="${tdStyle(i)}"><span style="${badgeStyle(destColor)}">${esc(dest)}</span></td>
         <td style="${tdStyle(i)}" nowrap>${fmtDate(o.receivedByShashankDate)}</td>
-        <td style="${tdStyle(i)}"><button style="${btnStyle('#d4af37')}" onclick="window._pcShipIntl('${esc(o.id)}')">✈️ Ship International</button></td>
+        <td style="${tdStyle(i)}">
+          <button style="${btnStyle('#d4af37')}" onclick="window._pcDispatch('${esc(o.id)}')">🚚 Dispatch</button>
+        </td>
       </tr>`;
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
   }
 
-  window._pcShipIntl = function(orderId) {
+  // ── Dispatch modal — step 1: choose destination ───────────
+  window._pcDispatch = function(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
-    const carrierOptions = ['DHL Express','FedEx International Priority','Australia Post International','Aramex','UPS Worldwide'].map(c => `<option value="${c}">${c}</option>`).join('');
+    if (!o) { toast('Order not found.', 'error'); return; }
+
+    const storedDest = o.deliveryDestination || 'Australia';
+
     const bodyHTML = `
+      <p style="font-size:13px; color:#aaa; margin:0 0 16px;">
+        Order: <strong style="color:#d4af37;">${esc(o.orderCode || o.id)}</strong> — ${esc(o.clientName || '')}
+        <br><span style="font-size:11px;">Recorded destination: <strong style="color:#d4af37;">${esc(storedDest)}</strong></span>
+      </p>
+      <div style="${fullStyle()}">
+        <label style="${labelStyle()}">Where is this parcel going? <span style="color:#e06;">*</span></label>
+        <select id="dest-select" style="${fieldStyle()}">
+          <option value="Australia" ${storedDest === 'Australia' ? 'selected' : ''}>🇦🇺 Australia</option>
+          <option value="India"     ${storedDest === 'India'     ? 'selected' : ''}>🇮🇳 India (local delivery)</option>
+          <option value="Overseas"  ${storedDest === 'Overseas'  ? 'selected' : ''}>🌏 Overseas (other country)</option>
+        </select>
+        <div style="font-size:11px; color:#666; margin-top:6px;">
+          Pre-filled from order. You can override if the destination has changed.
+        </div>
+      </div>
+    `;
+
+    openModal({
+      title: 'Dispatch — Select Destination',
+      bodyHTML,
+      submitLabel: 'Next: Shipping Details →',
+      onSubmit: (box) => {
+        const dest = box.querySelector('#dest-select').value;
+        closeModal();
+        // Open the correct shipping form based on destination
+        if (dest === 'India') {
+          _pcShipIndia(orderId, dest);
+        } else {
+          // Australia or Overseas — international form
+          _pcShipIntl(orderId, dest);
+        }
+        return false; // prevent auto-close (already closed above)
+      }
+    });
+  };
+
+  // ── Dispatch form: International (Australia / Overseas) ───
+  function _pcShipIntl(orderId, destination) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) { toast('Order not found.', 'error'); return; }
+
+    const carrierOptions = ['DHL Express','FedEx International Priority','Australia Post International','Aramex','UPS Worldwide']
+      .map(c => `<option value="${c}">${c}</option>`).join('');
+
+    const bodyHTML = `
+      <p style="font-size:12px; color:#aaa; margin:0 0 16px;">
+        Shipping to: <strong style="color:#d4af37;">${esc(destination)}</strong> —
+        ${esc(o.clientName || '')} · ${esc(o.orderCode || o.id)}
+      </p>
       <div style="${rowStyle()}">
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Carrier</label><select id="f-carrier" style="${fieldStyle()}">${carrierOptions}</select></div>
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Tracking Number <span style="color:#e06;">*</span></label><input id="f-tracking" type="text" style="${fieldStyle()}" placeholder="e.g. DHL-12345678"></div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Carrier</label>
+          <select id="f-carrier" style="${fieldStyle()}">${carrierOptions}</select>
+        </div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Tracking Number <span style="color:#e06;">*</span></label>
+          <input id="f-tracking" type="text" style="${fieldStyle()}" placeholder="e.g. DHL-12345678">
+        </div>
       </div>
       <div style="${rowStyle()}">
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Shipping Cost (AUD) <span style="color:#e06;">*</span></label><input id="f-cost" type="number" step="0.01" min="0" style="${fieldStyle()}" placeholder="0.00"></div>
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Gross Weight (kg)</label><input id="f-weight" type="number" step="0.1" min="0.1" value="2.5" style="${fieldStyle()}"></div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Shipping Cost ex-GST (AUD) <span style="color:#e06;">*</span></label>
+          <input id="f-cost" type="number" step="0.01" min="0" style="${fieldStyle()}" placeholder="0.00">
+        </div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Gross Weight (kg)</label>
+          <input id="f-weight" type="number" step="0.1" min="0.1" value="2.5" style="${fieldStyle()}">
+        </div>
       </div>
       <div style="${rowStyle()}">
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Box Dimensions (L × W × H cm)</label><input id="f-dims" type="text" style="${fieldStyle()}" value="40 x 30 x 15"></div>
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Incoterms</label><select id="f-incoterms" style="${fieldStyle()}"><option value="DAP">DAP — Delivered At Place</option><option value="FOB">FOB — Free On Board</option><option value="CIF">CIF — Cost, Insurance, Freight</option></select></div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Box Dimensions (L × W × H cm)</label>
+          <input id="f-dims" type="text" style="${fieldStyle()}" value="40 x 30 x 15">
+        </div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Incoterms</label>
+          <select id="f-incoterms" style="${fieldStyle()}">
+            <option value="DAP">DAP — Delivered At Place</option>
+            <option value="FOB">FOB — Free On Board</option>
+            <option value="CIF">CIF — Cost, Insurance, Freight</option>
+          </select>
+        </div>
       </div>
       <div style="${sectionHeadStyle()}">Customs Declaration</div>
-      <div style="${fullStyle()}"><label style="${labelStyle()}">HS Code</label><input id="f-hscode" type="text" style="${fieldStyle()}" value="5007.20"></div>
-      <div style="${fullStyle()}"><label style="${labelStyle()}">Goods Description (for customs)</label><input id="f-goods-desc" type="text" style="${fieldStyle()}" value="100% Handloom Silk Embroideries — Bridal Garments"></div>
+      <div style="${fullStyle()}">
+        <label style="${labelStyle()}">HS Code</label>
+        <input id="f-hscode" type="text" style="${fieldStyle()}" value="5007.20">
+      </div>
+      <div style="${fullStyle()}">
+        <label style="${labelStyle()}">Goods Description (for customs)</label>
+        <input id="f-goods-desc" type="text" style="${fieldStyle()}" value="100% Handloom Silk Embroideries — Bridal Garments">
+      </div>
       <div style="${rowStyle()}">
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Country of Origin</label><input id="f-origin" type="text" style="${fieldStyle()}" value="India"></div>
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Dispatch Date</label><input id="f-dispatch-date" type="date" style="${fieldStyle()}" value="${new Date().toISOString().split('T')[0]}"></div>
-      </div>`;
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Country of Origin</label>
+          <input id="f-origin" type="text" style="${fieldStyle()}" value="India">
+        </div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Dispatch Date</label>
+          <input id="f-dispatch-date" type="date" style="${fieldStyle()}" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+      </div>
+    `;
+
     openModal({
-      title: `Ship International — Order ${orderId}`, bodyHTML, submitLabel: '✈️ Confirm Dispatch',
+      title: `Ship to ${destination} — ${o.orderCode || orderId}`,
+      bodyHTML,
+      submitLabel: '✈️ Confirm Dispatch',
+      wide: true,
       onSubmit: async (box) => {
         const tracking = box.querySelector('#f-tracking').value.trim();
-        const cost = parseFloat(box.querySelector('#f-cost').value) || 0;
+        const cost     = parseFloat(box.querySelector('#f-cost').value) || 0;
         if (!tracking) { toast('Tracking number is required.', 'error'); return false; }
-        if (!cost) { toast('Shipping cost is required.', 'error'); return false; }
-        // Customs value is set automatically from the order's recorded price.
-        // Shashank does not see or enter it.
+        if (!cost)     { toast('Shipping cost is required.', 'error'); return false; }
+
+        // Customs value auto-set from order price — Shashank never sees it
         const customsVal = (o && o.price) ? o.price : 0;
+
         const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
           status: 'In Transit',
+          deliveryDestination: destination,
           carrier: box.querySelector('#f-carrier').value.trim(),
-          trackingNumber: tracking, shippingCost: cost,
+          trackingNumber: tracking,
+          shippingCost: cost,
           shippingWeight: box.querySelector('#f-weight').value.trim() + ' kg',
           shippingDims: box.querySelector('#f-dims').value.trim(),
           incoterms: box.querySelector('#f-incoterms').value,
@@ -325,31 +447,125 @@ document.addEventListener('DOMContentLoaded', async () => {
           customsValue: customsVal,
           customsDescription: box.querySelector('#f-goods-desc').value.trim(),
           countryOfOrigin: box.querySelector('#f-origin').value.trim(),
-          dispatchedDate: (() => { const d = box.querySelector('#f-dispatch-date').value; return d ? new Date(d).toISOString() : new Date().toISOString(); })()
+          dispatchedDate: (() => {
+            const d = box.querySelector('#f-dispatch-date').value;
+            return d ? new Date(d).toISOString() : new Date().toISOString();
+          })()
         });
         if (!res) return false;
-        toast(`Dispatched! Tracking: ${tracking}`);
+        toast(`Dispatched to ${destination}! Tracking: ${tracking}`);
         renderOrdersPanel();
         return true;
       }
     });
-  };
+  }
 
+  // ── Dispatch form: India local delivery ───────────────────
+  function _pcShipIndia(orderId, destination) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) { toast('Order not found.', 'error'); return; }
+
+    const bodyHTML = `
+      <p style="font-size:12px; color:#aaa; margin:0 0 16px;">
+        Local delivery in India —
+        ${esc(o.clientName || '')} · ${esc(o.orderCode || o.id)}
+      </p>
+      <div style="${rowStyle()}">
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Courier / Delivery Service <span style="color:#e06;">*</span></label>
+          <select id="f-carrier" style="${fieldStyle()}">
+            <option value="Blue Dart">Blue Dart</option>
+            <option value="DTDC">DTDC</option>
+            <option value="Delhivery">Delhivery</option>
+            <option value="Ekart">Ekart</option>
+            <option value="India Post">India Post</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Tracking Number</label>
+          <input id="f-tracking" type="text" style="${fieldStyle()}" placeholder="Optional for local delivery">
+        </div>
+      </div>
+      <div style="${rowStyle()}">
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Delivery Cost (AUD) <span style="color:#e06;">*</span></label>
+          <input id="f-cost" type="number" step="0.01" min="0" style="${fieldStyle()}" placeholder="0.00">
+        </div>
+        <div style="${halfStyle()}">
+          <label style="${labelStyle()}">Dispatch Date</label>
+          <input id="f-dispatch-date" type="date" style="${fieldStyle()}" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+      </div>
+      <div style="${fullStyle()}">
+        <label style="${labelStyle()}">Delivery Address / Notes</label>
+        <input id="f-notes" type="text" style="${fieldStyle()}" placeholder="Customer address or delivery instructions">
+      </div>
+    `;
+
+    openModal({
+      title: `Local Delivery — India · ${o.orderCode || orderId}`,
+      bodyHTML,
+      submitLabel: '🚚 Confirm Dispatch',
+      onSubmit: async (box) => {
+        const cost = parseFloat(box.querySelector('#f-cost').value) || 0;
+        if (!cost) { toast('Delivery cost is required.', 'error'); return false; }
+
+        const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
+          status: 'In Transit',
+          deliveryDestination: destination,
+          carrier: box.querySelector('#f-carrier').value.trim(),
+          trackingNumber: box.querySelector('#f-tracking').value.trim() || '—',
+          shippingCost: cost,
+          dispatchedDate: (() => {
+            const d = box.querySelector('#f-dispatch-date').value;
+            return d ? new Date(d).toISOString() : new Date().toISOString();
+          })(),
+          customsDescription: box.querySelector('#f-notes').value.trim()
+        });
+        if (!res) return false;
+        toast(`Dispatched for local delivery in India!`);
+        renderOrdersPanel();
+        return true;
+      }
+    });
+  }
+
+  // ── In transit ────────────────────────────────────────────
   function renderTransit(orders) {
     const wrap = document.getElementById('transit-wrap');
-    if (!orders.length) { wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No active shipments in transit to Australia.</p>`; return; }
+    if (!orders.length) {
+      wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No active shipments in transit.</p>`;
+      return;
+    }
     let html = `<table style="${tableStyle()}"><thead><tr>
       <th style="${thStyle()}">Tracking</th><th style="${thStyle()}">Carrier</th>
-      <th style="${thStyle()}">Client / Order</th><th style="${thStyle()}">Shipping Cost</th>
-      <th style="${thStyle()}">Dispatched</th><th style="${thStyle()}">Action</th></tr></thead><tbody>`;
+      <th style="${thStyle()}">Client / Order</th><th style="${thStyle()}">Destination</th>
+      <th style="${thStyle()}">Shipping Cost</th>
+      <th style="${thStyle()}">Dispatched</th><th style="${thStyle()}">Action</th>
+    </tr></thead><tbody>`;
     orders.forEach((o, i) => {
+      const dest = o.deliveryDestination || 'Australia';
+      const destColor = dest === 'Australia' ? '#1a4a7a' : dest === 'India' ? '#2d6a4f' : '#6a2d6a';
       html += `<tr>
-        <td style="${tdStyle(i)}"><div style="font-family:monospace; color:#7ecfff;">${esc(o.trackingNumber || '—')}</div></td>
-        <td style="${tdStyle(i)}"><span style="${badgeStyle('#1a4a7a')}">${esc(o.carrier || '—')}</span></td>
-        <td style="${tdStyle(i)}"><div style="font-weight:600;">${esc(o.clientName || '—')}</div><div style="font-size:11px; color:#888; margin-top:2px; font-family:monospace;">${esc(o.id)}</div></td>
+        <td style="${tdStyle(i)}">
+          <div style="font-family:monospace; color:#7ecfff;">${esc(o.trackingNumber || '—')}</div>
+        </td>
+        <td style="${tdStyle(i)}">
+          <span style="${badgeStyle('#1a4a7a')}">${esc(o.carrier || '—')}</span>
+        </td>
+        <td style="${tdStyle(i)}">
+          <div style="font-weight:600;">${esc(o.clientName || '—')}</div>
+          <div style="font-size:11px; color:#888; margin-top:2px; font-family:monospace;">${esc(o.orderCode || o.id)}</div>
+        </td>
+        <td style="${tdStyle(i)}">
+          <span style="${badgeStyle(destColor)}">${esc(dest)}</span>
+        </td>
         <td style="${tdStyle(i)}" nowrap>${o.shippingCost ? money(o.shippingCost) : '—'}</td>
         <td style="${tdStyle(i)}" nowrap>${fmtDate(o.dispatchedDate)}</td>
-        <td style="${tdStyle(i)}"><button style="${btnStyle('#2d6a4f','#fff')}" onclick="window._pcMarkDelivered('${esc(o.id)}')">✓ Mark Delivered</button></td>
+        <td style="${tdStyle(i)}">
+          <button style="${btnStyle('#2d6a4f','#fff')}" onclick="window._pcMarkDelivered('${esc(o.id)}')">✓ Mark Delivered</button>
+        </td>
       </tr>`;
     });
     html += '</tbody></table>';
@@ -365,7 +581,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* ==========================================================
      TAB 2 — INVENTORY / STOCK PARCELS (Stage 2e)
-     Landed cost distributed by item COUNT.
      ========================================================== */
   const SOURCE_CITIES = ['Mumbai', 'Surat', 'Ghaziabad'];
 
@@ -393,24 +608,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderParcels(parcels) {
     const wrap = document.getElementById('parcels-wrap');
     if (!parcels.length) {
-      wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No stock parcels yet. Click “+ New Stock Parcel” to create one.</p>`;
+      wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No stock parcels yet. Click "+ New Stock Parcel" to create one.</p>`;
       return;
     }
     const sorted = parcels.slice().sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0));
     let html = `<table style="${tableStyle()}"><thead><tr>
       <th style="${thStyle()}">Parcel</th><th style="${thStyle()}">Source</th>
       <th style="${thStyle()}">Courier / Tracking</th><th style="${thStyle()}">Items</th>
-      <th style="${thStyle()}">Status</th><th style="${thStyle()}">Actions</th></tr></thead><tbody>`;
+      <th style="${thStyle()}">Status</th><th style="${thStyle()}">Actions</th>
+    </tr></thead><tbody>`;
     sorted.forEach((p, i) => {
-      const statusBadge = p.status === 'Received'
-        ? badgeStyle('#2d6a4f') : badgeStyle('#1a4a7a');
-      const receiveBtn = p.status === 'In Transit'
+      const statusBadge = p.status === 'Received' ? badgeStyle('#2d6a4f') : badgeStyle('#1a4a7a');
+      const receiveBtn  = p.status === 'In Transit'
         ? `<button style="${btnStyle('#2d6a4f','#fff')}" onclick="window._pcReceiveParcel('${esc(p.id)}')">✓ Mark Received</button>`
         : '';
       html += `<tr>
         <td style="${tdStyle(i)}"><div style="font-family:monospace; font-weight:700; color:#d4af37;">${esc(p.id)}</div></td>
         <td style="${tdStyle(i)}">${esc(p.sourceCity || '—')}</td>
-        <td style="${tdStyle(i)}"><div style="font-family:monospace; color:#7ecfff;">${esc(p.trackingNo || '—')}</div><div style="font-size:11px; color:#888;">${esc(p.courier || '')}</div></td>
+        <td style="${tdStyle(i)}">
+          <div style="font-family:monospace; color:#7ecfff;">${esc(p.trackingNo || '—')}</div>
+          <div style="font-size:11px; color:#888;">${esc(p.courier || '')}</div>
+        </td>
         <td style="${tdStyle(i)}" nowrap>${p.totalItems || 0}</td>
         <td style="${tdStyle(i)}"><span style="${statusBadge}">${esc(p.status || '—')}</span></td>
         <td style="${tdStyle(i)}">
@@ -423,7 +641,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     wrap.innerHTML = html;
   }
 
-  // ── New Stock Parcel modal (interactive line items) ──────
+  // ── New Stock Parcel modal ────────────────────────────────
   window._pcNewParcel = function() {
     const products = Store.getAll('products');
     if (!products.length) {
@@ -447,7 +665,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div style="${halfStyle()}"><label style="${labelStyle()}">Total Shipping Cost (AUD) <span style="color:#e06;">*</span></label><input id="sp-shipping" type="number" step="0.01" min="0" style="${fieldStyle()}" placeholder="0.00"></div>
       </div>
       <div style="${fullStyle()}"><label style="${labelStyle()}">Dispatch Date</label><input id="sp-date" type="date" style="${fieldStyle()}" value="${new Date().toISOString().split('T')[0]}"></div>
-
       <div style="${sectionHeadStyle()}">Items in this parcel</div>
       <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:12px; flex-wrap:wrap;">
         <div style="flex:2; min-width:160px;"><label style="${labelStyle()}">Product</label><select id="sp-prod" style="${fieldStyle()}">${productOptions}</select></div>
@@ -460,7 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div style="${fullStyle()}; margin-top:14px;"><label style="${labelStyle()}">Notes</label><input id="sp-notes" type="text" style="${fieldStyle()}" placeholder="Optional"></div>
     `;
 
-    const items = []; // { productId, label, quantity, unitCost }
+    const items = [];
 
     openModal({
       title: 'New Stock Parcel',
@@ -468,13 +685,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       submitLabel: 'Create Parcel',
       wide: true,
       onRender: (box) => {
-        const prodSel  = box.querySelector('#sp-prod');
-        const qtyIn    = box.querySelector('#sp-qty');
-        const unitIn   = box.querySelector('#sp-unitcost');
-        const addBtn   = box.querySelector('#sp-add');
-        const shipIn   = box.querySelector('#sp-shipping');
+        const prodSel = box.querySelector('#sp-prod');
+        const qtyIn   = box.querySelector('#sp-qty');
+        const unitIn  = box.querySelector('#sp-unitcost');
+        const addBtn  = box.querySelector('#sp-add');
+        const shipIn  = box.querySelector('#sp-shipping');
 
-        // Auto-fill unit cost from the selected product's cost price.
         const fillUnit = () => {
           const opt = prodSel.options[prodSel.selectedIndex];
           unitIn.value = opt ? (opt.getAttribute('data-cost') || 0) : 0;
@@ -500,7 +716,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             h += '</tbody></table>';
             wrap.innerHTML = h;
             wrap.querySelectorAll('[data-rm]').forEach(b => {
-              b.addEventListener('click', () => { items.splice(parseInt(b.getAttribute('data-rm'),10), 1); renderItems(); renderPreview(); });
+              b.addEventListener('click', () => {
+                items.splice(parseInt(b.getAttribute('data-rm'), 10), 1);
+                renderItems(); renderPreview();
+              });
             });
           }
         };
@@ -514,7 +733,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         addBtn.addEventListener('click', () => {
           const opt = prodSel.options[prodSel.selectedIndex];
           if (!opt) { toast('Pick a product first.', 'error'); return; }
-          const qty = parseInt(qtyIn.value, 10) || 0;
+          const qty  = parseInt(qtyIn.value, 10) || 0;
           const unit = parseFloat(unitIn.value) || 0;
           if (qty < 1) { toast('Quantity must be at least 1.', 'error'); return; }
           items.push({ productId: opt.value, label: opt.textContent.replace(/\s*\(AUD.*$/, ''), quantity: qty, unitCost: unit });
@@ -532,39 +751,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dateVal    = box.querySelector('#sp-date').value;
         const notes      = box.querySelector('#sp-notes').value.trim();
 
-        if (!sourceCity) { toast('Source city is required.', 'error'); return false; }
-        if (!shipping)   { toast('Total shipping cost is required.', 'error'); return false; }
+        if (!sourceCity)   { toast('Source city is required.', 'error'); return false; }
+        if (!shipping)     { toast('Total shipping cost is required.', 'error'); return false; }
         if (!items.length) { toast('Add at least one item.', 'error'); return false; }
 
         const totalItems = items.reduce((s, it) => s + it.quantity, 0);
-        const perItem = totalItems > 0 ? shipping / totalItems : 0;
+        const perItem    = totalItems > 0 ? shipping / totalItems : 0;
+        const parcelId   = 'SP-' + Date.now();
 
-        const parcelId = 'SP-' + Date.now();
         const parcel = await Store.create('stock_parcels', {
-          id: parcelId,
-          sourceCity,
-          courier,
-          trackingNo,
-          totalItems,
-          shippingCost: shipping,
-          perItemCost: perItem,
+          id: parcelId, sourceCity, courier, trackingNo,
+          totalItems, shippingCost: shipping, perItemCost: perItem,
           status: 'In Transit',
           dispatchedDate: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString(),
           notes
         });
-        if (!parcel) return false; // Store.create toasted the error
+        if (!parcel) return false;
 
-        // Create each line item with its landed cost.
         for (let i = 0; i < items.length; i++) {
           const it = items[i];
           await Store.create('stock_parcel_items', {
             id: 'SPI-' + Date.now() + '-' + i,
-            parcelId: parcelId,
-            productId: it.productId,
-            description: it.label,
-            quantity: it.quantity,
-            unitCost: it.unitCost,
-            landedCost: it.unitCost + perItem
+            parcelId, productId: it.productId,
+            description: it.label, quantity: it.quantity,
+            unitCost: it.unitCost, landedCost: it.unitCost + perItem
           });
         }
 
@@ -577,7 +787,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
-  // ── View parcel items (read-only) ────────────────────────
+  // ── View parcel items (read-only) ─────────────────────────
   window._pcViewParcel = function(parcelId) {
     const items = Store.getAll('stock_parcel_items').filter(it => it.parcelId === parcelId);
     let bodyHTML;
@@ -585,7 +795,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       bodyHTML = `<p style="color:#888; font-size:13px;">No items recorded for this parcel.</p>`;
     } else {
       bodyHTML = `<table style="${tableStyle()}"><thead><tr>
-        <th style="${thStyle()}">Item</th><th style="${thStyle()}">Qty</th></tr></thead><tbody>`;
+        <th style="${thStyle()}">Item</th><th style="${thStyle()}">Qty</th>
+      </tr></thead><tbody>`;
       items.forEach((it, i) => {
         bodyHTML += `<tr>
           <td style="${tdStyle(i)}">${esc(it.description || it.productId)}</td>
@@ -594,15 +805,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       bodyHTML += '</tbody></table>';
     }
-    openModal({
-      title: `Parcel ${parcelId} — Items`,
-      bodyHTML,
-      submitLabel: 'Close',
-      onSubmit: () => true
-    });
+    openModal({ title: `Parcel ${parcelId} — Items`, bodyHTML, submitLabel: 'Close', onSubmit: () => true });
   };
 
-  // ── Mark parcel received ─────────────────────────────────
+  // ── Mark parcel received ──────────────────────────────────
   window._pcReceiveParcel = async function(parcelId) {
     const res = await Store.update('stock_parcels', parcelId, {
       status: 'Received', receivedDate: new Date().toISOString()
