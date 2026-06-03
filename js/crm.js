@@ -864,17 +864,27 @@ poojascouture.com.au`
               <!-- spacer to keep layout aligned -->
             </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Status</label>
-            <select name="status" class="form-select">
-              <option value="New" ${!order||order.status==='New'?'selected':''}>New Concept</option>
-              <option value="In Design" ${order&&order.status==='In Design'?'selected':''}>In Design</option>
-              <option value="Fabric Sourced" ${order&&order.status==='Fabric Sourced'?'selected':''}>Fabric Sourced</option>
-              <option value="In Production" ${order&&order.status==='In Production'?'selected':''}>In Production</option>
-              <option value="Fitting" ${order&&order.status==='Fitting'?'selected':''}>Fitting</option>
-              <option value="Ready" ${order&&order.status==='Ready'?'selected':''}>Ready</option>
-              <option value="Delivered" ${order&&order.status==='Delivered'?'selected':''}>Delivered</option>
-            </select>
+<div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select name="status" class="form-select">
+                <option value="New" ${!order||order.status==='New'?'selected':''}>New Concept</option>
+                <option value="In Design" ${order&&order.status==='In Design'?'selected':''}>In Design</option>
+                <option value="Fabric Sourced" ${order&&order.status==='Fabric Sourced'?'selected':''}>Fabric Sourced</option>
+                <option value="In Production" ${order&&order.status==='In Production'?'selected':''}>In Production</option>
+                <option value="Fitting" ${order&&order.status==='Fitting'?'selected':''}>Fitting</option>
+                <option value="Ready" ${order&&order.status==='Ready'?'selected':''}>Ready</option>
+                <option value="Delivered" ${order&&order.status==='Delivered'?'selected':''}>Delivered</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Delivery Destination <span class="required">*</span></label>
+              <select name="deliveryDestination" class="form-select" required>
+                <option value="Australia" ${!order||order.deliveryDestination==='Australia'?'selected':''}>To Australia</option>
+                <option value="India" ${order&&order.deliveryDestination==='India'?'selected':''}>To India</option>
+                <option value="Overseas" ${order&&order.deliveryDestination==='Overseas'?'selected':''}>Overseas (anywhere else)</option>
+              </select>
+            </div>
           </div>
           <div class="form-group m-0">
             <label class="form-label">Measurements & Specs</label>
