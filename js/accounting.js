@@ -75,7 +75,7 @@ const Accounting = (() => {
   // ==========================================
   // FINANCIAL OVERVIEW (DASHBOARD)
   // ==========================================
-  
+
   function renderDashboard(container, actions) {
     // Financial summaries
     const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
@@ -226,7 +226,7 @@ const Accounting = (() => {
   // ==========================================
   // INVOICES SUB-TAB
   // ==========================================
-  
+
   function renderInvoices(container, actions) {
     actions.innerHTML = `
       <button class="btn btn-primary" id="btn-add-invoice">
@@ -296,7 +296,7 @@ const Accounting = (() => {
         return;
       }
 
-filtered.forEach(i => {
+      filtered.forEach(i => {
         // Paid amount: use recorded value; for legacy 'Paid' invoices with no
         // recorded payment, treat as fully paid so the balance doesn't lie.
         const paid = (i.amountPaid != null && i.amountPaid !== '')
@@ -334,6 +334,8 @@ filtered.forEach(i => {
         `;
         tbody.appendChild(tr);
       });
+    };
+
     statusFilter.addEventListener('change', refreshTable);
     refreshTable();
   }
@@ -463,7 +465,7 @@ filtered.forEach(i => {
 
     // Populate rows handler
     const itemsList = Utils.$('#invoice-items-list');
-    
+
     function addRow(item = null) {
       const row = Utils.createElement('div', { className: 'invoice-item-row d-flex gap-2 items-center' });
       row.innerHTML = `
@@ -493,6 +495,9 @@ filtered.forEach(i => {
     if (!inv) return;
 
     const settings = Store.getSettings();
+
+    const paidAmt = (inv.amountPaid != null && inv.amountPaid !== '') ? inv.amountPaid : (inv.status === 'Paid' ? inv.total : 0);
+    const balanceDue = Math.round((inv.total - paidAmt) * 100) / 100;
 
     const modalHTML = `
       <div class="invoice-preview animate-fade-in p-8" style="background: #fff; color: #111; font-family: sans-serif; border-radius: var(--radius-lg)">
@@ -554,11 +559,11 @@ filtered.forEach(i => {
             </div>
             <div class="d-flex justify-between" style="padding: 4px 0; color: #10B981;">
               <span>Amount Paid:</span>
-              <span style="font-family: monospace;">${Utils.formatCurrency((inv.amountPaid != null && inv.amountPaid !== '') ? inv.amountPaid : (inv.status === 'Paid' ? inv.total : 0))}</span>
+              <span style="font-family: monospace;">${Utils.formatCurrency(paidAmt)}</span>
             </div>
             <div class="d-flex justify-between" style="padding: 8px 0; font-weight: bold; font-size: 15px; border-top: 1px solid #eee; color: #111;">
               <span>Balance Due:</span>
-              <span style="font-family: monospace;">${Utils.formatCurrency(Math.round((inv.total - ((inv.amountPaid != null && inv.amountPaid !== '') ? inv.amountPaid : (inv.status === 'Paid' ? inv.total : 0))) * 100) / 100)}</span>
+              <span style="font-family: monospace;">${Utils.formatCurrency(balanceDue)}</span>
             </div>
           </div>
         </div>
@@ -601,7 +606,7 @@ filtered.forEach(i => {
     });
   }
 
-   function markInvoicePaid(id) {
+  function markInvoicePaid(id) {
     const inv = Store.getById(Store.COLLECTIONS.INVOICES, id);
     if (!inv) return;
     Store.update(Store.COLLECTIONS.INVOICES, id, { status: 'Paid', amountPaid: inv.total });
@@ -625,7 +630,7 @@ filtered.forEach(i => {
   // ==========================================
   // EXPENSES SUB-TAB
   // ==========================================
-  
+
   function renderExpenses(container, actions) {
     actions.innerHTML = `
       <button class="btn btn-primary" id="btn-add-expense">
@@ -831,7 +836,7 @@ filtered.forEach(i => {
   // ==========================================
   // GST BAS REPORT
   // ==========================================
-  
+
   function renderGST(container, actions) {
     const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
     const expenses = Store.getAll(Store.COLLECTIONS.EXPENSES);
@@ -891,7 +896,7 @@ filtered.forEach(i => {
               </div>
             </div>
           </div>
-          
+
           <div class="card p-5">
             <h4 class="text-xs font-semibold text-gold mb-2">Australian ATO Compliance</h4>
             <p class="text-xs text-muted font-light m-0">
@@ -941,7 +946,7 @@ filtered.forEach(i => {
   // ==========================================
   // FINANCIAL REPORTS
   // ==========================================
-  
+
   function renderReports(container, actions) {
     const invoices = Store.getAll(Store.COLLECTIONS.INVOICES).filter(i => i.status === 'Paid');
     const expenses = Store.getAll(Store.COLLECTIONS.EXPENSES);
@@ -988,7 +993,7 @@ filtered.forEach(i => {
               <span>2. OPERATING EXPENSES</span>
               <span>EX GST</span>
             </div>
-            
+
             ${Object.entries(categoriesMap).map(([cat, val]) => `
               <div class="d-flex justify-between text-xs p-2">
                 <span class="text-muted">${cat} Expenses</span>
