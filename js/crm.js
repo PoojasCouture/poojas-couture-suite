@@ -877,7 +877,7 @@ poojascouture.com.au`
                 <option value="Delivered" ${order&&order.status==='Delivered'?'selected':''}>Delivered</option>
               </select>
             </div>
-            <div class="form-group">
+<div class="form-group">
               <label class="form-label">Delivery Destination <span class="required">*</span></label>
               <select name="deliveryDestination" class="form-select" required>
                 <option value="Australia" ${!order||order.deliveryDestination==='Australia'?'selected':''}>To Australia</option>
@@ -885,6 +885,14 @@ poojascouture.com.au`
                 <option value="Overseas" ${order&&order.deliveryDestination==='Overseas'?'selected':''}>Overseas (anywhere else)</option>
               </select>
             </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Customer Shipping Contribution <span class="required">*</span></label>
+            <select name="shippingAllocation" class="form-select" required>
+              <option value="None" ${!order||order.shippingAllocation==='None'?'selected':''}>No shipping charge — we absorb it</option>
+              <option value="Half" ${order&&order.shippingAllocation==='Half'?'selected':''}>50/50 split — customer pays half</option>
+              <option value="Full" ${order&&order.shippingAllocation==='Full'?'selected':''}>Customer pays full shipping</option>
+            </select>
           </div>
           <div class="form-group m-0">
             <label class="form-label">Measurements & Specs</label>
@@ -904,6 +912,7 @@ poojascouture.com.au`
           title: fd.get('title'), price,
           deadline: fd.get('deadline'), status: fd.get('status'), notes: fd.get('notes'),
           deliveryDestination: fd.get('deliveryDestination')
+          shippingAllocation: fd.get('shippingAllocation')
         };
         if (isEdit) {
           Store.update(Store.COLLECTIONS.ORDERS, orderId, orderData);
