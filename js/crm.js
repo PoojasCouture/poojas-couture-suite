@@ -864,7 +864,7 @@ poojascouture.com.au`
               <!-- spacer to keep layout aligned -->
             </div>
           </div>
-<div class="form-row">
+          <div class="form-row">
             <div class="form-group">
               <label class="form-label">Status</label>
               <select name="status" class="form-select">
@@ -877,7 +877,7 @@ poojascouture.com.au`
                 <option value="Delivered" ${order&&order.status==='Delivered'?'selected':''}>Delivered</option>
               </select>
             </div>
-<div class="form-group">
+            <div class="form-group">
               <label class="form-label">Delivery Destination <span class="required">*</span></label>
               <select name="deliveryDestination" class="form-select" required>
                 <option value="Australia" ${!order||order.deliveryDestination==='Australia'?'selected':''}>To Australia</option>
@@ -911,7 +911,7 @@ poojascouture.com.au`
           clientName: selectedClient ? selectedClient.name : 'Unknown',
           title: fd.get('title'), price,
           deadline: fd.get('deadline'), status: fd.get('status'), notes: fd.get('notes'),
-          deliveryDestination: fd.get('deliveryDestination')
+          deliveryDestination: fd.get('deliveryDestination'),
           shippingAllocation: fd.get('shippingAllocation')
         };
         if (isEdit) {
@@ -977,7 +977,7 @@ poojascouture.com.au`
 
       let lastClientNotes = notesField.value; // baseline (blank for new orders)
 
-clientSelect.addEventListener('change', () => {
+      clientSelect.addEventListener('change', () => {
         const c = clientSelect.value
           ? Store.getById(Store.COLLECTIONS.CLIENTS, clientSelect.value)
           : null;
@@ -1009,6 +1009,7 @@ clientSelect.addEventListener('change', () => {
       }
     }, 50);
   }
+
   function showOrderDetails(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
     if (!o) return;
