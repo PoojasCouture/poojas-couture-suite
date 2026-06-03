@@ -299,9 +299,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div style="${halfStyle()}"><label style="${labelStyle()}">Incoterms</label><select id="f-incoterms" style="${fieldStyle()}"><option value="DAP">DAP — Delivered At Place</option><option value="FOB">FOB — Free On Board</option><option value="CIF">CIF — Cost, Insurance, Freight</option></select></div>
       </div>
       <div style="${sectionHeadStyle()}">Customs Declaration</div>
-      <div style="${rowStyle()}">
-        <div style="${halfStyle()}"><label style="${labelStyle()}">HS Code</label><input id="f-hscode" type="text" style="${fieldStyle()}" value="5007.20"></div>
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Customs Value (AUD) <span style="color:#e06;">*</span></label><input id="f-customs-val" type="number" step="0.01" min="0" style="${fieldStyle()}" value="${esc(defaultCustoms)}" placeholder="0.00"></div>
+      <div style="${fullStyle()}"><label style="${labelStyle()}">HS Code</label><input id="f-hscode" type="text" style="${fieldStyle()}" value="5007.20"></div>
       </div>
       <div style="${fullStyle()}"><label style="${labelStyle()}">Goods Description (for customs)</label><input id="f-goods-desc" type="text" style="${fieldStyle()}" value="100% Handloom Silk Embroideries — Bridal Garments"></div>
       <div style="${rowStyle()}">
