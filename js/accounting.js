@@ -334,6 +334,7 @@ filtered.forEach(i => {
         `;
         tbody.appendChild(tr);
       });
+    };
     statusFilter.addEventListener('change', refreshTable);
     refreshTable();
   }
