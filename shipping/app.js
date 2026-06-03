@@ -283,7 +283,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window._pcShipIntl = function(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
-    const defaultCustoms = o && o.price ? o.price : '';
     const carrierOptions = ['DHL Express','FedEx International Priority','Australia Post International','Aramex','UPS Worldwide'].map(c => `<option value="${c}">${c}</option>`).join('');
     const bodyHTML = `
       <div style="${rowStyle()}">
@@ -300,7 +299,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
       <div style="${sectionHeadStyle()}">Customs Declaration</div>
       <div style="${fullStyle()}"><label style="${labelStyle()}">HS Code</label><input id="f-hscode" type="text" style="${fieldStyle()}" value="5007.20"></div>
-      </div>
       <div style="${fullStyle()}"><label style="${labelStyle()}">Goods Description (for customs)</label><input id="f-goods-desc" type="text" style="${fieldStyle()}" value="100% Handloom Silk Embroideries — Bridal Garments"></div>
       <div style="${rowStyle()}">
         <div style="${halfStyle()}"><label style="${labelStyle()}">Country of Origin</label><input id="f-origin" type="text" style="${fieldStyle()}" value="India"></div>
@@ -308,7 +306,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
     openModal({
       title: `Ship International — Order ${orderId}`, bodyHTML, submitLabel: '✈️ Confirm Dispatch',
-    onSubmit: async (box) => {
+      onSubmit: async (box) => {
         const tracking = box.querySelector('#f-tracking').value.trim();
         const cost = parseFloat(box.querySelector('#f-cost').value) || 0;
         if (!tracking) { toast('Tracking number is required.', 'error'); return false; }
@@ -399,7 +397,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     const sorted = parcels.slice().sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0));
-let html = `<table style="${tableStyle()}"><thead><tr>
+    let html = `<table style="${tableStyle()}"><thead><tr>
       <th style="${thStyle()}">Parcel</th><th style="${thStyle()}">Source</th>
       <th style="${thStyle()}">Courier / Tracking</th><th style="${thStyle()}">Items</th>
       <th style="${thStyle()}">Status</th><th style="${thStyle()}">Actions</th></tr></thead><tbody>`;
@@ -432,7 +430,7 @@ let html = `<table style="${tableStyle()}"><thead><tr>
       toast('No products found. The product catalogue may be unavailable for this account.', 'error');
       return;
     }
-const productOptions = products
+    const productOptions = products
       .slice()
       .sort((a,b) => (a.title||'').localeCompare(b.title||''))
       .map(p => `<option value="${esc(p.id)}" data-cost="${p.costPrice || 0}">${esc(p.sku || '')} — ${esc(p.title || 'Unnamed')}</option>`)
@@ -489,7 +487,7 @@ const productOptions = products
           if (!items.length) {
             wrap.innerHTML = `<p style="color:#555; font-size:12px; padding:8px 0;">No items added yet.</p>`;
           } else {
-         let h = `<table style="${tableStyle()}"><thead><tr>
+            let h = `<table style="${tableStyle()}"><thead><tr>
               <th style="${thStyle()}">Product</th><th style="${thStyle()}">Qty</th>
               <th style="${thStyle()}"></th></tr></thead><tbody>`;
             items.forEach((it, idx) => {
@@ -507,7 +505,7 @@ const productOptions = products
           }
         };
 
-         const renderPreview = () => {
+        const renderPreview = () => {
           const totalItems = items.reduce((s, it) => s + it.quantity, 0);
           box.querySelector('#sp-preview').innerHTML =
             `Total items: <strong style="color:#d4af37;">${totalItems}</strong>`;
