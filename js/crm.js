@@ -773,7 +773,10 @@ poojascouture.com.au`
         card.innerHTML = `
           <!-- Header strip -->
           <div class="d-flex items-center justify-between p-3" style="background:rgba(236,182,118,0.06);border-bottom:1px solid var(--pc-border)">
-            <span class="badge ${stageColor}" style="font-size:10px">${o.status}</span>
+            <div class="d-flex items-center gap-2">
+              <span class="badge ${stageColor}" style="font-size:10px">${o.status}</span>
+              ${o.orderCode?`<span class="font-mono text-xs text-gold">${o.orderCode}</span>`:''}
+            </div>
             <span class="text-xs ${deadlineClass}">📅 ${deadlineText}</span>
           </div>
           <!-- Body -->
@@ -825,6 +828,21 @@ poojascouture.com.au`
     renderCards('all');
   }
 
+  // Generate next sequential order code for a product-type prefix.
+  // e.g. BLS-000001. Reads the highest existing code for that prefix and +1.
+  function generateOrderCode(prefix) {
+    const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
+    let maxNum = 0;
+    orders.forEach(o => {
+      if (o.orderCode && o.orderCode.indexOf(prefix + '-') === 0) {
+        const n = parseInt(o.orderCode.slice(prefix.length + 1), 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      }
+    });
+    const next = maxNum + 1;
+    return prefix + '-' + String(next).padStart(6, '0');
+  }
+
   function showOrderModal(orderId = null) {
     const isEdit = !!orderId;
     const order = isEdit ? Store.getById(Store.COLLECTIONS.ORDERS, orderId) : null;
@@ -843,6 +861,17 @@ poojascouture.com.au`
           <div class="form-group">
             <label class="form-label">Order Title <span class="required">*</span></label>
             <input type="text" name="title" class="form-input" required value="${order?Utils.sanitizeHTML(order.title):''}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Product Type <span class="required">*</span></label>
+            <select name="productType" class="form-select" required>
+              <option value="BLS" ${!order||order.productType==='BLS'?'selected':''}>Bridal Lehenga Set (BLS)</option>
+              <option value="SAR" ${order&&order.productType==='SAR'?'selected':''}>Saree (SAR)</option>
+              <option value="SAL" ${order&&order.productType==='SAL'?'selected':''}>Salwar Suit (SAL)</option>
+              <option value="SHE" ${order&&order.productType==='SHE'?'selected':''}>Sherwani (SHE)</option>
+              <option value="BSN" ${order&&order.productType==='BSN'?'selected':''}>Bridal Sneakers (BSN)</option>
+              <option value="GEN" ${order&&order.productType==='GEN'?'selected':''}>Other (GEN)</option>
+            </select>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -906,18 +935,22 @@ poojascouture.com.au`
         const fd = new FormData(form);
         const selectedClient = Store.getById(Store.COLLECTIONS.CLIENTS, fd.get('clientId'));
         const price = parseFloat(fd.get('price'));
+        const productType = fd.get('productType') || 'GEN';
         const orderData = {
           clientId: fd.get('clientId'),
           clientName: selectedClient ? selectedClient.name : 'Unknown',
           title: fd.get('title'), price,
           deadline: fd.get('deadline'), status: fd.get('status'), notes: fd.get('notes'),
           deliveryDestination: fd.get('deliveryDestination'),
-          shippingAllocation: fd.get('shippingAllocation')
+          shippingAllocation: fd.get('shippingAllocation'),
+          productType: productType
         };
         if (isEdit) {
           Store.update(Store.COLLECTIONS.ORDERS, orderId, orderData);
           Utils.showToast('Order updated.');
         } else {
+          // Assign a human-facing order code (UUID stays the primary key).
+          orderData.orderCode = generateOrderCode(productType);
           const createdOrder = await Store.create(Store.COLLECTIONS.ORDERS, orderData);
           const depositPaid = parseFloat(fd.get('depositPaid')) || 0;
 
@@ -1020,7 +1053,13 @@ poojascouture.com.au`
           <div>
             <h3 class="font-display text-lg">${Utils.sanitizeHTML(o.title)}</h3>
             <div class="text-sm font-semibold text-gold mt-1">${Utils.sanitizeHTML(o.clientName)}</div>
+            ${o.orderCode?`<div class="font-mono text-xs text-muted mt-1">${o.orderCode}</div>`:''}
           </div>
+          ${(o.status==='In Transit' && o.shippingCost && o.shippingAllocation && o.shippingAllocation!=='None')?`
+            <div class="p-3 rounded-md" style="background:rgba(236,182,118,0.06);border:1px solid var(--pc-border)">
+              <div class="text-xs text-muted mb-2">This order shipped with a customer shipping contribution (${o.shippingAllocation==='Half'?'50/50 split':'customer pays full'}). Add it to the invoice when ready.</div>
+              <button class="btn btn-secondary btn-sm" onclick="CRM.addShippingToInvoice('${o.id}')">➕ Add shipping to invoice</button>
+            </div>`:''}
           <div class="d-grid gap-4" style="grid-template-columns:1fr 1fr">
             <div class="d-flex flex-col gap-2">
               <div><div class="text-xs text-muted">Price</div><div class="font-mono font-bold">${Utils.formatCurrency(o.price)}</div></div>
@@ -1048,6 +1087,101 @@ poojascouture.com.au`
     Store.update(Store.COLLECTIONS.ORDERS, id, { status });
     Utils.showToast(`Order moved to: ${status}`);
     renderSubTab();
+  }
+
+  // Add the customer's shipping contribution to their invoice as an editable
+  // line. Auto-calculates the share from the order's allocation (Half=50%,
+  // Full=100% of the real shipping cost), but Pooja can edit the figure before
+  // confirming. GST is treated as inclusive (share / 11), consistent with the
+  // rest of the invoicing. Flagged for accountant sign-off.
+  function addShippingToInvoice(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+
+    const shipCost = parseFloat(o.shippingCost) || 0;
+    const alloc = o.shippingAllocation || 'None';
+    if (alloc === 'None' || shipCost <= 0) {
+      Utils.showToast('No customer shipping contribution applies to this order.', 'info');
+      return;
+    }
+
+    // Find the order's invoice.
+    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+    if (!invoice) {
+      Utils.showToast('No invoice found for this order. Create one first.', 'error');
+      return;
+    }
+
+    // Already added? Guard against double-adding.
+    const already = (invoice.items || []).some(it => it.isShipping);
+    if (already) {
+      Utils.showToast('A shipping contribution line is already on this invoice.', 'info');
+      return;
+    }
+
+    const share = alloc === 'Half'
+      ? Math.round((shipCost / 2) * 100) / 100
+      : shipCost; // Full
+
+    App.showModal({
+      title: 'Add Shipping to Invoice',
+      content: `
+        <form id="ship-inv-form" class="animate-fade-in-scale">
+          <p class="text-sm text-muted mb-3">
+            Order shipped for <strong>${Utils.formatCurrency(shipCost)}</strong>.
+            Allocation: <strong>${alloc==='Half'?'50/50 split':'Customer pays full'}</strong>.
+            The customer's share is added to invoice <strong>${Utils.sanitizeHTML(invoice.invoiceNumber)}</strong>.
+          </p>
+          <div class="form-group">
+            <label class="form-label">Customer Shipping Charge (AUD, inc GST) <span class="required">*</span></label>
+            <input type="number" name="shareAmount" class="form-input" min="0" step="0.01" required value="${share}">
+            <div class="text-xs text-muted mt-1">Auto-calculated. Edit if you agreed a different figure.</div>
+          </div>
+        </form>`,
+      submitText: 'Add to Invoice',
+      onSubmit: (modalEl) => {
+        const form = Utils.$('#ship-inv-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const amount = parseFloat(new FormData(form).get('shareAmount')) || 0;
+        if (amount <= 0) { Utils.showToast('Enter a charge greater than zero.', 'error'); return false; }
+
+        const lineGst = Math.round((amount / 11) * 100) / 100;
+        const lineSub = Math.round((amount - lineGst) * 100) / 100;
+
+        const items = (invoice.items || []).slice();
+        items.push({
+          description: 'Shipping contribution',
+          quantity: 1,
+          unitPrice: lineSub,
+          gst: lineGst,
+          amount: amount,
+          isShipping: true
+        });
+
+        const newTotal = Math.round((invoice.total + amount) * 100) / 100;
+        const newGst   = Math.round((invoice.gstTotal + lineGst) * 100) / 100;
+        const newSub   = Math.round((invoice.subtotal + lineSub) * 100) / 100;
+        const paid     = (invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0;
+
+        let newStatus = invoice.status;
+        if (paid >= newTotal && newTotal > 0) newStatus = 'Paid';
+        else if (paid > 0) newStatus = 'Partially Paid';
+        else if (newStatus === 'Paid') newStatus = 'Partially Paid'; // total rose past paid
+
+        Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
+          items: items,
+          subtotal: newSub,
+          gstTotal: newGst,
+          total: newTotal,
+          status: newStatus
+        });
+
+        Utils.showToast(`Shipping of ${Utils.formatCurrency(amount)} added to ${invoice.invoiceNumber}.`);
+        App.closeModal();
+        renderSubTab();
+        return true;
+      }
+    });
   }
 
   function editOrder(id) { App.closeModal(); setTimeout(() => showOrderModal(id), 200); }
@@ -1549,6 +1683,7 @@ poojascouture.com.au`
     deleteAppointment,
     sendFittingReminder,
     moveOrderStage,
+    addShippingToInvoice,
     editOrder,
     deleteOrder,
     showComposeModal
