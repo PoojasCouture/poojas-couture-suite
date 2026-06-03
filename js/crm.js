@@ -792,7 +792,7 @@ poojascouture.com.au`
             </div>
             <div class="d-flex items-center justify-between" style="padding:8px 0;border-top:1px solid var(--pc-border);border-bottom:1px solid var(--pc-border);margin-bottom:10px">
               <div>
-                <div class="text-xs text-muted">Value</div>
+                <div class="text-xs text-muted">Value (ex-GST)</div>
                 <div class="font-mono text-sm font-bold">${Utils.formatCurrency(o.price)}</div>
               </div>
               <div class="text-right">
@@ -875,7 +875,7 @@ poojascouture.com.au`
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Price (AUD) <span class="required">*</span></label>
+              <label class="form-label">Price ex-GST (AUD) <span class="required">*</span></label>
               <input type="number" name="price" class="form-input" min="0" required value="${order?order.price:''}">
             </div>
             <div class="form-group">
@@ -890,7 +890,7 @@ poojascouture.com.au`
               <div class="text-xs text-muted mt-1" id="deposit-pct-hint">Optional. Leave blank if no deposit taken yet.</div>
             </div>
             <div class="form-group">
-              <!-- spacer to keep layout aligned -->
+              <!-- spacer -->
             </div>
           </div>
           <div class="form-row">
@@ -954,16 +954,16 @@ poojascouture.com.au`
           const createdOrder = await Store.create(Store.COLLECTIONS.ORDERS, orderData);
           const depositPaid = parseFloat(fd.get('depositPaid')) || 0;
 
-          // One invoice for the FULL order total. GST is included once
-          // (price is GST-inclusive, so GST = total / 11). The deposit is
-          // recorded as amount paid against this total, not taxed separately.
-          const gstTotal = Math.round((price / 11) * 100) / 100;
-          const subtotal = Math.round((price - gstTotal) * 100) / 100;
-          const balance  = Math.round((price - depositPaid) * 100) / 100;
+          // Invoice total = order price (ex-GST) + 10% GST on top.
+          // Deposit is a flat amount off the GST-inclusive total.
+          const gstTotal     = Math.round((price * 0.10) * 100) / 100;
+          const subtotal     = Math.round(price * 100) / 100;
+          const invoiceTotal = Math.round((price + gstTotal) * 100) / 100;
+          const balance      = Math.round((invoiceTotal - depositPaid) * 100) / 100;
 
           let invStatus = 'Draft';
-          if (depositPaid >= price && price > 0) invStatus = 'Paid';
-          else if (depositPaid > 0)              invStatus = 'Partially Paid';
+          if (depositPaid >= invoiceTotal && invoiceTotal > 0) invStatus = 'Paid';
+          else if (depositPaid > 0)                            invStatus = 'Partially Paid';
 
           await Store.create(Store.COLLECTIONS.INVOICES, {
             orderId: createdOrder ? createdOrder.id : null,
@@ -974,7 +974,7 @@ poojascouture.com.au`
             dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             subtotal: subtotal,
             gstTotal: gstTotal,
-            total: Math.round(price * 100) / 100,
+            total: invoiceTotal,
             amountPaid: depositPaid,
             status: invStatus,
             notes: depositPaid > 0
@@ -985,13 +985,13 @@ poojascouture.com.au`
               quantity: 1,
               unitPrice: subtotal,
               gst: gstTotal,
-              amount: Math.round(price * 100) / 100
+              amount: invoiceTotal
             }]
           });
           Utils.showToast(
             depositPaid > 0
-              ? `Order created. Invoice generated — deposit ${Utils.formatCurrency(depositPaid)} recorded.`
-              : 'Order created. Full invoice generated (no deposit yet).',
+              ? `Order created. Invoice ${Utils.formatCurrency(invoiceTotal)} inc GST — deposit ${Utils.formatCurrency(depositPaid)} recorded.`
+              : `Order created. Invoice ${Utils.formatCurrency(invoiceTotal)} inc GST generated (no deposit yet).`,
             'info'
           );
         }
@@ -1001,14 +1001,12 @@ poojascouture.com.au`
     });
 
     // Auto-fill order specs from the selected client's notes.
-    // Only overwrites when the box is empty or still holds the previous
-    // client's notes — so anything you've typed yourself is never wiped.
     setTimeout(() => {
       const clientSelect = document.querySelector('#order-form [name="clientId"]');
       const notesField = document.getElementById('order-notes-field');
       if (!clientSelect || !notesField) return;
 
-      let lastClientNotes = notesField.value; // baseline (blank for new orders)
+      let lastClientNotes = notesField.value;
 
       clientSelect.addEventListener('change', () => {
         const c = clientSelect.value
@@ -1023,7 +1021,7 @@ poojascouture.com.au`
         lastClientNotes = clientNotes;
       });
 
-      // deposit percentage hint
+      // Deposit hint — shows GST-inclusive total and balance
       const priceField = document.querySelector('#order-form [name="price"]');
       const depField   = document.querySelector('#order-form [name="depositPaid"]');
       const hint       = document.getElementById('deposit-pct-hint');
@@ -1031,8 +1029,11 @@ poojascouture.com.au`
         const updatePct = () => {
           const p = parseFloat(priceField.value) || 0;
           const d = parseFloat(depField.value) || 0;
+          const gstInc = Math.round((p * 1.10) * 100) / 100;
           if (p > 0 && d > 0) {
-            hint.textContent = `${Math.round((d / p) * 100)}% of total. Balance due: ${Utils.formatCurrency(p - d)}.`;
+            hint.textContent = `${Math.round((d / gstInc) * 100)}% of GST-inc total (${Utils.formatCurrency(gstInc)}). Balance due: ${Utils.formatCurrency(gstInc - d)}.`;
+          } else if (p > 0) {
+            hint.textContent = `Invoice total inc GST: ${Utils.formatCurrency(gstInc)}. Leave blank if no deposit taken yet.`;
           } else {
             hint.textContent = 'Optional. Leave blank if no deposit taken yet.';
           }
@@ -1062,7 +1063,7 @@ poojascouture.com.au`
             </div>`:''}
           <div class="d-grid gap-4" style="grid-template-columns:1fr 1fr">
             <div class="d-flex flex-col gap-2">
-              <div><div class="text-xs text-muted">Price</div><div class="font-mono font-bold">${Utils.formatCurrency(o.price)}</div></div>
+              <div><div class="text-xs text-muted">Price (ex-GST)</div><div class="font-mono font-bold">${Utils.formatCurrency(o.price)}</div></div>
               <div><div class="text-xs text-muted">Deadline</div><div class="font-mono">${Utils.formatDate(o.deadline)}</div></div>
             </div>
             <div class="d-flex flex-col gap-2">
@@ -1089,11 +1090,9 @@ poojascouture.com.au`
     renderSubTab();
   }
 
-  // Add the customer's shipping contribution to their invoice as an editable
-  // line. Auto-calculates the share from the order's allocation (Half=50%,
-  // Full=100% of the real shipping cost), but Pooja can edit the figure before
-  // confirming. GST is treated as inclusive (share / 11), consistent with the
-  // rest of the invoicing. Flagged for accountant sign-off.
+  // Add the customer's shipping contribution to their invoice.
+  // Shashank enters the ex-GST shipping cost. 10% GST is added on top.
+  // Pooja can edit the ex-GST figure before confirming.
   function addShippingToInvoice(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
     if (!o) return;
@@ -1105,20 +1104,19 @@ poojascouture.com.au`
       return;
     }
 
-    // Find the order's invoice.
     const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
     if (!invoice) {
       Utils.showToast('No invoice found for this order. Create one first.', 'error');
       return;
     }
 
-    // Already added? Guard against double-adding.
     const already = (invoice.items || []).some(it => it.isShipping);
     if (already) {
       Utils.showToast('A shipping contribution line is already on this invoice.', 'info');
       return;
     }
 
+    // Customer's share of the ex-GST shipping cost
     const share = alloc === 'Half'
       ? Math.round((shipCost / 2) * 100) / 100
       : shipCost; // Full
@@ -1128,14 +1126,14 @@ poojascouture.com.au`
       content: `
         <form id="ship-inv-form" class="animate-fade-in-scale">
           <p class="text-sm text-muted mb-3">
-            Order shipped for <strong>${Utils.formatCurrency(shipCost)}</strong>.
+            Order shipped for <strong>${Utils.formatCurrency(shipCost)}</strong> (ex-GST).
             Allocation: <strong>${alloc==='Half'?'50/50 split':'Customer pays full'}</strong>.
-            The customer's share is added to invoice <strong>${Utils.sanitizeHTML(invoice.invoiceNumber)}</strong>.
+            The customer's share (+ 10% GST) is added to invoice <strong>${Utils.sanitizeHTML(invoice.invoiceNumber)}</strong>.
           </p>
           <div class="form-group">
-            <label class="form-label">Customer Shipping Charge (AUD, inc GST) <span class="required">*</span></label>
+            <label class="form-label">Customer Shipping Charge (AUD, ex-GST) <span class="required">*</span></label>
             <input type="number" name="shareAmount" class="form-input" min="0" step="0.01" required value="${share}">
-            <div class="text-xs text-muted mt-1">Auto-calculated. Edit if you agreed a different figure.</div>
+            <div class="text-xs text-muted mt-1">Auto-calculated (ex-GST). 10% GST added on top. Edit if you agreed a different figure.</div>
           </div>
         </form>`,
       submitText: 'Add to Invoice',
@@ -1145,8 +1143,10 @@ poojascouture.com.au`
         const amount = parseFloat(new FormData(form).get('shareAmount')) || 0;
         if (amount <= 0) { Utils.showToast('Enter a charge greater than zero.', 'error'); return false; }
 
-        const lineGst = Math.round((amount / 11) * 100) / 100;
-        const lineSub = Math.round((amount - lineGst) * 100) / 100;
+        // Shipping is ex-GST. Add 10% on top.
+        const lineGst   = Math.round((amount * 0.10) * 100) / 100;
+        const lineSub   = Math.round(amount * 100) / 100;
+        const lineTotal = Math.round((amount + lineGst) * 100) / 100;
 
         const items = (invoice.items || []).slice();
         items.push({
@@ -1154,11 +1154,11 @@ poojascouture.com.au`
           quantity: 1,
           unitPrice: lineSub,
           gst: lineGst,
-          amount: amount,
+          amount: lineTotal,
           isShipping: true
         });
 
-        const newTotal = Math.round((invoice.total + amount) * 100) / 100;
+        const newTotal = Math.round((invoice.total + lineTotal) * 100) / 100;
         const newGst   = Math.round((invoice.gstTotal + lineGst) * 100) / 100;
         const newSub   = Math.round((invoice.subtotal + lineSub) * 100) / 100;
         const paid     = (invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0;
@@ -1166,7 +1166,7 @@ poojascouture.com.au`
         let newStatus = invoice.status;
         if (paid >= newTotal && newTotal > 0) newStatus = 'Paid';
         else if (paid > 0) newStatus = 'Partially Paid';
-        else if (newStatus === 'Paid') newStatus = 'Partially Paid'; // total rose past paid
+        else if (newStatus === 'Paid') newStatus = 'Partially Paid';
 
         Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
           items: items,
@@ -1176,7 +1176,7 @@ poojascouture.com.au`
           status: newStatus
         });
 
-        Utils.showToast(`Shipping of ${Utils.formatCurrency(amount)} added to ${invoice.invoiceNumber}.`);
+        Utils.showToast(`Shipping of ${Utils.formatCurrency(lineTotal)} (inc GST) added to ${invoice.invoiceNumber}.`);
         App.closeModal();
         renderSubTab();
         return true;
