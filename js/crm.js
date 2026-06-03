@@ -902,7 +902,8 @@ poojascouture.com.au`
           clientId: fd.get('clientId'),
           clientName: selectedClient ? selectedClient.name : 'Unknown',
           title: fd.get('title'), price,
-          deadline: fd.get('deadline'), status: fd.get('status'), notes: fd.get('notes')
+          deadline: fd.get('deadline'), status: fd.get('status'), notes: fd.get('notes'),
+          deliveryDestination: fd.get('deliveryDestination')
         };
         if (isEdit) {
           Store.update(Store.COLLECTIONS.ORDERS, orderId, orderData);
