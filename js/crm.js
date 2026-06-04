@@ -2366,9 +2366,11 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           Utils.showToast('Project updated.');
         } else {
           projData.projectCode = generateProjectCode();
+          console.log('Creating project with data:', projData);
           const createdProj = await Store.create(Store.COLLECTIONS.ORDER_PROJECTS, projData);
+          console.log('Create result:', createdProj);
           if (!createdProj) {
-            Utils.showToast('Failed to create project. Check your permissions.', 'error');
+            Utils.showToast('Failed to create project. Check browser console for details.', 'error');
             return false;
           }
           await Store.refresh('order_projects');
