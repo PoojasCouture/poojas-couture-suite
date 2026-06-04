@@ -2264,7 +2264,9 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
                     <div class="d-flex gap-1 justify-end mt-1">
                       <button class="btn btn-secondary btn-sm" onclick="CRM.addSubOrder('${proj.id}')">+ Add Garment</button>
                       <button class="btn btn-secondary btn-sm" onclick="CRM.viewProject('${proj.id}')">View</button>
-                      ${!invoice ? `<button class="btn btn-primary btn-sm" onclick="CRM.createProjectInvoice('${proj.id}')">🧾 Create Invoice</button>` : ''}
+                      ${!invoice
+                        ? `<button class="btn btn-primary btn-sm" onclick="CRM.createProjectInvoice('${proj.id}')">🧾 Create Invoice</button>`
+                        : `<button class="btn btn-secondary btn-sm" onclick="CRM.updateProjectInvoice('${proj.id}')">🔄 Update Invoice</button>`}
                     </div>
                   </div>
                 </div>
@@ -2504,7 +2506,13 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         const newTotal = allSubOrders.reduce((sum, o) => sum + (o.price || 0), 0);
         await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, projectId, { totalPrice: newTotal });
 
-        Utils.showToast(`Garment added to ${proj.projectName}.`);
+        // Check if invoice already exists — warn Pooja to update it
+        const existingInv = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === projectId)[0];
+        if (existingInv) {
+          Utils.showToast(`Garment added. ⚠️ Invoice exists — click "Update Invoice" to include this garment.`, 'info');
+        } else {
+          Utils.showToast(`Garment added to ${proj.projectName}.`);
+        }
         renderSubTab();
         return true;
       }
@@ -2567,7 +2575,9 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           <div class="d-flex gap-2 justify-end" style="border-top:1px solid var(--pc-border);padding-top:var(--sp-4)">
             <button class="btn btn-secondary" onclick="App.closeModal();setTimeout(()=>CRM.addSubOrder('${proj.id}'),200)">+ Add Garment</button>
             <button class="btn btn-secondary" onclick="App.closeModal();setTimeout(()=>CRM.showProjectModal('${proj.id}'),200)">✏️ Edit Project</button>
-            ${!invoice ? `<button class="btn btn-primary" onclick="App.closeModal();setTimeout(()=>CRM.createProjectInvoice('${proj.id}'),200)">🧾 Create Invoice</button>` : ''}
+            ${!invoice
+              ? `<button class="btn btn-primary" onclick="App.closeModal();setTimeout(()=>CRM.createProjectInvoice('${proj.id}'),200)">🧾 Create Invoice</button>`
+              : `<button class="btn btn-secondary" onclick="App.closeModal();setTimeout(()=>CRM.updateProjectInvoice('${proj.id}'),200)">🔄 Update Invoice</button>`}
           </div>
         </div>`,
       hideCancel: true, submitText: 'Close', onSubmit: () => true,
@@ -2757,6 +2767,79 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
     }, 150);
   }
 
+  // Regenerate invoice line items from current sub-orders
+  // Preserves: invoice number, dates, amount already paid, milestones paid status
+  // Updates: line items, subtotal, GST, total, milestone amounts
+  function updateProjectInvoice(projectId) {
+    const proj = Store.getById(Store.COLLECTIONS.ORDER_PROJECTS, projectId);
+    if (!proj) return;
+    const subOrders = Store.query(Store.COLLECTIONS.ORDERS, o => o.projectId === projectId);
+    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === projectId)[0];
+    if (!invoice) { Utils.showToast('No invoice found for this project.', 'error'); return; }
+
+    if (subOrders.length === 0) {
+      Utils.showToast('No garments in this project to invoice.', 'error');
+      return;
+    }
+
+    // Recalculate totals from current sub-orders
+    const newExGST  = Math.round(subOrders.reduce((s, o) => s + (o.price || 0), 0) * 100) / 100;
+    const newGST    = Math.round(newExGST * 0.10 * 100) / 100;
+    const newTotal  = Math.round((newExGST + newGST) * 100) / 100;
+    const paid      = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
+    const newBalance = Math.round((newTotal - paid) * 100) / 100;
+
+    // Rebuild milestones with new total, preserving what's already been paid
+    const existingM = invoice.milestones || [];
+    const m1paid    = existingM[0] ? (existingM[0].paidAmount || 0) : paid;
+    const m1Shortfall = Math.max(0, Math.round((newTotal * 0.30 - m1paid) * 100) / 100);
+    const newM2     = Math.round((newTotal * 0.40 + m1Shortfall) * 100) / 100;
+    const newM3     = Math.max(0, Math.round((newTotal - m1paid - newM2) * 100) / 100);
+
+    App.showConfirm({
+      title: '🔄 Update Project Invoice',
+      text: `This will update the invoice to include all ${subOrders.length} garments.
+
+New total: ${Utils.formatCurrency(newTotal)} (was ${Utils.formatCurrency(invoice.total)}).
+Amount already paid (${Utils.formatCurrency(paid)}) will be preserved.
+New balance: ${Utils.formatCurrency(newBalance)}.`,
+      confirmText: 'Update Invoice',
+      onConfirm: async () => {
+        const items = subOrders.map(o => ({
+          description: `${o.orderCode ? o.orderCode + ' — ' : ''}${o.title}`,
+          quantity: 1,
+          unitPrice: Math.round(o.price * 100) / 100,
+          gst: Math.round(o.price * 0.10 * 100) / 100,
+          amount: Math.round(o.price * 1.10 * 100) / 100
+        }));
+
+        let newStatus = invoice.status;
+        if (paid >= newTotal && newTotal > 0) newStatus = 'Paid';
+        else if (paid > 0) newStatus = 'Partially Paid';
+        else newStatus = 'Draft';
+
+        await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
+          items,
+          subtotal: newExGST,
+          gstTotal: newGST,
+          total: newTotal,
+          status: newStatus,
+          milestones: [
+            { label: 'Milestone 1 — Deposit', amount: newTotal * 0.30, paid: m1paid > 0, paidAmount: m1paid },
+            { label: 'Milestone 2 — Design Approval', amount: newM2, paid: false, paidAmount: 0, rollover: m1Shortfall },
+            { label: 'Milestone 3 — Before Delivery', amount: newM3, paid: false, paidAmount: 0 }
+          ]
+        });
+
+        // Update project total too
+        await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, projectId, { totalPrice: newExGST });
+
+        Utils.showToast(`Invoice updated. New total: ${Utils.formatCurrency(newTotal)}.`, 'success');
+        renderSubTab();
+      }
+    });
+  }
+
   function quickEmailClient(clientId) {
     showComposeModal(clientId, 'custom', {});
   }
@@ -2782,6 +2865,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
     addSubOrder,
     viewProject,
     showProjectModal,
-    createProjectInvoice
+    createProjectInvoice,
+    updateProjectInvoice
   };
 })();
