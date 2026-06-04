@@ -447,7 +447,12 @@ const Accounting = (() => {
           subtotal: Math.round(subtotal * 100) / 100,
           gstTotal: Math.round(gstTotal * 100) / 100,
           total: Math.round((subtotal + gstTotal) * 100) / 100,
-          status: inv ? inv.status : 'Draft'
+          status: inv ? inv.status : 'Draft',
+          // Always set amountPaid so payment gate reads correctly.
+          // Preserve existing value on edit; default to 0 on create.
+          amountPaid: inv ? (inv.amountPaid != null ? inv.amountPaid : 0) : 0,
+          // orderId is null for manually created invoices (not linked to a CRM order).
+          orderId: inv ? (inv.orderId || null) : null
         };
 
         if (isEdit) {
