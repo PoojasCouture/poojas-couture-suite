@@ -147,9 +147,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let filtered = [];
     if (activeFilter === 'pending') {
-      filtered = orders.filter(o => o.status === 'Fabric Sourced' || o.status === 'In Production' || o.status === 'Fitting');
+      filtered = orders.filter(o => o.status === 'Fabric Sourced' || o.status === 'In Production' || o.status === 'Ready');
     } else {
-      filtered = orders.filter(o => o.status === 'Ready' || o.status === 'Shipped to Shashank' || o.status === 'At Shashank' || o.status === 'In Transit' || o.status === 'Delivered');
+      filtered = orders.filter(o => o.status === 'Shipped to Shashank' || o.status === 'At Shashank' || o.status === 'In Transit' || o.status === 'Delivered');
     }
 
     taskCounter.textContent = `${filtered.length} Tasks`;
@@ -166,9 +166,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (order.status === 'Fabric Sourced') {
           actionButton = `<button class="btn btn-primary btn-sm mt-2" onclick="startWork('${order.id}')">Start Production</button>`;
         } else if (order.status === 'In Production') {
-          actionButton = `<button class="btn btn-success btn-sm mt-2" onclick="finishWork('${order.id}')">Finish Stitching</button>`;
-        } else if (order.status === 'Fitting') {
-          actionButton = `<button class="btn btn-gold btn-sm mt-2" onclick="openShipToShashank('${order.id}')">Ship to Shashank</button>`;
+          actionButton = `<button class="btn btn-success btn-sm mt-2" onclick="finishWork('${order.id}')">✓ Finish Production</button>`;
+        } else if (order.status === 'Ready') {
+          actionButton = `<button class="btn btn-gold btn-sm mt-2" onclick="openShipToShashank('${order.id}')">🚚 Ship to Shashank</button>`;
         }
       } else if (order.status === 'Shipped to Shashank') {
         actionButton = `<span class="badge badge-info text-xs mt-2 p-2">Shipped to Shashank — ${Utils.sanitizeHTML(order.domesticTracking || 'tracking pending')}</span>`;
@@ -208,9 +208,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.finishWork = async function(orderId) {
     try {
-      await Store.rpc('tailor_update_order_status', { p_order_id: orderId, p_status: 'Fitting' });
+      await Store.rpc('tailor_update_order_status', { p_order_id: orderId, p_status: 'Ready' });
       await Store.refresh('orders');
-      Utils.showToast('Stitching completed. Order set to Fitting stage.');
+      Utils.showToast('Production complete — order marked Ready to ship.');
       loadTasks();
     } catch (e) {
       Utils.showToast('Could not update: ' + e.message, 'error');
