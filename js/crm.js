@@ -2366,7 +2366,12 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           Utils.showToast('Project updated.');
         } else {
           projData.projectCode = generateProjectCode();
-          await Store.create(Store.COLLECTIONS.ORDER_PROJECTS, projData);
+          const createdProj = await Store.create(Store.COLLECTIONS.ORDER_PROJECTS, projData);
+          if (!createdProj) {
+            Utils.showToast('Failed to create project. Check your permissions.', 'error');
+            return false;
+          }
+          await Store.refresh('order_projects');
           Utils.showToast('Project created. Now add garments using "+ Add Garment".');
         }
         renderSubTab();
@@ -2487,11 +2492,16 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           notes: ''
         };
         orderData.orderCode = generateOrderCode(productType);
-        await Store.create(Store.COLLECTIONS.ORDERS, orderData);
+        const createdOrder = await Store.create(Store.COLLECTIONS.ORDERS, orderData);
+        if (!createdOrder) {
+          Utils.showToast('Failed to add garment. Check your permissions.', 'error');
+          return false;
+        }
 
         // Update project total price to sum of all sub-orders
+        await Store.refresh(Store.COLLECTIONS.ORDER_PROJECTS);
         const allSubOrders = Store.query(Store.COLLECTIONS.ORDERS, o => o.projectId === projectId);
-        const newTotal = allSubOrders.reduce((sum, o) => sum + (o.price || 0), 0) + orderData.price;
+        const newTotal = allSubOrders.reduce((sum, o) => sum + (o.price || 0), 0);
         await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, projectId, { totalPrice: newTotal });
 
         Utils.showToast(`Garment added to ${proj.projectName}.`);
