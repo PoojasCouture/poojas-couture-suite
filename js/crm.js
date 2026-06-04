@@ -2541,10 +2541,43 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           </div>
           ${invoice ? `
             <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
-              <div class="text-xs font-semibold text-gold mb-2">🧾 Invoice ${Utils.sanitizeHTML(invoice.invoiceNumber)}</div>
-              <div class="d-flex justify-between text-xs mb-1"><span class="text-muted">Total:</span><span class="font-mono">${Utils.formatCurrency(invoice.total)}</span></div>
-              <div class="d-flex justify-between text-xs mb-1"><span class="text-muted">Paid:</span><span class="font-mono text-success">${Utils.formatCurrency(paid)}</span></div>
-              <div class="d-flex justify-between text-xs font-bold"><span>Balance:</span><span class="font-mono ${balance > 0 ? 'text-danger' : 'text-success'}">${Utils.formatCurrency(balance)}</span></div>
+              <div class="d-flex justify-between items-center mb-3">
+                <div class="text-xs font-semibold text-gold">🧾 Invoice ${Utils.sanitizeHTML(invoice.invoiceNumber)}</div>
+                <div class="d-flex gap-2">
+                  <span class="badge ${invoice.status === 'Paid' ? 'badge-success' : invoice.status === 'Partially Paid' ? 'badge-warning' : 'badge-muted'} text-xs">${invoice.status}</span>
+                </div>
+              </div>
+              <!-- Totals -->
+              <div class="d-flex justify-between text-xs mb-1"><span class="text-muted">Invoice Total:</span><span class="font-mono">${Utils.formatCurrency(invoice.total)}</span></div>
+              <div class="d-flex justify-between text-xs mb-1"><span class="text-muted">Total Paid:</span><span class="font-mono text-success">${Utils.formatCurrency(paid)}</span></div>
+              <div class="d-flex justify-between text-xs font-bold mb-3" style="border-top:1px solid var(--pc-border);padding-top:6px;margin-top:4px">
+                <span>Balance Due:</span>
+                <span class="font-mono ${balance > 0 ? 'text-danger' : 'text-success'}">${Utils.formatCurrency(balance)}</span>
+              </div>
+              <!-- Milestones -->
+              ${(invoice.milestones && invoice.milestones.length) ? `
+              <div class="text-xs font-semibold text-gold mb-2">Payment Milestones</div>
+              <div class="d-flex flex-col gap-2">
+                ${invoice.milestones.map((m, idx) => {
+                  const rolloverDiv = m.rollover > 0 ? '<div class="text-xs" style="color:#a78bfa">Includes ' + Utils.formatCurrency(m.rollover) + ' rolled from previous milestone</div>' : '';
+                  const paidDiv = (m.paid && m.paidAmount > 0) ? '<div class="text-xs text-success">✓ Paid: ' + Utils.formatCurrency(m.paidAmount) + '</div>' : '';
+                  const actionBtn = !m.paid
+                    ? '<button class="btn btn-primary" style="font-size:10px;padding:3px 10px" onclick="App.closeModal();setTimeout(()=>CRM.recordMilestonePayment(\''+proj.id+'\','+idx+'),200)">💳 Record Payment</button>'
+                    : '<span class="badge badge-success text-xs">Paid</span>';
+                  return '<div class="p-2 rounded-md" style="background:rgba(255,255,255,0.02);border:1px solid var(--pc-border)">' +
+                    '<div class="d-flex justify-between items-center">' +
+                      '<div>' +
+                        '<div class="text-xs font-semibold">' + Utils.sanitizeHTML(m.label) + '</div>' +
+                        rolloverDiv + paidDiv +
+                      '</div>' +
+                      '<div class="text-right d-flex flex-col gap-1 items-end">' +
+                        '<span class="font-mono text-xs font-bold">' + Utils.formatCurrency(m.amount) + '</span>' +
+                        actionBtn +
+                      '</div>' +
+                    '</div>' +
+                  '</div>';
+                }).join('')}
+              </div>` : ''}
             </div>` : `
             <div class="p-3 rounded-md text-xs text-muted" style="border:1px dashed var(--pc-border)">
               No invoice yet. Click "Create Invoice" to generate a project invoice with 30/40/30 milestones.
@@ -2767,6 +2800,114 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
     }, 150);
   }
 
+  // Record payment against a specific milestone
+  function recordMilestonePayment(projectId, milestoneIndex) {
+    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === projectId)[0];
+    if (!invoice) { Utils.showToast('Invoice not found.', 'error'); return; }
+
+    const milestones = invoice.milestones || [];
+    const m = milestones[milestoneIndex];
+    if (!m) { Utils.showToast('Milestone not found.', 'error'); return; }
+
+    const totalPaidSoFar = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
+    const mBalance = Math.round((m.amount - (m.paidAmount || 0)) * 100) / 100;
+
+    App.showModal({
+      title: `💳 Record Payment — ${m.label}`,
+      content: `
+        <form id="milestone-pay-form" class="animate-fade-in-scale">
+          <div class="p-3 rounded-md mb-4" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
+            <div class="d-flex justify-between text-sm mb-1">
+              <span class="text-muted">Milestone amount:</span>
+              <span class="font-mono font-bold">${Utils.formatCurrency(m.amount)}</span>
+            </div>
+            ${m.paidAmount > 0 ? `
+            <div class="d-flex justify-between text-sm mb-1">
+              <span class="text-muted">Already paid:</span>
+              <span class="font-mono text-success">${Utils.formatCurrency(m.paidAmount)}</span>
+            </div>` : ''}
+            <div class="d-flex justify-between text-sm font-bold" style="border-top:1px solid var(--pc-border);padding-top:6px;margin-top:4px">
+              <span>Outstanding:</span>
+              <span class="font-mono text-danger">${Utils.formatCurrency(mBalance)}</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Amount Received (AUD) <span class="required">*</span></label>
+            <input type="number" name="amount" class="form-input" id="milestone-amount-input"
+              min="0" step="0.01" value="${mBalance}" required>
+            <div id="milestone-pay-hint" class="text-xs text-muted mt-1">
+              Pre-filled with outstanding amount. Edit if partial payment received.
+            </div>
+          </div>
+          <div class="form-group m-0">
+            <label class="form-label">Payment Method</label>
+            <select name="paymentMethod" class="form-select">
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </form>`,
+      submitText: '✓ Confirm Payment',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#milestone-pay-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const fd = new FormData(form);
+        const amount = parseFloat(fd.get('amount')) || 0;
+        if (amount <= 0) { Utils.showToast('Enter a payment amount greater than zero.', 'error'); return false; }
+
+        // Update this milestone
+        const updatedMilestones = milestones.map((ms, idx) => {
+          if (idx !== milestoneIndex) return ms;
+          const newPaidAmount = Math.round(((ms.paidAmount || 0) + amount) * 100) / 100;
+          return {
+            ...ms,
+            paidAmount: newPaidAmount,
+            paid: newPaidAmount >= ms.amount
+          };
+        });
+
+        // Update total paid on invoice
+        const newTotalPaid = Math.round((totalPaidSoFar + amount) * 100) / 100;
+        const newBalance   = Math.round((invoice.total - newTotalPaid) * 100) / 100;
+        let newStatus = newBalance <= 0 ? 'Paid' : 'Partially Paid';
+
+        await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
+          amountPaid: newTotalPaid,
+          status: newStatus,
+          milestones: updatedMilestones,
+          notes: (invoice.notes || '') + '\n' + m.label + ': ' + Utils.formatCurrency(amount) + ' via ' + fd.get('paymentMethod') + ' on ' + new Date().toLocaleDateString('en-AU') + '.'
+        });
+
+        Utils.showToast('Payment of ' + Utils.formatCurrency(amount) + ' recorded for ' + m.label + '. Balance: ' + Utils.formatCurrency(newBalance) + '.', 'success');
+        App.closeModal();
+        renderSubTab();
+        return true;
+      }
+    });
+
+    // Live hint on amount input
+    setTimeout(() => {
+      const input = document.getElementById('milestone-amount-input');
+      const hint  = document.getElementById('milestone-pay-hint');
+      if (!input || !hint) return;
+      input.addEventListener('input', () => {
+        const amt = parseFloat(input.value) || 0;
+        if (amt < mBalance && amt > 0) {
+          hint.textContent = 'Partial payment. ' + Utils.formatCurrency(mBalance - amt) + ' will remain outstanding on this milestone.';
+          hint.style.color = '#a78bfa';
+        } else if (amt >= mBalance && amt > 0) {
+          hint.textContent = '✓ Clears this milestone fully.';
+          hint.style.color = '#10b981';
+        } else {
+          hint.textContent = 'Pre-filled with outstanding amount. Edit if partial payment received.';
+          hint.style.color = '';
+        }
+      });
+    }, 100);
+  }
+
   // Regenerate invoice line items from current sub-orders
   // Preserves: invoice number, dates, amount already paid, milestones paid status
   // Updates: line items, subtotal, GST, total, milestone amounts
@@ -2866,6 +3007,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     viewProject,
     showProjectModal,
     createProjectInvoice,
-    updateProjectInvoice
+    updateProjectInvoice,
+    recordMilestonePayment
   };
 })();
