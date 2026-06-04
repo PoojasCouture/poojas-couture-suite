@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── session bootstrap ─────────────────────────────────────
   try {
     await Store.ready();
+    Store.subscribeRealtime();
   } catch (e) {
     console.error('Store.ready failed:', e);
     showGate('Could not connect to the database. Check your connection.', true);
@@ -198,6 +199,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   renderOrdersPanel();
+
+  // Realtime: re-render when data changes from another portal/user
+  window.addEventListener('pc:datachange', Utils && Utils.debounce ? Utils.debounce(() => {
+    if (activeTab === 'orders') renderOrdersPanel();
+    else renderStockPanel();
+  }, 500) : () => {
+    if (activeTab === 'orders') renderOrdersPanel();
+    else renderStockPanel();
+  });
+
+  // Tab focus: refresh cache when user returns to this tab
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+      try {
+        await Store.refresh('orders');
+        await Store.refresh('invoices');
+        if (activeTab === 'orders') renderOrdersPanel();
+        else renderStockPanel();
+      } catch (e) { /* ignore */ }
+    }
+  });
 
   /* ==========================================================
      TAB 1 — CUSTOM ORDERS
