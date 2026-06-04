@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ---------- Session bootstrap (inherits main-app login) ----------
   try {
     await Store.ready();
+    Store.subscribeRealtime();
   } catch (e) {
     console.error('Could not connect to database:', e);
     showGate('Could not connect to the database. Check your connection and try again.', true);
@@ -318,4 +319,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (result !== false) close();
     });
   }
+
+  // Realtime: re-render when orders change in another portal
+  window.addEventListener('pc:datachange', (e) => {
+    if (e.detail && e.detail.table === 'orders') {
+      Store.refresh('orders').then(() => loadTasks());
+    }
+  });
+
+  // Tab focus: refresh when user switches back to this tab
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+      try {
+        await Store.refresh('orders');
+        loadTasks();
+      } catch (e) { /* ignore */ }
+    }
+  });
 });
