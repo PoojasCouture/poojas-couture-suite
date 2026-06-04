@@ -2610,38 +2610,43 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
             <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">GST (10%):</span><span class="font-mono">${Utils.formatCurrency(gst)}</span></div>
             <div class="d-flex justify-between text-sm font-bold"><span>Invoice Total (inc GST):</span><span class="font-mono text-gold">${Utils.formatCurrency(total)}</span></div>
           </div>
-          <div class="text-xs font-semibold text-gold mb-3">Payment Milestones (30 / 40 / 30)</div>
+          <div class="text-xs font-semibold text-gold mb-1">Payment Milestones</div>
+          <div class="text-xs text-muted mb-3">Suggested 30/40/30 split. Any shortfall on M1 rolls over to M2 automatically.</div>
           <div class="d-flex flex-col gap-3 mb-4">
             <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.15);border:1px solid var(--pc-border)">
-              <div class="d-flex justify-between items-center">
+              <div class="d-flex justify-between items-center mb-2">
                 <div>
-                  <div class="text-xs font-semibold">Milestone 1 — 30% Deposit</div>
-                  <div class="text-xs text-muted">Due within 7 days of invoice</div>
+                  <div class="text-xs font-semibold">Milestone 1 — Deposit</div>
+                  <div class="text-xs text-muted">Suggested 30%: ${Utils.formatCurrency(m1)} · Due within 7 days</div>
                 </div>
-                <div class="font-mono font-bold text-gold">${Utils.formatCurrency(m1)}</div>
               </div>
-              <div class="form-group m-0 mt-2">
-                <label class="form-label" style="font-size:10px">Deposit already paid?</label>
-                <input type="number" name="m1paid" class="form-input" min="0" step="0.01" value="0" placeholder="0.00">
+              <div class="form-group m-0">
+                <label class="form-label" style="font-size:10px">Amount paid by customer (AUD)</label>
+                <input type="number" name="m1paid" id="m1paid-input" class="form-input" min="0" step="0.01" value="0" placeholder="0.00">
+                <div id="m1-rollover-hint" class="text-xs mt-1"></div>
               </div>
             </div>
             <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.15);border:1px solid var(--pc-border)">
               <div class="d-flex justify-between items-center">
                 <div>
-                  <div class="text-xs font-semibold">Milestone 2 — 40% Design Approval</div>
+                  <div class="text-xs font-semibold">Milestone 2 — Design Approval</div>
                   <div class="text-xs text-muted">Due at design approval, before production</div>
                 </div>
-                <div class="font-mono font-bold">${Utils.formatCurrency(m2)}</div>
+                <div class="font-mono font-bold" id="m2-display">${Utils.formatCurrency(m2)}</div>
               </div>
             </div>
             <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.15);border:1px solid var(--pc-border)">
               <div class="d-flex justify-between items-center">
                 <div>
-                  <div class="text-xs font-semibold">Milestone 3 — 30% Before Delivery</div>
+                  <div class="text-xs font-semibold">Milestone 3 — Before Delivery</div>
                   <div class="text-xs text-muted">Due before final delivery</div>
                 </div>
-                <div class="font-mono font-bold">${Utils.formatCurrency(m3)}</div>
+                <div class="font-mono font-bold" id="m3-display">${Utils.formatCurrency(m3)}</div>
               </div>
+            </div>
+            <div class="p-3 rounded-md" style="background:rgba(236,182,118,0.06);border:1px solid var(--pc-border)">
+              <div class="d-flex justify-between text-xs"><span class="text-muted">Total paid so far:</span><span class="font-mono text-success" id="total-paid-display">${Utils.formatCurrency(0)}</span></div>
+              <div class="d-flex justify-between text-xs mt-1"><span class="text-muted">Remaining balance:</span><span class="font-mono font-bold text-danger" id="remaining-display">${Utils.formatCurrency(total)}</span></div>
             </div>
           </div>
           <div class="form-row">
@@ -2667,9 +2672,13 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         const fd = new FormData(form);
         const m1paid = parseFloat(fd.get('m1paid')) || 0;
 
+        // Shortfall on M1 rolls into M2
+        const m1Shortfall = Math.max(0, Math.round((m1 - m1paid) * 100) / 100);
+        const m2Adjusted  = Math.round((m2 + m1Shortfall) * 100) / 100;
+        const m3Adjusted  = Math.max(0, Math.round((total - m1paid - m2Adjusted) * 100) / 100);
+
         let invStatus = 'Draft';
         if (m1paid >= total) invStatus = 'Paid';
-        else if (m1paid >= m1) invStatus = 'Partially Paid';
         else if (m1paid > 0) invStatus = 'Partially Paid';
 
         // Build line items from sub-orders
@@ -2697,9 +2706,9 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           items,
           // Milestone structure
           milestones: [
-            { label: 'Milestone 1 — 30% Deposit', amount: m1, paid: m1paid >= m1, paidAmount: Math.min(m1paid, m1) },
-            { label: 'Milestone 2 — 40% Design Approval', amount: m2, paid: false, paidAmount: 0 },
-            { label: 'Milestone 3 — 30% Before Delivery', amount: m3, paid: false, paidAmount: 0 }
+            { label: 'Milestone 1 — Deposit', amount: m1, paid: m1paid > 0, paidAmount: m1paid, suggested: m1 },
+            { label: 'Milestone 2 — Design Approval', amount: m2Adjusted, paid: false, paidAmount: 0, rollover: m1Shortfall },
+            { label: 'Milestone 3 — Before Delivery', amount: m3Adjusted, paid: false, paidAmount: 0 }
           ]
         });
 
@@ -2708,6 +2717,44 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         return true;
       }
     });
+    // Wire live hints after modal renders
+    setTimeout(() => {
+      const m1Input = document.getElementById('m1paid-input');
+      const hint    = document.getElementById('m1-rollover-hint');
+      const m2El    = document.getElementById('m2-display');
+      const m3El    = document.getElementById('m3-display');
+      const paidEl  = document.getElementById('total-paid-display');
+      const remEl   = document.getElementById('remaining-display');
+      if (!m1Input) return;
+      const fmt = (n) => Utils.formatCurrency(Math.round(n * 100) / 100);
+      const update = () => {
+        const paid      = parseFloat(m1Input.value) || 0;
+        const shortfall = Math.max(0, m1 - paid);
+        const m2adj     = Math.round((m2 + shortfall) * 100) / 100;
+        const m3adj     = Math.max(0, Math.round((total - paid - m2adj) * 100) / 100);
+        const remaining = Math.round((total - paid) * 100) / 100;
+        if (hint) {
+          if (paid > 0 && paid < m1) {
+            hint.style.color = '#a78bfa';
+            hint.textContent = `Paid: ${fmt(paid)}. Shortfall of ${fmt(shortfall)} rolled to M2.`;
+          } else if (paid >= m1 && paid > 0) {
+            hint.style.color = '#10b981';
+            hint.textContent = `✓ Full deposit of ${fmt(paid)} received.`;
+          } else {
+            hint.textContent = '';
+          }
+        }
+        if (m2El) m2El.textContent = fmt(m2adj);
+        if (m3El) m3El.textContent = fmt(m3adj);
+        if (paidEl) paidEl.textContent = fmt(paid);
+        if (remEl) {
+          remEl.textContent = fmt(remaining);
+          remEl.style.color = remaining <= 0 ? '#10b981' : '#ef4444';
+        }
+      };
+      m1Input.addEventListener('input', update);
+      update();
+    }, 150);
   }
 
   function quickEmailClient(clientId) {
