@@ -2857,15 +2857,19 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         const amount = parseFloat(fd.get('amount')) || 0;
         if (amount <= 0) { Utils.showToast('Enter a payment amount greater than zero.', 'error'); return false; }
 
-        // Update this milestone
+        // Update this milestone + roll any shortfall to the next one
+        const shortfall = Math.max(0, Math.round((m.amount - (m.paidAmount || 0) - amount) * 100) / 100);
         const updatedMilestones = milestones.map((ms, idx) => {
-          if (idx !== milestoneIndex) return ms;
-          const newPaidAmount = Math.round(((ms.paidAmount || 0) + amount) * 100) / 100;
-          return {
-            ...ms,
-            paidAmount: newPaidAmount,
-            paid: newPaidAmount >= ms.amount
-          };
+          if (idx === milestoneIndex) {
+            const newPaidAmount = Math.round(((ms.paidAmount || 0) + amount) * 100) / 100;
+            return { ...ms, paidAmount: newPaidAmount, paid: newPaidAmount >= ms.amount };
+          }
+          // Roll shortfall into the immediately next milestone
+          if (idx === milestoneIndex + 1 && shortfall > 0) {
+            const newAmount = Math.round((ms.amount + shortfall) * 100) / 100;
+            return { ...ms, amount: newAmount, rollover: Math.round(((ms.rollover || 0) + shortfall) * 100) / 100 };
+          }
+          return ms;
         });
 
         // Update total paid on invoice
