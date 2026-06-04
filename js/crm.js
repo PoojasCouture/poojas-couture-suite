@@ -668,8 +668,11 @@ poojascouture.com.au`
       { id: 'Ready',                title: 'Ready' },
       { id: 'Shipped to Shashank',  title: 'Shipped to Shashank' },
       { id: 'At Shashank',          title: 'At Shashank' },
-      { id: 'In Transit',           title: 'In Transit' },
-      { id: 'Delivered',            title: 'Delivered' }
+      { id: 'In Transit',              title: 'In Transit' },
+      { id: 'Awaiting Payment',         title: 'Awaiting Payment' },
+      { id: 'Received in Australia',    title: 'Received in AU' },
+      { id: 'Cleared for Delivery',     title: 'Cleared for Delivery' },
+      { id: 'Delivered',                title: 'Delivered' }
     ];
 
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
@@ -756,7 +759,10 @@ poojascouture.com.au`
           : `${days} days left`;
         const stageColor =
           o.status === 'Delivered' ? 'badge-success'
+          : o.status === 'Cleared for Delivery' ? 'badge-success'
           : o.status === 'Ready' || o.status === 'In Transit' ? 'badge-info'
+          : o.status === 'Received in Australia' ? 'badge-info'
+          : o.status === 'Awaiting Payment' ? 'badge-danger'
           : o.status === 'New' ? 'badge-muted'
           : 'badge-gold';
 
@@ -908,6 +914,9 @@ poojascouture.com.au`
                 <option value="Shipped to Shashank" ${order&&order.status==='Shipped to Shashank'?'selected':''}>Shipped to Shashank</option>
                 <option value="At Shashank" ${order&&order.status==='At Shashank'?'selected':''}>At Shashank</option>
                 <option value="In Transit" ${order&&order.status==='In Transit'?'selected':''}>In Transit</option>
+                <option value="Awaiting Payment" ${order&&order.status==='Awaiting Payment'?'selected':''}>Awaiting Payment</option>
+                <option value="Received in Australia" ${order&&order.status==='Received in Australia'?'selected':''}>Received in Australia</option>
+                <option value="Cleared for Delivery" ${order&&order.status==='Cleared for Delivery'?'selected':''}>Cleared for Delivery</option>
                 <option value="Delivered" ${order&&order.status==='Delivered'?'selected':''}>Delivered</option>
               </select>
             </div>
@@ -1065,6 +1074,24 @@ poojascouture.com.au`
             <div class="p-3 rounded-md" style="background:rgba(236,182,118,0.06);border:1px solid var(--pc-border)">
               <div class="text-xs text-muted mb-2">This order shipped with a customer shipping contribution (${o.shippingAllocation==='Half'?'50/50 split':'customer pays full'}). Add it to the invoice when ready.</div>
               <button class="btn btn-secondary btn-sm" onclick="CRM.addShippingToInvoice('${o.id}')">➕ Add shipping to invoice</button>
+            </div>`:''}
+          ${o.status==='Awaiting Payment'?`
+            <div class="p-3 rounded-md" style="background:rgba(220,38,38,0.08);border:1px solid var(--pc-danger)">
+              <div class="text-sm font-semibold text-danger mb-1">💳 Payment Required</div>
+              <div class="text-xs text-muted mb-3">This order is held pending payment. Chase the customer, then record payment below to release for delivery.</div>
+              <button class="btn btn-primary btn-sm" onclick="CRM.recordPaymentAndClear('${o.id}')">✓ Record Payment & Clear for Delivery</button>
+            </div>`:''}
+          ${o.status==='Received in Australia'?`
+            <div class="p-3 rounded-md" style="background:rgba(59,130,246,0.08);border:1px solid var(--pc-border)">
+              <div class="text-sm font-semibold mb-1">📦 Received in Australia</div>
+              <div class="text-xs text-muted mb-3">Parcel is with Pooja. Confirm payment and choose delivery method.</div>
+              <button class="btn btn-primary btn-sm" onclick="CRM.markReadyToDeliver('${o.id}')">🚚 Confirm & Mark Delivered</button>
+            </div>`:''}
+          ${o.status==='In Transit' && o.deliveryDestination==='Australia'?`
+            <div class="p-3 rounded-md" style="background:rgba(59,130,246,0.08);border:1px solid var(--pc-border)">
+              <div class="text-sm font-semibold mb-1">📬 In Transit to Australia</div>
+              <div class="text-xs text-muted mb-3">Mark as received once the parcel arrives. Shipping will be auto-added to the invoice.</div>
+              <button class="btn btn-secondary btn-sm" onclick="CRM.markReceivedInAustralia('${o.id}')">📬 Mark Received in Australia</button>
             </div>`:''}
           <div class="d-grid gap-4" style="grid-template-columns:1fr 1fr">
             <div class="d-flex flex-col gap-2">
@@ -1603,7 +1630,7 @@ poojascouture.com.au`
       { name:'Final Handover', desc:'Quality inspection, steam press, bridal pack and boutique pickup.' }
     ];
 
-    const statusMap = { 'New':1,'In Design':2,'Fabric Sourced':3,'In Production':4,'Fitting':5,'Ready':6,'Shipped to Shashank':7,'At Shashank':8,'In Transit':9,'Delivered':10 };
+    const statusMap = { 'New':1,'In Design':2,'Fabric Sourced':3,'In Production':4,'Fitting':5,'Ready':6,'Shipped to Shashank':7,'At Shashank':8,'In Transit':9,'Awaiting Payment':9,'Received in Australia':9,'Cleared for Delivery':9,'Delivered':10 };
     const currentStage = orders.length>0 ? (statusMap[orders[0].status]||0) : 0;
 
     wrapper.innerHTML = `
@@ -1699,6 +1726,218 @@ poojascouture.com.au`
     `;
   }
 
+  // ── STAGE 3: Pooja records payment → Cleared for Delivery ──
+  function recordPaymentAndClear(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+    if (!invoice) {
+      Utils.showToast('No invoice found for this order.', 'error');
+      return;
+    }
+    const paid  = (invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0;
+    const balance = Math.round((invoice.total - paid) * 100) / 100;
+
+    App.showModal({
+      title: '💳 Record Payment — ' + (o.orderCode || o.id),
+      content: `
+        <form id="pay-clear-form" class="animate-fade-in-scale">
+          <div class="p-3 rounded-md mb-4" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
+            <div class="d-flex justify-between text-sm mb-1">
+              <span class="text-muted">Invoice total:</span>
+              <span class="font-mono font-bold">${Utils.formatCurrency(invoice.total)}</span>
+            </div>
+            <div class="d-flex justify-between text-sm mb-1">
+              <span class="text-muted">Already paid:</span>
+              <span class="font-mono text-success">${Utils.formatCurrency(paid)}</span>
+            </div>
+            <div class="d-flex justify-between text-sm font-bold" style="border-top:1px solid var(--pc-border);padding-top:8px;margin-top:8px;">
+              <span>Balance due:</span>
+              <span class="font-mono text-danger">${Utils.formatCurrency(balance)}</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Payment Amount Received (AUD) <span class="required">*</span></label>
+            <input type="number" name="paymentAmount" class="form-input" min="0" step="0.01"
+              value="${balance}" required>
+            <div class="text-xs text-muted mt-1">Pre-filled with balance due. Edit if partial payment received.</div>
+          </div>
+          <div class="form-group m-0">
+            <label class="form-label">Payment Method</label>
+            <select name="paymentMethod" class="form-select">
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </form>`,
+      submitText: '✓ Confirm Payment & Clear for Delivery',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#pay-clear-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const fd = new FormData(form);
+        const amount = parseFloat(fd.get('paymentAmount')) || 0;
+        if (amount <= 0) { Utils.showToast('Enter a payment amount.', 'error'); return false; }
+
+        const newPaid   = Math.round((paid + amount) * 100) / 100;
+        const newBalance = Math.round((invoice.total - newPaid) * 100) / 100;
+        const newStatus  = newBalance <= 0 ? 'Paid' : 'Partially Paid';
+
+        // Update invoice
+        await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
+          amountPaid: newPaid,
+          status: newStatus,
+          notes: (invoice.notes || '') + `
+Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} recorded ${new Date().toLocaleDateString('en-AU')}.`
+        });
+
+        // Move order to Cleared for Delivery
+        await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
+          status: 'Cleared for Delivery',
+          clearedForDeliveryDate: new Date().toISOString()
+        });
+
+        Utils.showToast(`Payment recorded. Order cleared for delivery.`, 'success');
+        App.closeModal();
+        renderSubTab();
+        return true;
+      }
+    });
+  }
+
+  // ── STAGE 4: Pooja marks parcel received in Australia ────
+  // Auto-adds shipping to invoice if applicable, then checks balance
+  async function markReceivedInAustralia(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+
+    // Step 1: Auto-add shipping contribution to invoice if not already done
+    if (o.shippingCost && o.shippingAllocation && o.shippingAllocation !== 'None') {
+      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+      if (invoice) {
+        const already = (invoice.items || []).some(it => it.isShipping);
+        if (!already) {
+          const shipCost = parseFloat(o.shippingCost) || 0;
+          const share    = o.shippingAllocation === 'Half'
+            ? Math.round((shipCost / 2) * 100) / 100
+            : shipCost;
+          const lineGst   = Math.round((share * 0.10) * 100) / 100;
+          const lineSub   = Math.round(share * 100) / 100;
+          const lineTotal = Math.round((share + lineGst) * 100) / 100;
+
+          const items    = (invoice.items || []).slice();
+          items.push({
+            description: 'Shipping contribution',
+            quantity: 1, unitPrice: lineSub, gst: lineGst, amount: lineTotal, isShipping: true
+          });
+
+          const newTotal = Math.round((invoice.total + lineTotal) * 100) / 100;
+          const newGst   = Math.round((invoice.gstTotal + lineGst) * 100) / 100;
+          const newSub   = Math.round((invoice.subtotal + lineSub) * 100) / 100;
+          const paidSoFar = (invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0;
+          let newInvStatus = invoice.status;
+          if (paidSoFar >= newTotal && newTotal > 0) newInvStatus = 'Paid';
+          else if (paidSoFar > 0) newInvStatus = 'Partially Paid';
+          else if (newInvStatus === 'Paid') newInvStatus = 'Partially Paid';
+
+          await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
+            items, subtotal: newSub, gstTotal: newGst, total: newTotal, status: newInvStatus
+          });
+          Utils.showToast(`Shipping ${Utils.formatCurrency(lineTotal)} (inc GST) auto-added to invoice.`, 'info');
+        }
+      }
+    }
+
+    // Step 2: Refresh invoice after possible update, check balance
+    const updatedInvoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+    const paid    = updatedInvoice ? ((updatedInvoice.amountPaid != null && updatedInvoice.amountPaid !== '') ? updatedInvoice.amountPaid : 0) : 0;
+    const balance = updatedInvoice ? Math.round((updatedInvoice.total - paid) * 100) / 100 : 0;
+
+    if (balance > 0) {
+      // Warn Pooja — she can override
+      App.showConfirm({
+        title: '⚠️ Outstanding Balance',
+        text: `This order has a balance of ${Utils.formatCurrency(balance)} owing. Mark as Received in Australia anyway? You can collect payment before final delivery.`,
+        confirmText: 'Yes, Mark Received',
+        onConfirm: async () => {
+          await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
+            status: 'Received in Australia',
+            receivedInAustraliaDate: new Date().toISOString()
+          });
+          Utils.showToast('Marked Received in Australia. Collect payment before delivering.');
+          renderSubTab();
+        }
+      });
+      return;
+    }
+
+    // Balance zero — mark received
+    await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
+      status: 'Received in Australia',
+      receivedInAustraliaDate: new Date().toISOString()
+    });
+    Utils.showToast('Marked Received in Australia.');
+    renderSubTab();
+  }
+
+  // ── STAGE 4: Pooja confirms delivery (Route A final step) ─
+  function markReadyToDeliver(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+    const paid    = invoice ? ((invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0) : 0;
+    const balance = invoice ? Math.round((invoice.total - paid) * 100) / 100 : 0;
+
+    if (balance > 0) {
+      App.showModal({
+        title: '🚚 Confirm Delivery — ' + (o.orderCode || o.id),
+        content: `
+          <div class="d-flex flex-col gap-4">
+            <div class="p-3 rounded-md" style="background:rgba(220,38,38,0.08);border:1px solid var(--pc-danger)">
+              <div class="text-sm font-semibold text-danger mb-1">⚠️ Outstanding Balance</div>
+              <div class="text-xs text-muted">Balance of <strong>${Utils.formatCurrency(balance)}</strong> is still owing. Record payment before marking delivered, or override.</div>
+            </div>
+            <div class="form-group m-0">
+              <label class="form-label">Payment Amount Received (AUD)</label>
+              <input type="number" id="route-a-payment" class="form-input" min="0" step="0.01" value="${balance}" placeholder="0.00">
+              <div class="text-xs text-muted mt-1">Leave as 0 to skip payment recording and deliver anyway.</div>
+            </div>
+          </div>`,
+        submitText: '✓ Mark Delivered',
+        onSubmit: async (modalEl) => {
+          const amount = parseFloat(Utils.$('#route-a-payment', modalEl).value) || 0;
+          if (amount > 0 && invoice) {
+            const newPaid = Math.round((paid + amount) * 100) / 100;
+            const newBal  = Math.round((invoice.total - newPaid) * 100) / 100;
+            await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
+              amountPaid: newPaid,
+              status: newBal <= 0 ? 'Paid' : 'Partially Paid'
+            });
+          }
+          await Store.update(Store.COLLECTIONS.ORDERS, orderId, { status: 'Delivered' });
+          Utils.showToast('Order delivered.');
+          App.closeModal();
+          renderSubTab();
+          return true;
+        }
+      });
+      return;
+    }
+
+    // Balance zero — straight to Delivered
+    App.showConfirm({
+      title: 'Mark as Delivered',
+      text: `Confirm delivery of order ${o.orderCode || o.id} to ${o.clientName}?`,
+      confirmText: 'Confirm Delivered',
+      onConfirm: async () => {
+        await Store.update(Store.COLLECTIONS.ORDERS, orderId, { status: 'Delivered' });
+        Utils.showToast('Order delivered.');
+        renderSubTab();
+      }
+    });
+  }
+
   function quickEmailClient(clientId) {
     showComposeModal(clientId, 'custom', {});
   }
@@ -1716,6 +1955,9 @@ poojascouture.com.au`
     addShippingToInvoice,
     editOrder,
     deleteOrder,
-    showComposeModal
+    showComposeModal,
+    recordPaymentAndClear,
+    markReceivedInAustralia,
+    markReadyToDeliver
   };
 })();
