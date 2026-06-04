@@ -416,6 +416,56 @@ const Store = (() => {
     } catch (e) { /* ignore */ }
   }
 
+  // ============================================================
+  // REALTIME: subscribe to live changes on critical tables.
+  // Fires a custom 'pc:datachange' event on window when any
+  // row changes so modules can re-render without a full refresh.
+  // Call once after Store.ready().
+  // ============================================================
+  let realtimeChannel = null;
+
+  function subscribeRealtime() {
+    const c = client();
+    if (!c || realtimeChannel) return;
+
+    const REALTIME_TABLES = [
+      'orders', 'invoices', 'order_projects', 'clients',
+      'appointments', 'attendance', 'leaves'
+    ];
+
+    realtimeChannel = c.channel('pc-realtime-all');
+
+    REALTIME_TABLES.forEach(table => {
+      realtimeChannel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table },
+        async (payload) => {
+          try {
+            const { data, error } = await c.from(table).select('*');
+            if (!error) cache[table] = (data || []).map(rowToApp);
+          } catch (e) { /* ignore */ }
+          window.dispatchEvent(new CustomEvent('pc:datachange', {
+            detail: { table, event: payload.eventType }
+          }));
+        }
+      );
+    });
+
+    realtimeChannel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('[Store] Realtime subscribed.');
+      }
+    });
+  }
+
+  function unsubscribeRealtime() {
+    const c = client();
+    if (c && realtimeChannel) {
+      c.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+  }
+
   // Reconcile current user from the live Supabase session (works any time).
   async function reconcileUser() {
     const c = client();
@@ -457,6 +507,8 @@ const Store = (() => {
     reconcileUser,
     rpc,
     refresh,
+    subscribeRealtime,
+    unsubscribeRealtime,
     setCurrentUser,
     logout
   };
