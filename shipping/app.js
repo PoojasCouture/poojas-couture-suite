@@ -573,6 +573,67 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   window._pcMarkDelivered = async function(orderId) {
+    const order = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!order) return;
+
+    // Payment gate: check invoice balance before allowing delivery.
+    // Route B (India/Overseas) — Shashank is the last mile.
+    // If balance > 0: hard block for logistics, warn+override for admin.
+    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+    if (invoice) {
+      const paid = (invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0;
+      const balance = Math.round((invoice.total - paid) * 100) / 100;
+      if (balance > 0) {
+        // Logistics role: hard block — cannot override
+        if (appRole === 'logistics') {
+          openModal({
+            title: '⛔ Payment Required',
+            bodyHTML: `
+              <div style="text-align:center; padding:16px 0;">
+                <div style="font-size:40px; margin-bottom:12px;">⛔</div>
+                <div style="font-size:15px; font-weight:700; color:#e06; margin-bottom:8px;">Cannot Mark as Delivered</div>
+                <div style="font-size:13px; color:#aaa; margin-bottom:16px;">
+                  This order has an outstanding balance of
+                  <strong style="color:#d4af37;">AUD $${balance.toFixed(2)}</strong>.
+                </div>
+                <div style="font-size:12px; color:#888;">
+                  Payment must be confirmed by Pooja before delivery can be completed.
+                  Please contact Pooja's Couture to arrange payment.
+                </div>
+              </div>`,
+            submitLabel: 'OK',
+            onSubmit: () => true
+          });
+          return;
+        }
+        // Admin/operations: warning with override option
+        openModal({
+          title: '⚠️ Outstanding Balance',
+          bodyHTML: `
+            <div style="padding:8px 0;">
+              <div style="font-size:13px; color:#aaa; margin-bottom:12px;">
+                This order has an outstanding balance of
+                <strong style="color:#d4af37;">AUD $${balance.toFixed(2)}</strong>.
+              </div>
+              <div style="font-size:12px; color:#888;">
+                You can override and mark as delivered, but this should only be done
+                if payment has been arranged outside the system.
+              </div>
+            </div>`,
+          submitLabel: '⚠️ Override & Mark Delivered',
+          onSubmit: async () => {
+            const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, { status: 'Delivered' });
+            if (!res) return false;
+            toast('Delivered (payment override) — order marked complete.');
+            renderOrdersPanel();
+            return true;
+          }
+        });
+        return;
+      }
+    }
+
+    // Balance is zero or no invoice — proceed normally
     const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, { status: 'Delivered' });
     if (!res) return;
     toast('Delivered — order marked complete.');
