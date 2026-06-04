@@ -204,15 +204,19 @@ document.addEventListener('DOMContentLoaded', async () => {
      ========================================================== */
   function renderOrdersPanel() {
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
-    const incoming = orders.filter(o => o.status === 'Shipped to Shashank');
-    const ready    = orders.filter(o => o.status === 'At Shashank');
-    const transit  = orders.filter(o => o.status === 'In Transit');
+    const incoming        = orders.filter(o => o.status === 'Shipped to Shashank');
+    const ready           = orders.filter(o => o.status === 'At Shashank');
+    const transit         = orders.filter(o => o.status === 'In Transit');
+    const awaitingPayment = orders.filter(o => o.status === 'Awaiting Payment');
+    const clearedDelivery = orders.filter(o => o.status === 'Cleared for Delivery');
 
     panelOrders.innerHTML = `
       <section style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
         <div style="${metricBoxStyle('#c0392b')}"><div style="font-size:32px; font-weight:800;">${incoming.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Incoming Pieces</div></div>
         <div style="${metricBoxStyle('#2d6a4f')}"><div style="font-size:32px; font-weight:800;">${ready.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Ready to Dispatch</div></div>
         <div style="${metricBoxStyle('#1a4a7a')}"><div style="font-size:32px; font-weight:800;">${transit.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">In Transit</div></div>
+        <div style="${metricBoxStyle('#7a1a1a')}"><div style="font-size:32px; font-weight:800;">${awaitingPayment.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Awaiting Payment</div></div>
+        <div style="${metricBoxStyle('#1a5a2a')}"><div style="font-size:32px; font-weight:800;">${clearedDelivery.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Cleared for Delivery</div></div>
       </section>
       <section style="${sectionCardStyle()}">
         <div style="${cardHeaderStyle()}"><span>📬 Incoming from Tailors</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: Shipped to Shashank</span></div>
@@ -226,10 +230,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div style="${cardHeaderStyle()}"><span>✈️ In Transit</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: In Transit</span></div>
         <div id="transit-wrap" style="padding:0 4px 4px;"></div>
       </section>
+      <section style="${sectionCardStyle()}">
+        <div style="${cardHeaderStyle()}"><span>🔴 Awaiting Payment</span><span style="font-size:11px; font-weight:400; opacity:.7;">Held — payment required before delivery</span></div>
+        <div id="awaiting-wrap" style="padding:0 4px 4px;"></div>
+      </section>
+      <section style="${sectionCardStyle()}">
+        <div style="${cardHeaderStyle()}"><span>✅ Cleared for Delivery</span><span style="font-size:11px; font-weight:400; opacity:.7;">Payment confirmed — ready to deliver</span></div>
+        <div id="cleared-wrap" style="padding:0 4px 4px;"></div>
+      </section>
     `;
     renderIncoming(incoming);
     renderReady(ready);
     renderTransit(transit);
+    renderAwaitingPayment(awaitingPayment);
+    renderCleared(clearedDelivery);
   }
 
   // ── Incoming from tailors ─────────────────────────────────
@@ -564,7 +578,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="${tdStyle(i)}" nowrap>${o.shippingCost ? money(o.shippingCost) : '—'}</td>
         <td style="${tdStyle(i)}" nowrap>${fmtDate(o.dispatchedDate)}</td>
         <td style="${tdStyle(i)}">
-          <button style="${btnStyle('#2d6a4f','#fff')}" onclick="window._pcMarkDelivered('${esc(o.id)}')">✓ Mark Delivered</button>
+          ${dest === 'Australia'
+            ? `<button style="${btnStyle('#2d6a4f','#fff')}" onclick="window._pcMarkDelivered('${esc(o.id)}')">✓ Mark Delivered</button>`
+            : `<button style="${btnStyle('#c0392b','#fff')}" onclick="window._pcMarkAwaitingPayment('${esc(o.id)}')">💳 Request Payment</button>`
+          }
         </td>
       </tr>`;
     });
@@ -572,73 +589,86 @@ document.addEventListener('DOMContentLoaded', async () => {
     wrap.innerHTML = html;
   }
 
+  // Route A (Australia): direct Mark Delivered — payment gate is in CRM (Stage 4)
+  // Route B cleared: called from renderCleared after Pooja confirms payment
   window._pcMarkDelivered = async function(orderId) {
-    const order = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
-    if (!order) return;
-
-    // Payment gate: check invoice balance before allowing delivery.
-    // Route B (India/Overseas) — Shashank is the last mile.
-    // If balance > 0: hard block for logistics, warn+override for admin.
-    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
-    if (invoice) {
-      const paid = (invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0;
-      const balance = Math.round((invoice.total - paid) * 100) / 100;
-      if (balance > 0) {
-        // Logistics role: hard block — cannot override
-        if (appRole === 'logistics') {
-          openModal({
-            title: '⛔ Payment Required',
-            bodyHTML: `
-              <div style="text-align:center; padding:16px 0;">
-                <div style="font-size:40px; margin-bottom:12px;">⛔</div>
-                <div style="font-size:15px; font-weight:700; color:#e06; margin-bottom:8px;">Cannot Mark as Delivered</div>
-                <div style="font-size:13px; color:#aaa; margin-bottom:16px;">
-                  This order has an outstanding balance of
-                  <strong style="color:#d4af37;">AUD $${balance.toFixed(2)}</strong>.
-                </div>
-                <div style="font-size:12px; color:#888;">
-                  Payment must be confirmed by Pooja before delivery can be completed.
-                  Please contact Pooja's Couture to arrange payment.
-                </div>
-              </div>`,
-            submitLabel: 'OK',
-            onSubmit: () => true
-          });
-          return;
-        }
-        // Admin/operations: warning with override option
-        openModal({
-          title: '⚠️ Outstanding Balance',
-          bodyHTML: `
-            <div style="padding:8px 0;">
-              <div style="font-size:13px; color:#aaa; margin-bottom:12px;">
-                This order has an outstanding balance of
-                <strong style="color:#d4af37;">AUD $${balance.toFixed(2)}</strong>.
-              </div>
-              <div style="font-size:12px; color:#888;">
-                You can override and mark as delivered, but this should only be done
-                if payment has been arranged outside the system.
-              </div>
-            </div>`,
-          submitLabel: '⚠️ Override & Mark Delivered',
-          onSubmit: async () => {
-            const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, { status: 'Delivered' });
-            if (!res) return false;
-            toast('Delivered (payment override) — order marked complete.');
-            renderOrdersPanel();
-            return true;
-          }
-        });
-        return;
-      }
-    }
-
-    // Balance is zero or no invoice — proceed normally
     const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, { status: 'Delivered' });
     if (!res) return;
     toast('Delivered — order marked complete.');
     renderOrdersPanel();
   };
+
+  // Route B (India/Overseas): moves to Awaiting Payment so Pooja can chase payment
+  window._pcMarkAwaitingPayment = async function(orderId) {
+    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+    const paid    = invoice ? ((invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0) : 0;
+    const balance = invoice ? Math.round((invoice.total - paid) * 100) / 100 : 0;
+    if (balance <= 0) {
+      // No balance — deliver directly
+      const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, { status: 'Delivered' });
+      if (!res) return;
+      toast('Balance is zero — order marked Delivered directly.');
+      renderOrdersPanel();
+      return;
+    }
+    const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
+      status: 'Awaiting Payment',
+      awaitingPaymentDate: new Date().toISOString()
+    });
+    if (!res) return;
+    toast('Order held — Awaiting Payment. Pooja will chase the customer.');
+    renderOrdersPanel();
+  };
+
+  // Awaiting Payment section — read-only for Shashank, Pooja clears these in CRM
+  function renderAwaitingPayment(orders) {
+    const wrap = document.getElementById('awaiting-wrap');
+    if (!orders.length) {
+      wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No orders awaiting payment.</p>`;
+      return;
+    }
+    let html = `<table style="${tableStyle()}"><thead><tr>
+      <th style="${thStyle()}">Order</th><th style="${thStyle()}">Client</th>
+      <th style="${thStyle()}">Destination</th><th style="${thStyle()}">Held Since</th>
+    </tr></thead><tbody>`;
+    orders.forEach((o, i) => {
+      html += `<tr>
+        <td style="${tdStyle(i)}"><div style="font-family:monospace; font-weight:700; color:#d4af37;">${esc(o.orderCode || o.id)}</div></td>
+        <td style="${tdStyle(i)}"><div style="font-weight:600;">${esc(o.clientName || '—')}</div></td>
+        <td style="${tdStyle(i)}"><span style="${badgeStyle('#6a2d6a')}">${esc(o.deliveryDestination || '—')}</span></td>
+        <td style="${tdStyle(i)}" nowrap>${fmtDate(o.awaitingPaymentDate)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+
+  // Cleared for Delivery — Pooja confirmed payment, Shashank can now deliver
+  function renderCleared(orders) {
+    const wrap = document.getElementById('cleared-wrap');
+    if (!orders.length) {
+      wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No orders cleared for delivery yet.</p>`;
+      return;
+    }
+    let html = `<table style="${tableStyle()}"><thead><tr>
+      <th style="${thStyle()}">Order</th><th style="${thStyle()}">Client</th>
+      <th style="${thStyle()}">Destination</th><th style="${thStyle()}">Cleared</th>
+      <th style="${thStyle()}">Action</th>
+    </tr></thead><tbody>`;
+    orders.forEach((o, i) => {
+      html += `<tr>
+        <td style="${tdStyle(i)}"><div style="font-family:monospace; font-weight:700; color:#d4af37;">${esc(o.orderCode || o.id)}</div></td>
+        <td style="${tdStyle(i)}"><div style="font-weight:600;">${esc(o.clientName || '—')}</div></td>
+        <td style="${tdStyle(i)}"><span style="${badgeStyle('#6a2d6a')}">${esc(o.deliveryDestination || '—')}</span></td>
+        <td style="${tdStyle(i)}" nowrap>${fmtDate(o.clearedForDeliveryDate)}</td>
+        <td style="${tdStyle(i)}">
+          <button style="${btnStyle('#1a6a3a','#fff')}" onclick="window._pcMarkDelivered('${esc(o.id)}')">✅ Mark Delivered</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
 
   /* ==========================================================
      TAB 2 — INVENTORY / STOCK PARCELS (Stage 2e)
