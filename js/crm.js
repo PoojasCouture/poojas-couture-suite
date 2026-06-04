@@ -2646,10 +2646,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           </div>
           <div class="form-group m-0">
             <label class="form-label">Invoice Notes</label>
-            <textarea name="notes" class="form-textarea" placeholder="Payment instructions, bank details...">${'Direct deposit payment info:
-Bank: Commonwealth Bank of Australia
-BSB: 062-900
-Account: 1045 9827'}</textarea>
+            <textarea name="notes" class="form-textarea" placeholder="Payment instructions, bank details...">Direct deposit payment info:\nBank: Commonwealth Bank of Australia\nBSB: 062-900\nAccount: 1045 9827</textarea>
           </div>
         </form>`,
       submitText: 'Generate Project Invoice',
