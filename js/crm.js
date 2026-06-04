@@ -660,14 +660,16 @@ poojascouture.com.au`
     Utils.$('#btn-add-order').addEventListener('click', () => showOrderModal());
 
     const stages = [
-      { id: 'New',             title: 'New Concept' },
-      { id: 'In Design',       title: 'In Design' },
-      { id: 'Fabric Sourced',  title: 'Fabric Sourced' },
-      { id: 'In Production',   title: 'In Production' },
-      { id: 'Fitting',         title: 'Fitting' },
-      { id: 'Ready',           title: 'Ready' },
-      { id: 'In Transit',      title: 'In Transit' },
-      { id: 'Delivered',       title: 'Delivered' }
+      { id: 'New',                  title: 'New Concept' },
+      { id: 'In Design',            title: 'In Design' },
+      { id: 'Fabric Sourced',       title: 'Fabric Sourced' },
+      { id: 'In Production',        title: 'In Production' },
+      { id: 'Fitting',              title: 'Fitting' },
+      { id: 'Ready',                title: 'Ready' },
+      { id: 'Shipped to Shashank',  title: 'Shipped to Shashank' },
+      { id: 'At Shashank',          title: 'At Shashank' },
+      { id: 'In Transit',           title: 'In Transit' },
+      { id: 'Delivered',            title: 'Delivered' }
     ];
 
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
@@ -903,6 +905,9 @@ poojascouture.com.au`
                 <option value="In Production" ${order&&order.status==='In Production'?'selected':''}>In Production</option>
                 <option value="Fitting" ${order&&order.status==='Fitting'?'selected':''}>Fitting</option>
                 <option value="Ready" ${order&&order.status==='Ready'?'selected':''}>Ready</option>
+                <option value="Shipped to Shashank" ${order&&order.status==='Shipped to Shashank'?'selected':''}>Shipped to Shashank</option>
+                <option value="At Shashank" ${order&&order.status==='At Shashank'?'selected':''}>At Shashank</option>
+                <option value="In Transit" ${order&&order.status==='In Transit'?'selected':''}>In Transit</option>
                 <option value="Delivered" ${order&&order.status==='Delivered'?'selected':''}>Delivered</option>
               </select>
             </div>
@@ -1056,7 +1061,7 @@ poojascouture.com.au`
             <div class="text-sm font-semibold text-gold mt-1">${Utils.sanitizeHTML(o.clientName)}</div>
             ${o.orderCode?`<div class="font-mono text-xs text-muted mt-1">${o.orderCode}</div>`:''}
           </div>
-          ${(o.status==='In Transit' && o.shippingCost && o.shippingAllocation && o.shippingAllocation!=='None')?`
+          ${(o.shippingCost && o.shippingAllocation && o.shippingAllocation!=='None')?`
             <div class="p-3 rounded-md" style="background:rgba(236,182,118,0.06);border:1px solid var(--pc-border)">
               <div class="text-xs text-muted mb-2">This order shipped with a customer shipping contribution (${o.shippingAllocation==='Half'?'50/50 split':'customer pays full'}). Add it to the invoice when ready.</div>
               <button class="btn btn-secondary btn-sm" onclick="CRM.addShippingToInvoice('${o.id}')">➕ Add shipping to invoice</button>
@@ -1085,6 +1090,31 @@ poojascouture.com.au`
   }
 
   function moveOrderStage(id, status) {
+    // Guard: block moving to Delivered if invoice balance > 0
+    // (full payment gate built in Stage 3/4 — this is the CRM-side guard)
+    if (status === 'Delivered') {
+      const order = Store.getById(Store.COLLECTIONS.ORDERS, id);
+      const invoice = order
+        ? Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === order.id)[0]
+        : null;
+      if (invoice) {
+        const paid = (invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0;
+        const balance = Math.round((invoice.total - paid) * 100) / 100;
+        if (balance > 0) {
+          App.showConfirm({
+            title: 'Outstanding Balance',
+            text: `This order has an outstanding balance of ${Utils.formatCurrency(balance)}. Mark as Delivered anyway?`,
+            confirmText: 'Mark Delivered (Override)',
+            onConfirm: () => {
+              Store.update(Store.COLLECTIONS.ORDERS, id, { status });
+              Utils.showToast(`Order moved to: ${status}`);
+              renderSubTab();
+            }
+          });
+          return;
+        }
+      }
+    }
     Store.update(Store.COLLECTIONS.ORDERS, id, { status });
     Utils.showToast(`Order moved to: ${status}`);
     renderSubTab();
@@ -1573,7 +1603,7 @@ poojascouture.com.au`
       { name:'Final Handover', desc:'Quality inspection, steam press, bridal pack and boutique pickup.' }
     ];
 
-    const statusMap = { 'New':1,'In Design':2,'Fabric Sourced':3,'In Production':4,'Fitting':5,'Ready':6,'Delivered':7 };
+    const statusMap = { 'New':1,'In Design':2,'Fabric Sourced':3,'In Production':4,'Fitting':5,'Ready':6,'Shipped to Shashank':7,'At Shashank':8,'In Transit':9,'Delivered':10 };
     const currentStage = orders.length>0 ? (statusMap[orders[0].status]||0) : 0;
 
     wrapper.innerHTML = `
@@ -1585,10 +1615,10 @@ poojascouture.com.au`
         <div class="d-flex items-center gap-3">
           <div class="text-right">
             <span class="text-xs text-muted">Progress</span>
-            <div class="text-sm font-semibold text-gold font-mono">${Math.round(currentStage/7*100)}%</div>
+            <div class="text-sm font-semibold text-gold font-mono">${Math.round(currentStage/10*100)}%</div>
           </div>
           <div style="width:120px">
-            <div class="progress-bar"><div class="progress-bar-fill" style="width:${currentStage/7*100}%"></div></div>
+            <div class="progress-bar"><div class="progress-bar-fill" style="width:${currentStage/10*100}%"></div></div>
           </div>
         </div>
       </div>
