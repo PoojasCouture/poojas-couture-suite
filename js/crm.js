@@ -940,9 +940,168 @@ poojascouture.com.au`
               <option value="Full" ${order&&order.shippingAllocation==='Full'?'selected':''}>Customer pays full shipping</option>
             </select>
           </div>
-          <div class="form-group m-0">
-            <label class="form-label">Measurements & Specs</label>
-            <textarea name="notes" id="order-notes-field" class="form-textarea" placeholder="Fabric, embroidery, measurements...">${order?Utils.sanitizeHTML(order.notes||''):''}</textarea>
+          <!-- ── SECTION: Occasion ── -->
+          <div class="form-group" style="margin-top:8px;padding-top:12px;border-top:1px solid var(--pc-border)">
+            <div class="text-xs font-semibold text-gold" style="text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">🎉 Occasion & Event</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Event / Project Name</label>
+                <input type="text" name="eventName" class="form-input" placeholder="e.g. Alyssa Wedding" value="${order?Utils.sanitizeHTML(order.eventName||''):''}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Event Date</label>
+                <input type="date" name="eventDate" class="form-input" value="${order&&order.eventDate?order.eventDate:''}">
+              </div>
+            </div>
+            <div class="form-group m-0">
+              <label class="form-label">Look / Outfit Number</label>
+              <input type="text" name="lookNumber" class="form-input" placeholder="e.g. Look 1 — Wedding Ceremony" value="${order?Utils.sanitizeHTML(order.lookNumber||''):''}">
+            </div>
+          </div>
+
+          <!-- ── SECTION: Fabric & Colour ── -->
+          <div class="form-group" style="margin-top:8px;padding-top:12px;border-top:1px solid var(--pc-border)">
+            <div class="text-xs font-semibold text-gold" style="text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">🎨 Fabric & Colour</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Fabric Type</label>
+                <input type="text" name="fabricType" class="form-input" placeholder="e.g. Pure Silk, Shimmer Net, Tissue Silk" value="${order?Utils.sanitizeHTML(order.fabricType||''):''}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Colour / Colour Ref #</label>
+                <input type="text" name="colourRef" class="form-input" placeholder="e.g. Rich Maroon, 252-L" value="${order?Utils.sanitizeHTML(order.colourRef||''):''}">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Dupatta Details</label>
+                <input type="text" name="dupattaDetails" class="form-input" placeholder="e.g. 1x net + 2x organza silk, 4-sided border" value="${order?Utils.sanitizeHTML(order.dupattaDetails||''):''}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Lining / Underlayer</label>
+                <input type="text" name="liningDetails" class="form-input" placeholder="e.g. Satin silk under-layering" value="${order?Utils.sanitizeHTML(order.liningDetails||''):''}">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── SECTION: Measurements (Top Body) ── -->
+          <div class="form-group" style="margin-top:8px;padding-top:12px;border-top:1px solid var(--pc-border)">
+            <div class="text-xs font-semibold text-gold" style="text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">📏 Measurements — Top Body (inches)</div>
+            <div class="d-grid gap-3" style="grid-template-columns:repeat(3,1fr)">
+              <div class="form-group m-0">
+                <label class="form-label">Bust</label>
+                <input type="text" name="mBust" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mBust||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Under Bust</label>
+                <input type="text" name="mUnderBust" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mUnderBust||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Chest</label>
+                <input type="text" name="mChest" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mChest||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Shoulder</label>
+                <input type="text" name="mShoulder" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mShoulder||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Armhole</label>
+                <input type="text" name="mArmhole" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mArmhole||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Blouse Length</label>
+                <input type="text" name="mBlouseLength" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mBlouseLength||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Back Neck</label>
+                <input type="text" name="mBackNeck" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mBackNeck||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Front Neck</label>
+                <input type="text" name="mFrontNeck" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mFrontNeck||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Sleeve Length</label>
+                <input type="text" name="mSleeveLength" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mSleeveLength||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Morrie</label>
+                <input type="text" name="mMorrie" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mMorrie||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Waist</label>
+                <input type="text" name="mWaist" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mWaist||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Wrist</label>
+                <input type="text" name="mWrist" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mWrist||''):''}">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── SECTION: Measurements (Bottom Body) ── -->
+          <div class="form-group" style="margin-top:8px;padding-top:12px;border-top:1px solid var(--pc-border)">
+            <div class="text-xs font-semibold text-gold" style="text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">📏 Measurements — Bottom Body (inches)</div>
+            <div class="d-grid gap-3" style="grid-template-columns:repeat(3,1fr)">
+              <div class="form-group m-0">
+                <label class="form-label">Lehenga Waist</label>
+                <input type="text" name="mLehengaWaist" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mLehengaWaist||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Lehenga Length</label>
+                <input type="text" name="mLehengaLength" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mLehengaLength||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Hips</label>
+                <input type="text" name="mHips" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mHips||''):''}">
+              </div>
+              <div class="form-group m-0">
+                <label class="form-label">Knee Split</label>
+                <input type="text" name="mKneeSplit" class="form-input" placeholder="e.g. If required for modern style" value="${order?Utils.sanitizeHTML(order.mKneeSplit||''):''}">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── SECTION: Design Notes ── -->
+          <div class="form-group" style="margin-top:8px;padding-top:12px;border-top:1px solid var(--pc-border)">
+            <div class="text-xs font-semibold text-gold" style="text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">✍️ Design Notes</div>
+            <div class="form-group">
+              <label class="form-label">Key Design Notes</label>
+              <textarea name="designNotes" class="form-textarea" rows="3" placeholder="e.g. 3D motifs, zardozi, structured kalis, gold embroidery shading...">${order?Utils.sanitizeHTML(order.designNotes||''):''}</textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Embroidery / Work Details</label>
+              <textarea name="embroideryDetails" class="form-textarea" rows="2" placeholder="e.g. Zardozi + 3D motifs, layered textured embroidery, gold work borders...">${order?Utils.sanitizeHTML(order.embroideryDetails||''):''}</textarea>
+            </div>
+            <div class="form-group m-0">
+              <label class="form-label">Silhouette / Cut Notes</label>
+              <input type="text" name="silhouetteNotes" class="form-input" placeholder="e.g. Multiple structured kalis, full flair, modern cape drape" value="${order?Utils.sanitizeHTML(order.silhouetteNotes||''):''}">
+            </div>
+          </div>
+
+          <!-- ── SECTION: Accessories ── -->
+          <div class="form-group" style="margin-top:8px;padding-top:12px;border-top:1px solid var(--pc-border)">
+            <div class="text-xs font-semibold text-gold" style="text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">💎 Accessories & Finishing</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Blouse Accessories</label>
+                <input type="text" name="blouseAccessories" class="form-input" placeholder="e.g. Dangals at back, beaded details at hem" value="${order?Utils.sanitizeHTML(order.blouseAccessories||''):''}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Latkans / Tassels</label>
+                <input type="text" name="latkans" class="form-input" placeholder="e.g. Fancy latkans — confirm personalisation with client" value="${order?Utils.sanitizeHTML(order.latkans||''):''}">
+              </div>
+            </div>
+            <div class="form-group m-0">
+              <label class="form-label">Optional Add-Ons / Special Requests</label>
+              <textarea name="optionalAddOns" class="form-textarea" rows="2" placeholder="e.g. Personalised latkans, extra beading, knee split if required...">${order?Utils.sanitizeHTML(order.optionalAddOns||''):''}</textarea>
+            </div>
+          </div>
+
+          <!-- ── SECTION: Internal Notes ── -->
+          <div class="form-group m-0" style="margin-top:8px;padding-top:12px;border-top:1px solid var(--pc-border)">
+            <div class="text-xs font-semibold text-gold" style="text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">📋 Internal Notes</div>
+            <textarea name="notes" id="order-notes-field" class="form-textarea" placeholder="Any other internal notes, tailor instructions, reference images...">${order?Utils.sanitizeHTML(order.notes||''):''}</textarea>
           </div>
         </form>`,
       submitText: isEdit ? 'Save Order' : 'Create Order',
@@ -957,10 +1116,47 @@ poojascouture.com.au`
           clientId: fd.get('clientId'),
           clientName: selectedClient ? selectedClient.name : 'Unknown',
           title: fd.get('title'), price,
-          deadline: fd.get('deadline'), status: fd.get('status'), notes: fd.get('notes'),
+          deadline: fd.get('deadline'), status: fd.get('status'),
           deliveryDestination: fd.get('deliveryDestination'),
           shippingAllocation: fd.get('shippingAllocation'),
-          productType: productType
+          productType: productType,
+          // Occasion
+          eventName: fd.get('eventName') || '',
+          eventDate: fd.get('eventDate') || '',
+          lookNumber: fd.get('lookNumber') || '',
+          // Fabric & Colour
+          fabricType: fd.get('fabricType') || '',
+          colourRef: fd.get('colourRef') || '',
+          dupattaDetails: fd.get('dupattaDetails') || '',
+          liningDetails: fd.get('liningDetails') || '',
+          // Measurements — Top
+          mBust: fd.get('mBust') || '',
+          mUnderBust: fd.get('mUnderBust') || '',
+          mChest: fd.get('mChest') || '',
+          mShoulder: fd.get('mShoulder') || '',
+          mArmhole: fd.get('mArmhole') || '',
+          mBlouseLength: fd.get('mBlouseLength') || '',
+          mBackNeck: fd.get('mBackNeck') || '',
+          mFrontNeck: fd.get('mFrontNeck') || '',
+          mSleeveLength: fd.get('mSleeveLength') || '',
+          mMorrie: fd.get('mMorrie') || '',
+          mWaist: fd.get('mWaist') || '',
+          mWrist: fd.get('mWrist') || '',
+          // Measurements — Bottom
+          mLehengaWaist: fd.get('mLehengaWaist') || '',
+          mLehengaLength: fd.get('mLehengaLength') || '',
+          mHips: fd.get('mHips') || '',
+          mKneeSplit: fd.get('mKneeSplit') || '',
+          // Design
+          designNotes: fd.get('designNotes') || '',
+          embroideryDetails: fd.get('embroideryDetails') || '',
+          silhouetteNotes: fd.get('silhouetteNotes') || '',
+          // Accessories
+          blouseAccessories: fd.get('blouseAccessories') || '',
+          latkans: fd.get('latkans') || '',
+          optionalAddOns: fd.get('optionalAddOns') || '',
+          // Internal notes
+          notes: fd.get('notes') || ''
         };
         if (isEdit) {
           Store.update(Store.COLLECTIONS.ORDERS, orderId, orderData);
@@ -1113,8 +1309,52 @@ poojascouture.com.au`
             </div>
           </div>
           <div>
-            <h4 class="text-sm font-semibold text-gold mb-1">Specs</h4>
-            <div class="p-3 rounded-md text-sm" style="background:rgba(0,0,0,0.2);min-height:60px;white-space:pre-line;border:1px solid var(--pc-border)">${Utils.sanitizeHTML(o.notes||'No specs recorded.')}</div>
+            <h4 class="text-sm font-semibold text-gold mb-2">Garment Details</h4>
+            <div class="d-grid gap-3" style="grid-template-columns:1fr 1fr;font-size:12px">
+              ${o.eventName?`<div><span class="text-muted">Event:</span> ${Utils.sanitizeHTML(o.eventName)}</div>`:''}
+              ${o.eventDate?`<div><span class="text-muted">Event Date:</span> ${Utils.formatDate(o.eventDate)}</div>`:''}
+              ${o.lookNumber?`<div><span class="text-muted">Look:</span> ${Utils.sanitizeHTML(o.lookNumber)}</div>`:''}
+              ${o.fabricType?`<div><span class="text-muted">Fabric:</span> ${Utils.sanitizeHTML(o.fabricType)}</div>`:''}
+              ${o.colourRef?`<div><span class="text-muted">Colour Ref:</span> ${Utils.sanitizeHTML(o.colourRef)}</div>`:''}
+              ${o.dupattaDetails?`<div style="grid-column:1/-1"><span class="text-muted">Dupatta:</span> ${Utils.sanitizeHTML(o.dupattaDetails)}</div>`:''}
+            </div>
+            ${(o.mBust||o.mShoulder||o.mLehengaWaist)?`
+            <h4 class="text-sm font-semibold text-gold mb-2 mt-3">Measurements (inches)</h4>
+            <div class="d-grid gap-2" style="grid-template-columns:repeat(3,1fr);font-size:11px">
+              ${o.mBust?`<div><span class="text-muted">Bust:</span> ${Utils.sanitizeHTML(o.mBust)}</div>`:''}
+              ${o.mUnderBust?`<div><span class="text-muted">Under Bust:</span> ${Utils.sanitizeHTML(o.mUnderBust)}</div>`:''}
+              ${o.mChest?`<div><span class="text-muted">Chest:</span> ${Utils.sanitizeHTML(o.mChest)}</div>`:''}
+              ${o.mShoulder?`<div><span class="text-muted">Shoulder:</span> ${Utils.sanitizeHTML(o.mShoulder)}</div>`:''}
+              ${o.mArmhole?`<div><span class="text-muted">Armhole:</span> ${Utils.sanitizeHTML(o.mArmhole)}</div>`:''}
+              ${o.mBlouseLength?`<div><span class="text-muted">Blouse Length:</span> ${Utils.sanitizeHTML(o.mBlouseLength)}</div>`:''}
+              ${o.mBackNeck?`<div><span class="text-muted">Back Neck:</span> ${Utils.sanitizeHTML(o.mBackNeck)}</div>`:''}
+              ${o.mFrontNeck?`<div><span class="text-muted">Front Neck:</span> ${Utils.sanitizeHTML(o.mFrontNeck)}</div>`:''}
+              ${o.mSleeveLength?`<div><span class="text-muted">Sleeve Length:</span> ${Utils.sanitizeHTML(o.mSleeveLength)}</div>`:''}
+              ${o.mMorrie?`<div><span class="text-muted">Morrie:</span> ${Utils.sanitizeHTML(o.mMorrie)}</div>`:''}
+              ${o.mWaist?`<div><span class="text-muted">Waist:</span> ${Utils.sanitizeHTML(o.mWaist)}</div>`:''}
+              ${o.mWrist?`<div><span class="text-muted">Wrist:</span> ${Utils.sanitizeHTML(o.mWrist)}</div>`:''}
+              ${o.mLehengaWaist?`<div><span class="text-muted">Lehenga Waist:</span> ${Utils.sanitizeHTML(o.mLehengaWaist)}</div>`:''}
+              ${o.mLehengaLength?`<div><span class="text-muted">Lehenga Length:</span> ${Utils.sanitizeHTML(o.mLehengaLength)}</div>`:''}
+              ${o.mHips?`<div><span class="text-muted">Hips:</span> ${Utils.sanitizeHTML(o.mHips)}</div>`:''}
+              ${o.mKneeSplit?`<div style="grid-column:1/-1"><span class="text-muted">Knee Split:</span> ${Utils.sanitizeHTML(o.mKneeSplit)}</div>`:''}
+            </div>`:''}
+            ${o.designNotes?`
+            <h4 class="text-sm font-semibold text-gold mb-1 mt-3">Design Notes</h4>
+            <div class="p-2 rounded-md text-xs" style="background:rgba(0,0,0,0.2);white-space:pre-line;border:1px solid var(--pc-border)">${Utils.sanitizeHTML(o.designNotes)}</div>`:''}
+            ${o.embroideryDetails?`
+            <h4 class="text-sm font-semibold text-gold mb-1 mt-3">Embroidery Details</h4>
+            <div class="p-2 rounded-md text-xs" style="background:rgba(0,0,0,0.2);white-space:pre-line;border:1px solid var(--pc-border)">${Utils.sanitizeHTML(o.embroideryDetails)}</div>`:''}
+            ${(o.blouseAccessories||o.latkans||o.optionalAddOns)?`
+            <h4 class="text-sm font-semibold text-gold mb-1 mt-3">Accessories & Add-Ons</h4>
+            <div class="text-xs" style="line-height:1.8">
+              ${o.blouseAccessories?`<div><span class="text-muted">Blouse:</span> ${Utils.sanitizeHTML(o.blouseAccessories)}</div>`:''}
+              ${o.latkans?`<div><span class="text-muted">Latkans:</span> ${Utils.sanitizeHTML(o.latkans)}</div>`:''}
+              ${o.optionalAddOns?`<div><span class="text-muted">Optional:</span> ${Utils.sanitizeHTML(o.optionalAddOns)}</div>`:''}
+            </div>`:''}
+            ${o.notes?`
+            <h4 class="text-sm font-semibold text-gold mb-1 mt-3">Internal Notes</h4>
+            <div class="p-2 rounded-md text-xs" style="background:rgba(0,0,0,0.2);white-space:pre-line;border:1px solid var(--pc-border)">${Utils.sanitizeHTML(o.notes)}</div>`:''}
+            ${!o.mBust&&!o.designNotes&&!o.fabricType&&!o.notes?'<div class="text-xs text-muted">No specs recorded yet.</div>':''}
           </div>
           <div class="d-flex gap-2 justify-end" style="border-top:1px solid var(--pc-border);padding-top:var(--sp-4)">
             <button class="btn btn-secondary" onclick="CRM.editOrder('${o.id}')">✏️ Edit</button>
