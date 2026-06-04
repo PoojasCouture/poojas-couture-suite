@@ -21,6 +21,8 @@ const App = (() => {
     // 1. Initialize data layer — load all data from Supabase into cache.
     try {
       await Store.ready();
+    // Start realtime sync — updates cache when any other user/portal changes data
+    Store.subscribeRealtime();
     } catch (err) {
       console.error('Failed to load data from Supabase:', err);
       if (area) area.innerHTML = '<div style="padding:60px;text-align:center;color:#F87171">Could not connect to the database. Check config.js (your publishable key) and your internet connection, then refresh.</div>';
@@ -822,6 +824,33 @@ if (user) {
       </div>
     `;
   }
+
+  // ── Realtime: re-render current module when data changes ──
+  window.addEventListener('pc:datachange', Utils.debounce(() => {
+    const route = window.location.hash.replace('#','') || 'dashboard';
+    // Only re-render if we're on a data-sensitive module
+    const dataModules = ['crm','accounting','hrm','admin','products'];
+    if (dataModules.includes(route)) {
+      navigate(route);
+    }
+  }, 500));
+
+  // ── Tab focus: refresh cache when user returns to this tab ──
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+      try {
+        await Promise.all([
+          Store.refresh('orders'),
+          Store.refresh('invoices'),
+          Store.refresh('order_projects'),
+          Store.refresh('clients'),
+          Store.refresh('appointments')
+        ]);
+        const route = window.location.hash.replace('#','') || 'dashboard';
+        navigate(route);
+      } catch (e) { /* ignore */ }
+    }
+  });
 
   return {
     init,
