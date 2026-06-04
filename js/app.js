@@ -192,6 +192,12 @@ const App = (() => {
     const container = Utils.$('#main-content-area');
     if (!container) return;
 
+    // Time-based greeting using logged-in user's name
+    const _dashUser = Store.getCurrentUser();
+    const _firstName = _dashUser && _dashUser.name ? _dashUser.name.split(' ')[0] : 'there';
+    const _hour = new Date().getHours();
+    const _greeting = _hour < 12 ? 'Good morning' : _hour < 17 ? 'Good afternoon' : 'Good evening';
+
     // Fetch metric values
     const clients = Store.getAll(Store.COLLECTIONS.CLIENTS);
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
@@ -209,7 +215,7 @@ const App = (() => {
     container.innerHTML = `
       <div class="page-header animate-fade-in">
         <div>
-          <h1 class="page-title">Welcome back, Pooja</h1>
+          <h1 class="page-title">${_greeting}, ${_firstName} 👋</h1>
           <p class="page-subtitle">Here is what is happening at Pooja's Couture today</p>
         </div>
       </div>
