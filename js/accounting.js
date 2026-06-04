@@ -523,6 +523,7 @@ const Accounting = (() => {
         <div style="margin-bottom: var(--sp-6); font-size: 12px;">
           <div style="font-weight: bold; color: #555; text-transform: uppercase; margin-bottom: 4px;">Bill To:</div>
           <div style="font-size: 14px; font-weight: bold;">${Utils.sanitizeHTML(inv.clientName)}</div>
+          ${inv.projectId ? `<div style="font-size: 11px; color: #888; margin-top: 2px;">Project Invoice</div>` : ''}
         </div>
 
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px;">
@@ -573,6 +574,20 @@ const Accounting = (() => {
           </div>
         </div>
 
+        ${inv.milestones && inv.milestones.length ? `
+        <div style="margin-top: 20px; font-size: 12px;">
+          <div style="font-weight: bold; color: #ECB676; text-transform: uppercase; margin-bottom: 8px;">Payment Milestones</div>
+          ${inv.milestones.map(m => `
+            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eee;">
+              <div>
+                <div style="font-weight:600;">${Utils.sanitizeHTML(m.label)}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-family:monospace; font-weight:bold;">${Utils.formatCurrency(m.amount)}</div>
+                <div style="font-size:10px; color:${m.paid ? '#10B981' : '#F59E0B'};">${m.paid ? '✓ Paid' : 'Pending'}</div>
+              </div>
+            </div>`).join('')}
+        </div>` : ''}
         <div style="margin-top: 40px; font-size: 11px; color: #666; border-top: 1px solid #eee; padding-top: 12px; white-space: pre-line;">
           <div style="font-weight: bold; margin-bottom: 4px; text-transform: uppercase;">Payment Terms / Note:</div>
           ${Utils.sanitizeHTML(inv.notes || '')}
