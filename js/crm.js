@@ -664,15 +664,16 @@ poojascouture.com.au`
       { id: 'In Design',            title: 'In Design' },
       { id: 'Fabric Sourced',       title: 'Fabric Sourced' },
       { id: 'In Production',        title: 'In Production' },
-      { id: 'Fitting',              title: 'Fitting' },
+      { id: 'Fitting',              title: 'Fitting (Early)' },
       { id: 'Ready',                title: 'Ready' },
       { id: 'Shipped to Shashank',  title: 'Shipped to Shashank' },
       { id: 'At Shashank',          title: 'At Shashank' },
-      { id: 'In Transit',              title: 'In Transit' },
-      { id: 'Awaiting Payment',         title: 'Awaiting Payment' },
-      { id: 'Received in Australia',    title: 'Received in AU' },
-      { id: 'Cleared for Delivery',     title: 'Cleared for Delivery' },
-      { id: 'Delivered',                title: 'Delivered' }
+      { id: 'In Transit',           title: 'In Transit' },
+      { id: 'Awaiting Payment',     title: 'Awaiting Payment' },
+      { id: 'Received in Australia', title: 'Received in AU' },
+      { id: 'Final Fitting',        title: 'Final Fitting' },
+      { id: 'Cleared for Delivery', title: 'Cleared for Delivery' },
+      { id: 'Delivered',            title: 'Delivered' }
     ];
 
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
@@ -762,6 +763,7 @@ poojascouture.com.au`
           : o.status === 'Cleared for Delivery' ? 'badge-success'
           : o.status === 'Ready' || o.status === 'In Transit' ? 'badge-info'
           : o.status === 'Received in Australia' ? 'badge-info'
+          : o.status === 'Final Fitting' ? 'badge-purple'
           : o.status === 'Awaiting Payment' ? 'badge-danger'
           : o.status === 'New' ? 'badge-muted'
           : 'badge-gold';
@@ -916,6 +918,7 @@ poojascouture.com.au`
                 <option value="In Transit" ${order&&order.status==='In Transit'?'selected':''}>In Transit</option>
                 <option value="Awaiting Payment" ${order&&order.status==='Awaiting Payment'?'selected':''}>Awaiting Payment</option>
                 <option value="Received in Australia" ${order&&order.status==='Received in Australia'?'selected':''}>Received in Australia</option>
+                <option value="Final Fitting" ${order&&order.status==='Final Fitting'?'selected':''}>Final Fitting</option>
                 <option value="Cleared for Delivery" ${order&&order.status==='Cleared for Delivery'?'selected':''}>Cleared for Delivery</option>
                 <option value="Delivered" ${order&&order.status==='Delivered'?'selected':''}>Delivered</option>
               </select>
@@ -1084,8 +1087,14 @@ poojascouture.com.au`
           ${o.status==='Received in Australia'?`
             <div class="p-3 rounded-md" style="background:rgba(59,130,246,0.08);border:1px solid var(--pc-border)">
               <div class="text-sm font-semibold mb-1">📦 Received in Australia</div>
-              <div class="text-xs text-muted mb-3">Parcel is with Pooja. Confirm payment and choose delivery method.</div>
-              <button class="btn btn-primary btn-sm" onclick="CRM.markReadyToDeliver('${o.id}')">🚚 Confirm & Mark Delivered</button>
+              <div class="text-xs text-muted mb-3">Parcel is with Pooja. Schedule final fitting with client.</div>
+              <button class="btn btn-primary btn-sm" onclick="CRM.markFinalFitting('${o.id}')">👗 Begin Final Fitting</button>
+            </div>`:''}
+          ${o.status==='Final Fitting'?`
+            <div class="p-3 rounded-md" style="background:rgba(139,92,246,0.08);border:1px solid var(--pc-border)">
+              <div class="text-sm font-semibold mb-1">👗 Final Fitting in Progress</div>
+              <div class="text-xs text-muted mb-3">Client is trying on the garment. Once alterations (if any) are done, mark as delivered.</div>
+              <button class="btn btn-primary btn-sm" onclick="CRM.markReadyToDeliver('${o.id}')">🚚 Fitting Done — Mark Delivered</button>
             </div>`:''}
           ${o.status==='In Transit' && o.deliveryDestination==='Australia'?`
             <div class="p-3 rounded-md" style="background:rgba(59,130,246,0.08);border:1px solid var(--pc-border)">
@@ -1630,7 +1639,7 @@ poojascouture.com.au`
       { name:'Final Handover', desc:'Quality inspection, steam press, bridal pack and boutique pickup.' }
     ];
 
-    const statusMap = { 'New':1,'In Design':2,'Fabric Sourced':3,'In Production':4,'Fitting':5,'Ready':6,'Shipped to Shashank':7,'At Shashank':8,'In Transit':9,'Awaiting Payment':9,'Received in Australia':9,'Cleared for Delivery':9,'Delivered':10 };
+    const statusMap = { 'New':1,'In Design':2,'Fabric Sourced':3,'In Production':4,'Fitting':5,'Ready':6,'Shipped to Shashank':7,'At Shashank':8,'In Transit':9,'Awaiting Payment':9,'Cleared for Delivery':9,'Received in Australia':10,'Final Fitting':11,'Delivered':12 };
     const currentStage = orders.length>0 ? (statusMap[orders[0].status]||0) : 0;
 
     wrapper.innerHTML = `
@@ -1642,10 +1651,10 @@ poojascouture.com.au`
         <div class="d-flex items-center gap-3">
           <div class="text-right">
             <span class="text-xs text-muted">Progress</span>
-            <div class="text-sm font-semibold text-gold font-mono">${Math.round(currentStage/10*100)}%</div>
+            <div class="text-sm font-semibold text-gold font-mono">${Math.round(currentStage/12*100)}%</div>
           </div>
           <div style="width:120px">
-            <div class="progress-bar"><div class="progress-bar-fill" style="width:${currentStage/10*100}%"></div></div>
+            <div class="progress-bar"><div class="progress-bar-fill" style="width:${currentStage/12*100}%"></div></div>
           </div>
         </div>
       </div>
@@ -1865,19 +1874,29 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
             status: 'Received in Australia',
             receivedInAustraliaDate: new Date().toISOString()
           });
-          Utils.showToast('Marked Received in Australia. Collect payment before delivering.');
+          Utils.showToast('Marked Received in Australia. Collect payment then proceed to Final Fitting.');
           renderSubTab();
         }
       });
       return;
     }
 
-    // Balance zero — mark received
+    // Balance zero — mark received and move straight to Final Fitting
     await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
-      status: 'Received in Australia',
+      status: 'Final Fitting',
       receivedInAustraliaDate: new Date().toISOString()
     });
-    Utils.showToast('Marked Received in Australia.');
+    Utils.showToast('Marked Received in Australia — ready for Final Fitting.');
+    renderSubTab();
+  }
+
+  // ── Mark Final Fitting — moves from Received in Australia to Final Fitting ──
+  function markFinalFitting(orderId) {
+    Store.update(Store.COLLECTIONS.ORDERS, orderId, {
+      status: 'Final Fitting',
+      finalFittingDate: new Date().toISOString()
+    });
+    Utils.showToast('Final Fitting started.');
     renderSubTab();
   }
 
@@ -1958,6 +1977,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
     showComposeModal,
     recordPaymentAndClear,
     markReceivedInAustralia,
+    markFinalFitting,
     markReadyToDeliver
   };
 })();
