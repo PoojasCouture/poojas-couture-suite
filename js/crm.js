@@ -1837,18 +1837,18 @@ poojascouture.com.au`
   // ==========================================
 
   function renderBridalJourney(container, actions) {
-    const clients = Store.query(Store.COLLECTIONS.CLIENTS, c=>c.type==='Bride');
+    const clients = Store.getAll(Store.COLLECTIONS.CLIENTS);
     if (clients.length===0) {
       container.innerHTML = `<div class="card p-8 text-center text-muted">
         <div class="empty-state"><div class="empty-state-icon">👑</div>
-        <div class="empty-state-title">No Brides registered</div>
-        <div class="empty-state-text">Add a client with type 'Bride' to track their journey.</div></div></div>`;
+        <div class="empty-state-title">No clients registered</div>
+        <div class="empty-state-text">Add a client to track their bridal journey.</div></div></div>`;
       return;
     }
     container.innerHTML = `
       <div class="card p-6">
         <div class="form-group" style="max-width:320px">
-          <label class="form-label">Select Bridal Profile</label>
+          <label class="form-label">Select Client</label>
           <select id="journey-client-select" class="form-select">
             ${clients.map(c=>`<option value="${c.id}">${Utils.sanitizeHTML(c.name)}</option>`).join('')}
           </select>
@@ -1885,8 +1885,8 @@ poojascouture.com.au`
     wrapper.innerHTML = `
       <div class="d-flex items-center justify-between mb-6" style="border-bottom:1px solid var(--pc-border);padding-bottom:var(--sp-4)">
         <div>
-          <h3 class="font-display text-md text-gold">${Utils.sanitizeHTML(client.name)} — Bridal Journey</h3>
-          <p class="text-xs text-muted mt-1">From concept sketch to wedding day</p>
+          <h3 class="font-display text-md text-gold">${Utils.sanitizeHTML(client.name)} — Journey</h3>
+          <p class="text-xs text-muted mt-1">From concept sketch to delivery</p>
         </div>
         <div class="d-flex items-center gap-3">
           <div class="text-right">
