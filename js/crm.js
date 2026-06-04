@@ -107,6 +107,7 @@ poojascouture.com.au`
         <button class="tab-btn ${activeTab==='orders'?'active':''}" data-tab="orders">🧵 Order Pipeline</button>
         <button class="tab-btn ${activeTab==='journey'?'active':''}" data-tab="journey">💍 Bridal Journey</button>
         <button class="tab-btn ${activeTab==='email'?'active':''}" data-tab="email">✉️ Email Centre</button>
+        <button class="tab-btn ${activeTab==='projects'?'active':''}" data-tab="projects">📁 Projects</button>
         <button class="tab-btn ${activeTab==='sales'?'active':''}" data-tab="sales">💵 Sales</button>
       </div>
       <div id="crm-tab-content" class="animate-fade-in stagger-2"></div>
@@ -134,6 +135,7 @@ poojascouture.com.au`
     else if (activeTab === 'orders') renderOrders(contentContainer, actionContainer);
     else if (activeTab === 'journey') renderBridalJourney(contentContainer, actionContainer);
     else if (activeTab === 'email') renderEmailCentre(contentContainer, actionContainer);
+    else if (activeTab === 'projects') renderProjects(contentContainer, actionContainer);
     else if (activeTab === 'sales') renderSales(contentContainer, actionContainer);
   }
 
@@ -789,6 +791,11 @@ poojascouture.com.au`
             </div>
             <span class="text-xs ${deadlineClass}">📅 ${deadlineText}</span>
           </div>
+          ${(()=>{
+            if (!o.projectId) return '';
+            const proj = Store.getById(Store.COLLECTIONS.ORDER_PROJECTS, o.projectId);
+            return proj ? `<div class="px-3 py-1" style="background:rgba(139,92,246,0.08);border-bottom:1px solid var(--pc-border);font-size:10px;color:#a78bfa;">📁 ${Utils.sanitizeHTML(proj.projectName)}</div>` : '';
+          })()}
           <!-- Body -->
           <div class="p-4">
             <div class="font-display text-md mb-1 truncate" title="${Utils.sanitizeHTML(o.title)}">
@@ -1268,6 +1275,11 @@ poojascouture.com.au`
             <h3 class="font-display text-lg">${Utils.sanitizeHTML(o.title)}</h3>
             <div class="text-sm font-semibold text-gold mt-1">${Utils.sanitizeHTML(o.clientName)}</div>
             ${o.orderCode?`<div class="font-mono text-xs text-muted mt-1">${o.orderCode}</div>`:''}
+            ${(()=>{
+              if (!o.projectId) return '';
+              const proj = Store.getById(Store.COLLECTIONS.ORDER_PROJECTS, o.projectId);
+              return proj ? `<div class="text-xs mt-1" style="color:#a78bfa;">📁 Project: ${Utils.sanitizeHTML(proj.projectName)}</div>` : '';
+            })()}
           </div>
           ${(o.shippingCost && o.shippingAllocation && o.shippingAllocation!=='None')?`
             <div class="p-3 rounded-md" style="background:rgba(236,182,118,0.06);border:1px solid var(--pc-border)">
@@ -2197,6 +2209,500 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
     });
   }
 
+  // ============================================================
+  // PROJECTS
+  // ============================================================
+
+  function generateProjectCode() {
+    const projects = Store.getAll(Store.COLLECTIONS.ORDER_PROJECTS);
+    const max = projects.reduce((m, p) => {
+      if (p.projectCode && p.projectCode.startsWith('PROJ-')) {
+        const n = parseInt(p.projectCode.slice(5), 10);
+        return isNaN(n) ? m : Math.max(m, n);
+      }
+      return m;
+    }, 0);
+    return 'PROJ-' + String(max + 1).padStart(4, '0');
+  }
+
+  function renderProjects(container, actions) {
+    actions.innerHTML = `<button class="btn btn-primary" id="btn-add-project">+ New Project</button>`;
+    Utils.$('#btn-add-project').addEventListener('click', () => showProjectModal());
+
+    const projects = Store.getAll(Store.COLLECTIONS.ORDER_PROJECTS);
+    const allOrders = Store.getAll(Store.COLLECTIONS.ORDERS);
+
+    container.innerHTML = `
+      <div class="d-flex flex-col gap-4">
+        ${projects.length === 0 ? `
+          <div class="card p-8 text-center text-muted">
+            <div class="empty-state">
+              <div class="empty-state-icon">📁</div>
+              <div class="empty-state-title">No projects yet</div>
+              <div class="empty-state-text">Create a project to group multiple garment orders under one client event.</div>
+            </div>
+          </div>` :
+          projects.slice().sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map(proj => {
+            const subOrders = allOrders.filter(o => o.projectId === proj.id);
+            const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === proj.id)[0];
+            const paid = invoice ? ((invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0) : 0;
+            const balance = invoice ? Math.round((invoice.total - paid) * 100) / 100 : 0;
+            return `
+              <div class="card p-0" style="overflow:hidden">
+                <div class="d-flex items-center justify-between p-4" style="background:rgba(139,92,246,0.06);border-bottom:1px solid var(--pc-border)">
+                  <div>
+                    <div class="d-flex items-center gap-2">
+                      <span class="font-mono text-xs" style="color:#a78bfa">${Utils.sanitizeHTML(proj.projectCode || '')}</span>
+                      <span class="badge badge-muted text-xs">${proj.status}</span>
+                    </div>
+                    <div class="font-display text-md mt-1">${Utils.sanitizeHTML(proj.projectName)}</div>
+                    <div class="text-xs text-muted mt-1">${Utils.sanitizeHTML(proj.clientName)} · ${proj.eventName ? Utils.sanitizeHTML(proj.eventName) : ''} ${proj.eventDate ? '· ' + Utils.formatDate(proj.eventDate) : ''}</div>
+                  </div>
+                  <div class="text-right d-flex flex-col gap-1">
+                    <div class="font-mono font-bold text-gold">${Utils.formatCurrency(proj.totalPrice)}</div>
+                    ${invoice ? `<div class="text-xs ${balance > 0 ? 'text-danger' : 'text-success'}">Balance: ${Utils.formatCurrency(balance)}</div>` : '<div class="text-xs text-muted">No invoice yet</div>'}
+                    <div class="d-flex gap-1 justify-end mt-1">
+                      <button class="btn btn-secondary btn-sm" onclick="CRM.addSubOrder('${proj.id}')">+ Add Garment</button>
+                      <button class="btn btn-secondary btn-sm" onclick="CRM.viewProject('${proj.id}')">View</button>
+                      ${!invoice ? `<button class="btn btn-primary btn-sm" onclick="CRM.createProjectInvoice('${proj.id}')">🧾 Create Invoice</button>` : ''}
+                    </div>
+                  </div>
+                </div>
+                <div class="p-4">
+                  ${subOrders.length === 0 ? `<div class="text-xs text-muted">No garments added yet. Click "+ Add Garment" to add sub-orders.</div>` : `
+                    <div class="table-container" style="border:none;margin:0">
+                      <table class="data-table text-xs">
+                        <thead><tr>
+                          <th>Code</th><th>Garment</th><th>Price</th><th>Status</th><th>Deadline</th>
+                        </tr></thead>
+                        <tbody>
+                          ${subOrders.map(o => `<tr>
+                            <td class="font-mono text-gold">${Utils.sanitizeHTML(o.orderCode || '—')}</td>
+                            <td class="font-medium">${Utils.sanitizeHTML(o.title)}</td>
+                            <td class="font-mono">${Utils.formatCurrency(o.price)}</td>
+                            <td><span class="badge badge-gold text-xs">${o.status}</span></td>
+                            <td>${Utils.formatDate(o.deadline)}</td>
+                          </tr>`).join('')}
+                        </tbody>
+                      </table>
+                    </div>`}
+                </div>
+              </div>`;
+          }).join('')
+        }
+      </div>
+    `;
+  }
+
+  function showProjectModal(projectId = null) {
+    const isEdit = !!projectId;
+    const proj = isEdit ? Store.getById(Store.COLLECTIONS.ORDER_PROJECTS, projectId) : null;
+    const clients = Store.getAll(Store.COLLECTIONS.CLIENTS);
+
+    App.showModal({
+      title: isEdit ? 'Edit Project' : 'New Project',
+      content: `
+        <form id="project-form" class="animate-fade-in-scale">
+          <div class="form-group">
+            <label class="form-label">Client <span class="required">*</span></label>
+            <select name="clientId" class="form-select" required>
+              <option value="">-- Choose Client --</option>
+              ${clients.map(c => `<option value="${c.id}" ${proj&&proj.clientId===c.id?'selected':''}>${Utils.sanitizeHTML(c.name)} (${c.type})</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Project Name <span class="required">*</span></label>
+            <input type="text" name="projectName" class="form-input" required placeholder="e.g. Alyssa Wedding 2027" value="${proj?Utils.sanitizeHTML(proj.projectName):''}">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Event Name</label>
+              <input type="text" name="eventName" class="form-input" placeholder="e.g. Alyssa Wedding" value="${proj?Utils.sanitizeHTML(proj.eventName||''):''}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Event Date</label>
+              <input type="date" name="eventDate" class="form-input" value="${proj&&proj.eventDate?proj.eventDate:''}">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Total Project Price ex-GST (AUD) <span class="required">*</span></label>
+              <input type="number" name="totalPrice" class="form-input" min="0" step="0.01" required value="${proj?proj.totalPrice:''}">
+              <div class="text-xs text-muted mt-1" id="project-gst-hint">Invoice total inc GST will be calculated automatically.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select name="status" class="form-select">
+                <option value="Active" ${!proj||proj.status==='Active'?'selected':''}>Active</option>
+                <option value="On Hold" ${proj&&proj.status==='On Hold'?'selected':''}>On Hold</option>
+                <option value="Completed" ${proj&&proj.status==='Completed'?'selected':''}>Completed</option>
+                <option value="Cancelled" ${proj&&proj.status==='Cancelled'?'selected':''}>Cancelled</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group m-0">
+            <label class="form-label">Project Notes</label>
+            <textarea name="notes" class="form-textarea" placeholder="Scope summary, special instructions...">${proj?Utils.sanitizeHTML(proj.notes||''):''}</textarea>
+          </div>
+        </form>`,
+      submitText: isEdit ? 'Save Project' : 'Create Project',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#project-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const fd = new FormData(form);
+        const selectedClient = Store.getById(Store.COLLECTIONS.CLIENTS, fd.get('clientId'));
+        const projData = {
+          clientId: fd.get('clientId'),
+          clientName: selectedClient ? selectedClient.name : 'Unknown',
+          projectName: fd.get('projectName'),
+          eventName: fd.get('eventName') || '',
+          eventDate: fd.get('eventDate') || null,
+          totalPrice: parseFloat(fd.get('totalPrice')) || 0,
+          status: fd.get('status'),
+          notes: fd.get('notes') || ''
+        };
+        if (isEdit) {
+          Store.update(Store.COLLECTIONS.ORDER_PROJECTS, projectId, projData);
+          Utils.showToast('Project updated.');
+        } else {
+          projData.projectCode = generateProjectCode();
+          await Store.create(Store.COLLECTIONS.ORDER_PROJECTS, projData);
+          Utils.showToast('Project created. Now add garments using "+ Add Garment".');
+        }
+        renderSubTab();
+        return true;
+      }
+    });
+
+    // GST hint
+    setTimeout(() => {
+      const priceField = document.querySelector('#project-form [name="totalPrice"]');
+      const hint = document.getElementById('project-gst-hint');
+      if (priceField && hint) {
+        priceField.addEventListener('input', () => {
+          const p = parseFloat(priceField.value) || 0;
+          if (p > 0) {
+            hint.textContent = `Invoice total inc GST: ${Utils.formatCurrency(Math.round(p * 1.10 * 100) / 100)}`;
+          } else {
+            hint.textContent = 'Invoice total inc GST will be calculated automatically.';
+          }
+        });
+      }
+    }, 50);
+  }
+
+  function addSubOrder(projectId) {
+    const proj = Store.getById(Store.COLLECTIONS.ORDER_PROJECTS, projectId);
+    if (!proj) return;
+    // Open the normal order modal but pre-link to this project
+    showOrderModalForProject(projectId, proj);
+  }
+
+  function showOrderModalForProject(projectId, proj) {
+    const clients = Store.getAll(Store.COLLECTIONS.CLIENTS);
+    App.showModal({
+      title: `Add Garment — ${proj.projectName}`,
+      content: `
+        <form id="sub-order-form" class="animate-fade-in-scale">
+          <div class="p-3 rounded-md mb-4" style="background:rgba(139,92,246,0.08);border:1px solid var(--pc-border)">
+            <div class="text-xs text-muted">Adding garment to project: <strong style="color:#a78bfa">${Utils.sanitizeHTML(proj.projectName)}</strong></div>
+            <div class="text-xs text-muted mt-1">Client: <strong>${Utils.sanitizeHTML(proj.clientName)}</strong></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Garment Title <span class="required">*</span></label>
+            <input type="text" name="title" class="form-input" required placeholder="e.g. Bridal Lehenga — Wedding Ceremony">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Product Type <span class="required">*</span></label>
+            <select name="productType" class="form-select" required>
+              <option value="BLS">Bridal Lehenga Set (BLS)</option>
+              <option value="SAR">Saree (SAR)</option>
+              <option value="SAL">Salwar Suit (SAL)</option>
+              <option value="SHE">Sherwani (SHE)</option>
+              <option value="BSN">Bridal Sneakers (BSN)</option>
+              <option value="GEN">Other (GEN)</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Price ex-GST (AUD) <span class="required">*</span></label>
+              <input type="number" name="price" class="form-input" min="0" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Deadline <span class="required">*</span></label>
+              <input type="date" name="deadline" class="form-input" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Delivery Destination</label>
+              <select name="deliveryDestination" class="form-select">
+                <option value="Australia">To Australia</option>
+                <option value="India">To India</option>
+                <option value="Overseas">Overseas</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Shipping Allocation</label>
+              <select name="shippingAllocation" class="form-select">
+                <option value="None">No shipping charge</option>
+                <option value="Half">50/50 split</option>
+                <option value="Full">Customer pays full</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Who is this for?</label>
+            <input type="text" name="lookNumber" class="form-input" placeholder="e.g. Alyssa — Look 1, Mariam Bridesmaid">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fabric & Colour</label>
+            <input type="text" name="fabricType" class="form-input" placeholder="e.g. Pure Silk, Colour 252-L">
+          </div>
+          <div class="form-group m-0">
+            <label class="form-label">Design Notes</label>
+            <textarea name="designNotes" class="form-textarea" rows="2" placeholder="Key design details, embroidery, silhouette..."></textarea>
+          </div>
+        </form>`,
+      submitText: 'Add Garment to Project',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#sub-order-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const fd = new FormData(form);
+        const productType = fd.get('productType') || 'GEN';
+        const orderData = {
+          clientId: proj.clientId,
+          clientName: proj.clientName,
+          title: fd.get('title'),
+          price: parseFloat(fd.get('price')) || 0,
+          deadline: fd.get('deadline'),
+          status: 'New',
+          productType,
+          projectId,
+          deliveryDestination: fd.get('deliveryDestination'),
+          shippingAllocation: fd.get('shippingAllocation'),
+          lookNumber: fd.get('lookNumber') || '',
+          fabricType: fd.get('fabricType') || '',
+          designNotes: fd.get('designNotes') || '',
+          notes: ''
+        };
+        orderData.orderCode = generateOrderCode(productType);
+        await Store.create(Store.COLLECTIONS.ORDERS, orderData);
+
+        // Update project total price to sum of all sub-orders
+        const allSubOrders = Store.query(Store.COLLECTIONS.ORDERS, o => o.projectId === projectId);
+        const newTotal = allSubOrders.reduce((sum, o) => sum + (o.price || 0), 0) + orderData.price;
+        await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, projectId, { totalPrice: newTotal });
+
+        Utils.showToast(`Garment added to ${proj.projectName}.`);
+        renderSubTab();
+        return true;
+      }
+    });
+  }
+
+  function viewProject(projectId) {
+    const proj = Store.getById(Store.COLLECTIONS.ORDER_PROJECTS, projectId);
+    if (!proj) return;
+    const subOrders = Store.query(Store.COLLECTIONS.ORDERS, o => o.projectId === projectId);
+    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === projectId)[0];
+    const paid = invoice ? ((invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0) : 0;
+    const balance = invoice ? Math.round((invoice.total - paid) * 100) / 100 : 0;
+
+    App.showModal({
+      title: `📁 ${proj.projectName}`,
+      content: `
+        <div class="d-flex flex-col gap-4 animate-fade-in">
+          <div class="d-grid gap-3" style="grid-template-columns:1fr 1fr;font-size:13px">
+            <div><span class="text-muted text-xs">Client:</span><div class="font-semibold">${Utils.sanitizeHTML(proj.clientName)}</div></div>
+            <div><span class="text-muted text-xs">Project Code:</span><div class="font-mono text-gold">${Utils.sanitizeHTML(proj.projectCode || '—')}</div></div>
+            <div><span class="text-muted text-xs">Event:</span><div>${Utils.sanitizeHTML(proj.eventName || '—')}</div></div>
+            <div><span class="text-muted text-xs">Event Date:</span><div>${proj.eventDate ? Utils.formatDate(proj.eventDate) : '—'}</div></div>
+            <div><span class="text-muted text-xs">Total (ex-GST):</span><div class="font-mono font-bold">${Utils.formatCurrency(proj.totalPrice)}</div></div>
+            <div><span class="text-muted text-xs">Total (inc GST):</span><div class="font-mono font-bold text-gold">${Utils.formatCurrency(Math.round(proj.totalPrice * 1.10 * 100) / 100)}</div></div>
+          </div>
+          ${invoice ? `
+            <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
+              <div class="text-xs font-semibold text-gold mb-2">🧾 Invoice ${Utils.sanitizeHTML(invoice.invoiceNumber)}</div>
+              <div class="d-flex justify-between text-xs mb-1"><span class="text-muted">Total:</span><span class="font-mono">${Utils.formatCurrency(invoice.total)}</span></div>
+              <div class="d-flex justify-between text-xs mb-1"><span class="text-muted">Paid:</span><span class="font-mono text-success">${Utils.formatCurrency(paid)}</span></div>
+              <div class="d-flex justify-between text-xs font-bold"><span>Balance:</span><span class="font-mono ${balance > 0 ? 'text-danger' : 'text-success'}">${Utils.formatCurrency(balance)}</span></div>
+            </div>` : `
+            <div class="p-3 rounded-md text-xs text-muted" style="border:1px dashed var(--pc-border)">
+              No invoice yet. Click "Create Invoice" to generate a project invoice with 30/40/30 milestones.
+            </div>`}
+          <div>
+            <div class="text-sm font-semibold text-gold mb-2">Garments (${subOrders.length})</div>
+            ${subOrders.length === 0 ? `<div class="text-xs text-muted">No garments added yet.</div>` : `
+              <div class="table-container" style="border:none;margin:0">
+                <table class="data-table text-xs">
+                  <thead><tr><th>Code</th><th>Garment</th><th>Price</th><th>Status</th><th>Deadline</th></tr></thead>
+                  <tbody>
+                    ${subOrders.map(o => `<tr>
+                      <td class="font-mono text-gold">${Utils.sanitizeHTML(o.orderCode || '—')}</td>
+                      <td class="font-medium">${Utils.sanitizeHTML(o.title)}</td>
+                      <td class="font-mono">${Utils.formatCurrency(o.price)}</td>
+                      <td><span class="badge badge-gold text-xs">${o.status}</span></td>
+                      <td>${Utils.formatDate(o.deadline)}</td>
+                    </tr>`).join('')}
+                  </tbody>
+                </table>
+              </div>`}
+          </div>
+          ${proj.notes ? `
+            <div>
+              <div class="text-xs font-semibold text-gold mb-1">Notes</div>
+              <div class="p-2 rounded-md text-xs" style="background:rgba(0,0,0,0.2);white-space:pre-line;border:1px solid var(--pc-border)">${Utils.sanitizeHTML(proj.notes)}</div>
+            </div>` : ''}
+          <div class="d-flex gap-2 justify-end" style="border-top:1px solid var(--pc-border);padding-top:var(--sp-4)">
+            <button class="btn btn-secondary" onclick="App.closeModal();setTimeout(()=>CRM.addSubOrder('${proj.id}'),200)">+ Add Garment</button>
+            <button class="btn btn-secondary" onclick="App.closeModal();setTimeout(()=>CRM.showProjectModal('${proj.id}'),200)">✏️ Edit Project</button>
+            ${!invoice ? `<button class="btn btn-primary" onclick="App.closeModal();setTimeout(()=>CRM.createProjectInvoice('${proj.id}'),200)">🧾 Create Invoice</button>` : ''}
+          </div>
+        </div>`,
+      hideCancel: true, submitText: 'Close', onSubmit: () => true,
+      modalSize: 'modal-lg'
+    });
+  }
+
+  function createProjectInvoice(projectId) {
+    const proj = Store.getById(Store.COLLECTIONS.ORDER_PROJECTS, projectId);
+    if (!proj) return;
+    const subOrders = Store.query(Store.COLLECTIONS.ORDERS, o => o.projectId === projectId);
+
+    if (subOrders.length === 0) {
+      Utils.showToast('Add at least one garment before creating an invoice.', 'error');
+      return;
+    }
+
+    // Check no invoice exists already
+    const existing = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === projectId)[0];
+    if (existing) {
+      Utils.showToast('An invoice already exists for this project.', 'info');
+      return;
+    }
+
+    const exGST    = Math.round(proj.totalPrice * 100) / 100;
+    const gst      = Math.round(exGST * 0.10 * 100) / 100;
+    const total    = Math.round((exGST + gst) * 100) / 100;
+
+    // 30/40/30 milestones
+    const m1 = Math.round(total * 0.30 * 100) / 100; // 30% deposit
+    const m2 = Math.round(total * 0.40 * 100) / 100; // 40% design approval
+    const m3 = Math.round((total - m1 - m2) * 100) / 100; // 30% before delivery
+
+    App.showModal({
+      title: `🧾 Create Project Invoice — ${proj.projectName}`,
+      content: `
+        <form id="proj-inv-form" class="animate-fade-in-scale">
+          <div class="p-3 rounded-md mb-4" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
+            <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Project total (ex-GST):</span><span class="font-mono">${Utils.formatCurrency(exGST)}</span></div>
+            <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">GST (10%):</span><span class="font-mono">${Utils.formatCurrency(gst)}</span></div>
+            <div class="d-flex justify-between text-sm font-bold"><span>Invoice Total (inc GST):</span><span class="font-mono text-gold">${Utils.formatCurrency(total)}</span></div>
+          </div>
+          <div class="text-xs font-semibold text-gold mb-3">Payment Milestones (30 / 40 / 30)</div>
+          <div class="d-flex flex-col gap-3 mb-4">
+            <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.15);border:1px solid var(--pc-border)">
+              <div class="d-flex justify-between items-center">
+                <div>
+                  <div class="text-xs font-semibold">Milestone 1 — 30% Deposit</div>
+                  <div class="text-xs text-muted">Due within 7 days of invoice</div>
+                </div>
+                <div class="font-mono font-bold text-gold">${Utils.formatCurrency(m1)}</div>
+              </div>
+              <div class="form-group m-0 mt-2">
+                <label class="form-label" style="font-size:10px">Deposit already paid?</label>
+                <input type="number" name="m1paid" class="form-input" min="0" step="0.01" value="0" placeholder="0.00">
+              </div>
+            </div>
+            <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.15);border:1px solid var(--pc-border)">
+              <div class="d-flex justify-between items-center">
+                <div>
+                  <div class="text-xs font-semibold">Milestone 2 — 40% Design Approval</div>
+                  <div class="text-xs text-muted">Due at design approval, before production</div>
+                </div>
+                <div class="font-mono font-bold">${Utils.formatCurrency(m2)}</div>
+              </div>
+            </div>
+            <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.15);border:1px solid var(--pc-border)">
+              <div class="d-flex justify-between items-center">
+                <div>
+                  <div class="text-xs font-semibold">Milestone 3 — 30% Before Delivery</div>
+                  <div class="text-xs text-muted">Due before final delivery</div>
+                </div>
+                <div class="font-mono font-bold">${Utils.formatCurrency(m3)}</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Issue Date</label>
+              <input type="date" name="issueDate" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Due Date (Milestone 1)</label>
+              <input type="date" name="dueDate" class="form-input" value="${new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0]}">
+            </div>
+          </div>
+          <div class="form-group m-0">
+            <label class="form-label">Invoice Notes</label>
+            <textarea name="notes" class="form-textarea" placeholder="Payment instructions, bank details...">${'Direct deposit payment info:
+Bank: Commonwealth Bank of Australia
+BSB: 062-900
+Account: 1045 9827'}</textarea>
+          </div>
+        </form>`,
+      submitText: 'Generate Project Invoice',
+      modalSize: 'modal-lg',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#proj-inv-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const fd = new FormData(form);
+        const m1paid = parseFloat(fd.get('m1paid')) || 0;
+
+        let invStatus = 'Draft';
+        if (m1paid >= total) invStatus = 'Paid';
+        else if (m1paid >= m1) invStatus = 'Partially Paid';
+        else if (m1paid > 0) invStatus = 'Partially Paid';
+
+        // Build line items from sub-orders
+        const items = subOrders.map(o => ({
+          description: `${o.orderCode ? o.orderCode + ' — ' : ''}${o.title}`,
+          quantity: 1,
+          unitPrice: Math.round(o.price * 100) / 100,
+          gst: Math.round(o.price * 0.10 * 100) / 100,
+          amount: Math.round(o.price * 1.10 * 100) / 100
+        }));
+
+        await Store.create(Store.COLLECTIONS.INVOICES, {
+          projectId,
+          clientId: proj.clientId,
+          clientName: proj.clientName,
+          invoiceNumber: 'INV-' + new Date().getFullYear() + '-' + Utils.randomBetween(100, 999),
+          issueDate: fd.get('issueDate'),
+          dueDate: fd.get('dueDate'),
+          subtotal: exGST,
+          gstTotal: gst,
+          total,
+          amountPaid: m1paid,
+          status: invStatus,
+          notes: fd.get('notes') || '',
+          items,
+          // Milestone structure
+          milestones: [
+            { label: 'Milestone 1 — 30% Deposit', amount: m1, paid: m1paid >= m1, paidAmount: Math.min(m1paid, m1) },
+            { label: 'Milestone 2 — 40% Design Approval', amount: m2, paid: false, paidAmount: 0 },
+            { label: 'Milestone 3 — 30% Before Delivery', amount: m3, paid: false, paidAmount: 0 }
+          ]
+        });
+
+        Utils.showToast(`Project invoice created. Total: ${Utils.formatCurrency(total)} — 3 payment milestones set.`);
+        renderSubTab();
+        return true;
+      }
+    });
+  }
+
   function quickEmailClient(clientId) {
     showComposeModal(clientId, 'custom', {});
   }
@@ -2218,6 +2724,10 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
     recordPaymentAndClear,
     markReceivedInAustralia,
     markFinalFitting,
-    markReadyToDeliver
+    markReadyToDeliver,
+    addSubOrder,
+    viewProject,
+    showProjectModal,
+    createProjectInvoice
   };
 })();
