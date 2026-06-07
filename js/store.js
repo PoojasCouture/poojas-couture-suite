@@ -242,7 +242,7 @@ const Store = (() => {
   function getSettings() {
     return settingsCache || {
       companyName: "Pooja's Couture",
-      companyEmail: 'info@poojascouture.com.au',
+      companyEmail: 'info@poojascouture.com',
       companyPhone: '+61 2 9876 5432',
       companyAddress: 'Studio 4, 12-14 Luxury Ave, Double Bay NSW 2028',
       abn: '45 982 736 104',
