@@ -126,7 +126,7 @@
 
 .stat-card-value {
   font-family: var(--font-mono);
-  font-size: var(--text-3xl);
+  font-size: var(--text-xl);
   font-weight: 700;
   color: var(--pc-text-heading);
   line-height: 1.1;
