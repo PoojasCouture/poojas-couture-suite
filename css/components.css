@@ -103,12 +103,12 @@
   flex-shrink: 0;
 }
 
-.stat-card-icon.gold { background: var(--pc-amber-glow); color: var(--pc-gold); }
-.stat-card-icon.green { background: var(--pc-success-bg); color: var(--pc-success); }
-.stat-card-icon.blue { background: var(--pc-info-bg); color: var(--pc-info); }
-.stat-card-icon.red { background: var(--pc-danger-bg); color: var(--pc-danger); }
-.stat-card-icon.purple { background: var(--pc-purple-bg); color: var(--pc-purple); }
-.stat-card-icon.amber { background: var(--pc-warning-bg); color: var(--pc-warning); }
+.stat-card-icon.gold   { background: var(--pc-amber-glow);   color: var(--pc-gold);    }
+.stat-card-icon.green  { background: var(--pc-success-bg);   color: var(--pc-success); }
+.stat-card-icon.blue   { background: var(--pc-info-bg);      color: var(--pc-info);    }
+.stat-card-icon.red    { background: var(--pc-danger-bg);    color: var(--pc-danger);  }
+.stat-card-icon.purple { background: var(--pc-purple-bg);    color: var(--pc-purple);  }
+.stat-card-icon.amber  { background: var(--pc-warning-bg);   color: var(--pc-warning); }
 
 .stat-card-trend {
   display: flex;
@@ -120,9 +120,9 @@
   border-radius: var(--radius-full);
 }
 
-.stat-card-trend.up { color: var(--pc-success); background: var(--pc-success-bg); }
-.stat-card-trend.down { color: var(--pc-danger); background: var(--pc-danger-bg); }
-.stat-card-trend.neutral { color: var(--pc-text-muted); background: rgba(255,255,255,0.05); }
+.stat-card-trend.up      { color: var(--pc-success);     background: var(--pc-success-bg); }
+.stat-card-trend.down    { color: var(--pc-danger);      background: var(--pc-danger-bg);  }
+.stat-card-trend.neutral { color: var(--pc-text-muted);  background: rgba(255,255,255,0.05); }
 
 .stat-card-value {
   font-family: var(--font-mono);
@@ -148,6 +148,32 @@
   width: 100px;
   height: 40px;
   opacity: 0.3;
+}
+
+/* ---------- Page-level grids ---------- */
+/*
+  Uniform section spacing rule:
+  Every top-level section block (stat grids, filter bars, content grids)
+  gets the same bottom margin so every page looks identical.
+  JS files use .widgets-grid and .content-grid — defined here globally.
+*/
+.widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+/* Uniform spacing between any direct block children inside page content */
+.page-content > * + * {
+  margin-top: var(--sp-6);
 }
 
 /* ---------- Buttons ---------- */
@@ -388,13 +414,13 @@
   gap: 4px;
 }
 
-.badge-gold { background: var(--pc-amber-glow); color: var(--pc-gold); }
-.badge-success { background: var(--pc-success-bg); color: var(--pc-success); }
-.badge-warning { background: var(--pc-warning-bg); color: var(--pc-warning); }
-.badge-danger { background: var(--pc-danger-bg); color: var(--pc-danger); }
-.badge-info { background: var(--pc-info-bg); color: var(--pc-info); }
-.badge-purple { background: var(--pc-purple-bg); color: var(--pc-purple); }
-.badge-muted { background: rgba(255,255,255,0.05); color: var(--pc-text-muted); }
+.badge-gold    { background: var(--pc-amber-glow);  color: var(--pc-gold);        }
+.badge-success { background: var(--pc-success-bg);  color: var(--pc-success);     }
+.badge-warning { background: var(--pc-warning-bg);  color: var(--pc-warning);     }
+.badge-danger  { background: var(--pc-danger-bg);   color: var(--pc-danger);      }
+.badge-info    { background: var(--pc-info-bg);     color: var(--pc-info);        }
+.badge-purple  { background: var(--pc-purple-bg);   color: var(--pc-purple);      }
+.badge-muted   { background: rgba(255,255,255,0.05); color: var(--pc-text-muted); }
 
 /* ---------- Modals ---------- */
 .modal-overlay {
@@ -561,9 +587,9 @@
   border: 2px solid var(--pc-bg-card);
 }
 
-.avatar-status.online { background: var(--pc-success); }
-.avatar-status.offline { background: var(--pc-text-muted); }
-.avatar-status.away { background: var(--pc-warning); }
+.avatar-status.online  { background: var(--pc-success);     }
+.avatar-status.offline { background: var(--pc-text-muted);  }
+.avatar-status.away    { background: var(--pc-warning);     }
 
 /* ---------- User Cell (Table) ---------- */
 .user-cell {
@@ -637,8 +663,8 @@
 }
 
 .progress-bar-fill.green { background: var(--pc-success); }
-.progress-bar-fill.blue { background: var(--pc-info); }
-.progress-bar-fill.red { background: var(--pc-danger); }
+.progress-bar-fill.blue  { background: var(--pc-info);    }
+.progress-bar-fill.red   { background: var(--pc-danger);  }
 
 /* ---------- List Items ---------- */
 .list-item {
@@ -803,15 +829,20 @@
   z-index: 1;
 }
 
-.timeline-dot.completed { background: var(--pc-success); }
-.timeline-dot.pending { background: var(--pc-text-muted); }
-.timeline-dot.active { background: var(--pc-gold); animation: pulse-glow 2s infinite; }
+.timeline-dot.completed { background: var(--pc-success);    }
+.timeline-dot.pending   { background: var(--pc-text-muted); }
+.timeline-dot.active    { background: var(--pc-gold); animation: pulse-glow 2s infinite; }
 
 .timeline-content {
   background: var(--pc-bg-card);
   border: 1px solid var(--pc-border);
   border-radius: var(--radius-md);
   padding: var(--sp-4);
+}
+
+.active-step-highlight {
+  border-color: var(--pc-border-gold);
+  box-shadow: 0 0 0 1px var(--pc-border-gold);
 }
 
 .timeline-date {
