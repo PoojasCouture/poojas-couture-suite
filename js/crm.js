@@ -2259,7 +2259,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         </div>
       </div>
       <div id="projects-list"></div>
-    \`;
+    `;
 
     const renderList = () => {
       const q = (Utils.$('#project-search').value||'').toLowerCase();
