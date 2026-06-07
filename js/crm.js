@@ -85,7 +85,7 @@ poojascouture.com.au`
   ];
 
   function init() {
-    activeTab = 'clients';
+    activeTab = 'sales';
     render();
   }
 
@@ -102,13 +102,13 @@ poojascouture.com.au`
         <div class="page-actions" id="crm-page-actions"></div>
       </div>
       <div class="tabs animate-fade-in stagger-1">
+        <button class="tab-btn ${activeTab==='sales'?'active':''}" data-tab="sales">💵 CRM</button>
         <button class="tab-btn ${activeTab==='clients'?'active':''}" data-tab="clients">👑 Clients</button>
         <button class="tab-btn ${activeTab==='appointments'?'active':''}" data-tab="appointments">📅 Appointments</button>
         <button class="tab-btn ${activeTab==='orders'?'active':''}" data-tab="orders">🧵 Order Pipeline</button>
+        <button class="tab-btn ${activeTab==='projects'?'active':''}" data-tab="projects">📁 Projects</button>
         <button class="tab-btn ${activeTab==='journey'?'active':''}" data-tab="journey">💍 Bridal Journey</button>
         <button class="tab-btn ${activeTab==='email'?'active':''}" data-tab="email">✉️ Email Centre</button>
-        <button class="tab-btn ${activeTab==='projects'?'active':''}" data-tab="projects">📁 Projects</button>
-        <button class="tab-btn ${activeTab==='sales'?'active':''}" data-tab="sales">💵 CRM</button>
       </div>
       <div id="crm-tab-content" class="animate-fade-in stagger-2"></div>
     `;
