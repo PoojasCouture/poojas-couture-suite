@@ -108,7 +108,7 @@ poojascouture.com.au`
         <button class="tab-btn ${activeTab==='journey'?'active':''}" data-tab="journey">💍 Bridal Journey</button>
         <button class="tab-btn ${activeTab==='email'?'active':''}" data-tab="email">✉️ Email Centre</button>
         <button class="tab-btn ${activeTab==='projects'?'active':''}" data-tab="projects">📁 Projects</button>
-        <button class="tab-btn ${activeTab==='sales'?'active':''}" data-tab="sales">💵 Sales</button>
+        <button class="tab-btn ${activeTab==='sales'?'active':''}" data-tab="sales">💵 CRM</button>
       </div>
       <div id="crm-tab-content" class="animate-fade-in stagger-2"></div>
     `;
