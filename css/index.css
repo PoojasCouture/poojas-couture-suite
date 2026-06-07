@@ -232,6 +232,9 @@ p {
   color: var(--pc-text-heading);
 }
 
+.stat-card-icon {
+  filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.4));
+}
 /* ---------- Utility Classes ---------- */
 .text-gold { color: var(--pc-text-gold); }
 .text-muted { color: var(--pc-text-muted); }
