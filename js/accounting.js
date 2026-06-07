@@ -607,11 +607,38 @@ const Accounting = (() => {
             <head>
               <title>Print Invoice ${inv.invoiceNumber}</title>
               <style>
-                body { font-family: sans-serif; padding: 40px; }
+                * { box-sizing: border-box; }
+                body { font-family: sans-serif; padding: 40px; color: #111; background: #fff; }
                 .d-flex { display: flex; }
                 .justify-between { justify-content: space-between; }
-                .text-right { text-align: right; }
                 .justify-end { justify-content: flex-end; }
+                .text-right { text-align: right; }
+                .items-center { align-items: center; }
+                .items-start { align-items: flex-start; }
+                .font-bold { font-weight: bold; }
+                .font-semibold { font-weight: 600; }
+                .font-mono { font-family: monospace; }
+                .text-xs { font-size: 11px; }
+                .text-sm { font-size: 12px; }
+                .text-md { font-size: 14px; }
+                .text-muted { color: #666; }
+                .text-success { color: #10B981; }
+                .text-danger { color: #EF4444; }
+                .text-gold { color: #ECB676; }
+                .mt-1 { margin-top: 4px; }
+                .mt-2 { margin-top: 8px; }
+                .mb-1 { margin-bottom: 4px; }
+                .mb-2 { margin-bottom: 8px; }
+                .mb-3 { margin-bottom: 12px; }
+                .p-2 { padding: 8px; }
+                .p-3 { padding: 12px; }
+                .gap-2 { gap: 8px; }
+                .rounded-md { border-radius: 6px; }
+                .invoice-preview { background: #fff; }
+                @media print {
+                  body { padding: 20px; }
+                  button { display: none !important; }
+                }
               </style>
             </head>
             <body>
