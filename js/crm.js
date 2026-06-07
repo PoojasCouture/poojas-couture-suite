@@ -96,7 +96,7 @@ poojascouture.com.au`
     container.innerHTML = `
       <div class="page-header animate-fade-in">
         <div>
-          <h1 class="page-title">Customer Relationship Management</h1>
+          <h1 class="page-title">Sales Dashboard</h1>
           <p class="page-subtitle">Manage bridal clients, consultations, order pipelines, email communications and fitting journeys</p>
         </div>
         <div class="page-actions" id="crm-page-actions"></div>
