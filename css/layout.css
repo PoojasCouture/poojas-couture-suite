@@ -429,7 +429,7 @@
 }
 
 .page-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: var(--text-2xl);
   font-weight: 600;
   color: var(--pc-text-heading);
