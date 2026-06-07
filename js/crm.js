@@ -713,7 +713,7 @@ poojascouture.com.au`
       </div>
 
       <!-- Filter chips -->
-      <div class="card p-4 mb-4 animate-fade-in stagger-1" style="margin-top: 24px;">
+      <div class="card p-4 mb-4 animate-fade-in stagger-1" style="margin-top: 20px;">
         <div class="d-flex flex-wrap gap-2 items-center">
           <button class="btn btn-sm btn-primary order-filter-chip" data-stage="all">
             All <span class="badge badge-muted" style="margin-left:6px">${orders.length}</span>
