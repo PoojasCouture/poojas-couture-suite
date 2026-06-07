@@ -77,27 +77,21 @@ const Accounting = (() => {
   // ==========================================
 
   function renderDashboard(container, actions) {
-    // Financial summaries
     const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
     const expenses = Store.getAll(Store.COLLECTIONS.EXPENSES);
 
     const paidInvoices = invoices.filter(i => i.status === 'Paid');
-    const sentInvoices = invoices.filter(i => i.status === 'Sent');
     const outstandingInvoices = invoices.filter(i => i.status === 'Sent' || i.status === 'Overdue');
 
     const totalRevenue = paidInvoices.reduce((sum, i) => sum + i.total, 0);
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
     const outstandingAmount = outstandingInvoices.reduce((sum, i) => sum + i.total, 0);
-
     const netProfit = totalRevenue - totalExpenses;
 
-    // GST collected vs paid
     const gstCollected = invoices.filter(i => i.status === 'Paid' || i.status === 'Sent').reduce((sum, i) => sum + i.gstTotal, 0);
     const gstPaid = expenses.reduce((sum, e) => sum + e.gst, 0);
-    const netGstLiability = gstCollected - gstPaid;
 
     container.innerHTML = `
-      <!-- Stats widgets row -->
       <div class="widgets-grid animate-fade-in stagger-1">
         <div class="stat-card">
           <div class="stat-card-header">
@@ -107,7 +101,6 @@ const Accounting = (() => {
           <div class="stat-card-value">${Utils.formatCurrency(totalRevenue)}</div>
           <div class="stat-card-label">Total Revenue (Cash-basis)</div>
         </div>
-
         <div class="stat-card">
           <div class="stat-card-header">
             <span class="stat-card-icon red">💸</span>
@@ -116,18 +109,14 @@ const Accounting = (() => {
           <div class="stat-card-value">${Utils.formatCurrency(totalExpenses)}</div>
           <div class="stat-card-label">Total Expenses Logged</div>
         </div>
-
         <div class="stat-card">
           <div class="stat-card-header">
             <span class="stat-card-icon gold">⚖️</span>
-            <span class="stat-card-trend ${netProfit >= 0 ? 'up' : 'down'}">
-              ${netProfit >= 0 ? 'Profit' : 'Loss'}
-            </span>
+            <span class="stat-card-trend ${netProfit >= 0 ? 'up' : 'down'}">${netProfit >= 0 ? 'Profit' : 'Loss'}</span>
           </div>
           <div class="stat-card-value ${netProfit >= 0 ? 'text-success' : 'text-danger'}">${Utils.formatCurrency(netProfit)}</div>
           <div class="stat-card-label">Net Profit / Loss Position</div>
         </div>
-
         <div class="stat-card">
           <div class="stat-card-header">
             <span class="stat-card-icon amber">🔔</span>
@@ -138,7 +127,6 @@ const Accounting = (() => {
         </div>
       </div>
 
-      <!-- Financial charts grid -->
       <div class="content-grid animate-fade-in stagger-2">
         <div class="card p-6">
           <div class="card-title mb-4">Cashflow Analysis (Last 6 Months)</div>
@@ -150,26 +138,20 @@ const Accounting = (() => {
             <div class="chart-legend-item"><div class="chart-legend-dot" style="background: #F87171;"></div>Expenses</div>
           </div>
         </div>
-
         <div class="card p-6">
           <div class="card-title mb-4">Expense Distribution by Category</div>
           <div class="d-grid gap-4" style="grid-template-columns: 1.2fr 1fr;">
             <div class="chart-container" style="height: 180px;">
               <canvas id="expense-donut-chart"></canvas>
             </div>
-            <div class="d-flex flex-col gap-2 justify-center" id="expense-category-breakdown">
-              <!-- Dynamically populated -->
-            </div>
+            <div class="d-flex flex-col gap-2 justify-center" id="expense-category-breakdown"></div>
           </div>
         </div>
       </div>
     `;
 
-    // Render Canvas Charts (wait a frame for setup)
     requestAnimationFrame(() => {
-      // Bar Chart: Cashflow
       const months = ['Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'];
-      // Sample mock histories
       const cashflowData = {
         labels: months,
         datasets: [
@@ -181,33 +163,25 @@ const Accounting = (() => {
         yFormatter: val => '$' + Utils.formatCompact(val)
       });
 
-      // Donut Chart: Expenses categories
       const categoriesMap = {};
       expenses.forEach(e => {
         categoriesMap[e.category] = (categoriesMap[e.category] || 0) + e.amount;
       });
 
       const donutData = Object.entries(categoriesMap).map(([label, value], idx) => ({
-        label,
-        value,
-        color: Utils.getChartColor(idx)
+        label, value, color: Utils.getChartColor(idx)
       }));
 
       Charts.Donut('expense-donut-chart', donutData, {
-        centerText: {
-          value: '$' + Utils.formatCompact(totalExpenses),
-          label: 'Total Expenses'
-        }
+        centerText: { value: '$' + Utils.formatCompact(totalExpenses), label: 'Total Expenses' }
       });
 
-      // Populate text list breakdown next to donut
       const legendContainer = Utils.$('#expense-category-breakdown');
       legendContainer.innerHTML = '';
       if (donutData.length === 0) {
         legendContainer.innerHTML = '<div class="text-xs text-muted">No expenses logged.</div>';
       } else {
-        // Sort highest first
-        donutData.sort((a,b) => b.value - a.value);
+        donutData.sort((a, b) => b.value - a.value);
         donutData.forEach(item => {
           legendContainer.innerHTML += `
             <div class="d-flex justify-between items-center text-xs">
@@ -264,12 +238,10 @@ const Accounting = (() => {
                 <th>Paid</th>
                 <th>Balance</th>
                 <th>Status</th>
-                <th style="width: 120px; text-align: right;">Action</th>
+                <th style="width: 140px; text-align: right;">Action</th>
               </tr>
             </thead>
-            <tbody id="invoices-table-body">
-              <!-- Filled JS -->
-            </tbody>
+            <tbody id="invoices-table-body"></tbody>
           </table>
         </div>
       </div>
@@ -280,10 +252,7 @@ const Accounting = (() => {
     const refreshTable = () => {
       const status = statusFilter.value;
       const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
-
-      // Sort by issue date desc
-      invoices.sort((a,b) => new Date(b.issueDate) - new Date(a.issueDate));
-
+      invoices.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
       const filtered = invoices.filter(i => status === 'all' || i.status === status);
 
       Utils.$('#invoice-count').textContent = `Showing ${filtered.length} of ${invoices.length} invoices`;
@@ -297,8 +266,6 @@ const Accounting = (() => {
       }
 
       filtered.forEach(i => {
-        // Paid amount: use recorded value; for legacy 'Paid' invoices with no
-        // recorded payment, treat as fully paid so the balance doesn't lie.
         const paid = (i.amountPaid != null && i.amountPaid !== '')
           ? i.amountPaid
           : (i.status === 'Paid' ? i.total : 0);
@@ -311,6 +278,8 @@ const Accounting = (() => {
           : i.status === 'Overdue' ? 'badge-danger'
           : 'badge-muted';
 
+        const hasMilestones = i.milestones && i.milestones.length && i.status !== 'Paid';
+
         const tr = Utils.createElement('tr');
         tr.innerHTML = `
           <td class="font-mono font-semibold">${i.invoiceNumber}</td>
@@ -321,12 +290,11 @@ const Accounting = (() => {
           <td class="font-mono font-bold text-gold">${Utils.formatCurrency(i.total)}</td>
           <td class="font-mono text-success">${Utils.formatCurrency(paid)}</td>
           <td class="font-mono ${balance > 0 ? 'text-danger font-semibold' : 'text-muted'}">${Utils.formatCurrency(balance)}</td>
-          <td>
-            <span class="badge ${badgeClass}">${i.status}</span>
-          </td>
+          <td><span class="badge ${badgeClass}">${i.status}</span></td>
           <td>
             <div class="table-actions justify-end">
               <button class="btn btn-icon btn-ghost sm" title="View & Print Invoice" onclick="Accounting.viewInvoicePreview('${i.id}')">📄</button>
+              ${hasMilestones ? `<button class="btn btn-icon btn-ghost sm text-gold" title="Record Milestone Payment" onclick="Accounting.recordMilestonePayment('${i.id}')">💳</button>` : ''}
               ${i.status !== 'Paid' ? `<button class="btn btn-icon btn-ghost sm text-success" title="Mark Fully Paid" onclick="Accounting.markInvoicePaid('${i.id}')">✓</button>` : ''}
               <button class="btn btn-icon btn-ghost sm text-danger" title="Delete" onclick="Accounting.deleteInvoice('${i.id}')">🗑️</button>
             </div>
@@ -370,15 +338,11 @@ const Accounting = (() => {
             <input type="date" name="dueDate" class="form-input" required value="${inv ? inv.dueDate : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}">
           </div>
         </div>
-
         <div style="border-top: 1px solid var(--pc-border); padding-top: 16px; margin-top: 16px;">
           <h4 class="text-sm font-semibold text-gold mb-2">Invoice Line Items</h4>
-          <div id="invoice-items-list" class="d-flex flex-col gap-3">
-            <!-- Dynamically populated or new lines -->
-          </div>
+          <div id="invoice-items-list" class="d-flex flex-col gap-3"></div>
           <button type="button" class="btn btn-secondary btn-sm mt-3" id="btn-add-item-row">+ Add Line Item</button>
         </div>
-
         <div class="form-group mt-4">
           <label class="form-label">Invoice Memo / Notes</label>
           <textarea name="notes" class="form-textarea" placeholder="Payment instructions, bank details, bridal orders reference...">${inv ? Utils.sanitizeHTML(inv.notes || '') : 'Direct deposit payment info:\nBank: Commonwealth Bank of Australia\nBSB: 062-900 BSB\nAccount: 1045 9827'}</textarea>
@@ -392,16 +356,12 @@ const Accounting = (() => {
       submitText: isEdit ? 'Save Invoice' : 'Issue Invoice',
       onSubmit: (modalEl) => {
         const form = Utils.$('#invoice-form', modalEl);
-        if (!form.checkValidity()) {
-          form.reportValidity();
-          return false;
-        }
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
 
         const formData = new FormData(form);
         const selClientId = formData.get('clientId');
         const selectedClient = Store.getById(Store.COLLECTIONS.CLIENTS, selClientId);
 
-        // Map line items inputs
         const items = [];
         let subtotal = 0;
         let gstTotal = 0;
@@ -417,15 +377,7 @@ const Accounting = (() => {
             const lineSub = qty * rate;
             const lineGst = isGst ? Math.round(lineSub * 0.1 * 100) / 100 : 0;
             const lineTotal = lineSub + lineGst;
-
-            items.push({
-              description: desc,
-              quantity: qty,
-              unitPrice: rate,
-              gst: lineGst,
-              amount: lineTotal
-            });
-
+            items.push({ description: desc, quantity: qty, unitPrice: rate, gst: lineGst, amount: lineTotal });
             subtotal += lineSub;
             gstTotal += lineGst;
           }
@@ -443,15 +395,12 @@ const Accounting = (() => {
           issueDate: formData.get('issueDate'),
           dueDate: formData.get('dueDate'),
           notes: formData.get('notes'),
-          items: items,
+          items,
           subtotal: Math.round(subtotal * 100) / 100,
           gstTotal: Math.round(gstTotal * 100) / 100,
           total: Math.round((subtotal + gstTotal) * 100) / 100,
           status: inv ? inv.status : 'Draft',
-          // Always set amountPaid so payment gate reads correctly.
-          // Preserve existing value on edit; default to 0 on create.
           amountPaid: inv ? (inv.amountPaid != null ? inv.amountPaid : 0) : 0,
-          // orderId is null for manually created invoices (not linked to a CRM order).
           orderId: inv ? (inv.orderId || null) : null
         };
 
@@ -468,7 +417,6 @@ const Accounting = (() => {
       }
     });
 
-    // Populate rows handler
     const itemsList = Utils.$('#invoice-items-list');
 
     function addRow(item = null) {
@@ -487,7 +435,6 @@ const Accounting = (() => {
 
     Utils.$('#btn-add-item-row').addEventListener('click', () => addRow());
 
-    // Pre-populate if edit, else add one blank row
     if (inv && inv.items) {
       inv.items.forEach(item => addRow(item));
     } else {
@@ -500,7 +447,6 @@ const Accounting = (() => {
     if (!inv) return;
 
     const settings = Store.getSettings();
-
     const paidAmt = (inv.amountPaid != null && inv.amountPaid !== '') ? inv.amountPaid : (inv.status === 'Paid' ? inv.total : 0);
     const balanceDue = Math.round((inv.total - paidAmt) * 100) / 100;
 
@@ -579,15 +525,14 @@ const Accounting = (() => {
           <div style="font-weight: bold; color: #ECB676; text-transform: uppercase; margin-bottom: 8px;">Payment Milestones</div>
           ${inv.milestones.map(m => `
             <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eee;">
-              <div>
-                <div style="font-weight:600;">${Utils.sanitizeHTML(m.label)}</div>
-              </div>
+              <div><div style="font-weight:600;">${Utils.sanitizeHTML(m.label)}</div></div>
               <div style="text-align:right;">
                 <div style="font-family:monospace; font-weight:bold;">${Utils.formatCurrency(m.amount)}</div>
                 <div style="font-size:10px; color:${m.paid ? '#10B981' : '#F59E0B'};">${m.paid ? '✓ Paid' : 'Pending'}</div>
               </div>
             </div>`).join('')}
         </div>` : ''}
+
         <div style="margin-top: 40px; font-size: 11px; color: #666; border-top: 1px solid #eee; padding-top: 12px; white-space: pre-line;">
           <div style="font-weight: bold; margin-bottom: 4px; text-transform: uppercase;">Payment Terms / Note:</div>
           ${Utils.sanitizeHTML(inv.notes || '')}
@@ -600,7 +545,6 @@ const Accounting = (() => {
       content: modalHTML,
       submitText: 'Print Invoice',
       onSubmit: () => {
-        // Mock print - open window and trigger print
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
           <html>
@@ -635,20 +579,17 @@ const Accounting = (() => {
                 .gap-2 { gap: 8px; }
                 .rounded-md { border-radius: 6px; }
                 .invoice-preview { background: #fff; }
-                @media print {
-                  body { padding: 20px; }
-                  button { display: none !important; }
-                }
+                @media print { body { padding: 20px; } button { display: none !important; } }
               </style>
             </head>
             <body>
               ${modalHTML}
-              <script>window.onload = function() { window.print(); window.close(); }</script>
+              <script>window.onload = function() { window.print(); window.close(); }<\/script>
             </body>
           </html>
         `);
         printWindow.document.close();
-        return false; // keep modal open after printing
+        return false;
       }
     });
   }
@@ -717,9 +658,7 @@ const Accounting = (() => {
                 <th style="width: 100px; text-align: right;">Action</th>
               </tr>
             </thead>
-            <tbody id="expenses-table-body">
-              <!-- Loaded dynamically -->
-            </tbody>
+            <tbody id="expenses-table-body"></tbody>
           </table>
         </div>
       </div>
@@ -730,9 +669,7 @@ const Accounting = (() => {
     const refreshTable = () => {
       const cat = catFilter.value;
       const expenses = Store.getAll(Store.COLLECTIONS.EXPENSES);
-
-      expenses.sort((a,b) => new Date(b.expenseDate) - new Date(a.expenseDate));
-
+      expenses.sort((a, b) => new Date(b.expenseDate) - new Date(a.expenseDate));
       const filtered = expenses.filter(e => cat === 'all' || e.category === cat);
 
       Utils.$('#expense-count').textContent = `Showing ${filtered.length} of ${expenses.length} expenses`;
@@ -827,24 +764,19 @@ const Accounting = (() => {
       submitText: isEdit ? 'Save Changes' : 'Log Expense',
       onSubmit: (modalEl) => {
         const form = Utils.$('#expense-form', modalEl);
-        if (!form.checkValidity()) {
-          form.reportValidity();
-          return false;
-        }
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
 
         const formData = new FormData(form);
         const amount = parseFloat(formData.get('amount'));
         const hasGst = Utils.$('#expense-gst-registered', modalEl).checked;
-
-        // Australian GST represents 1/11th of total paid amount if GST registered
         const gst = hasGst ? Math.round((amount / 11) * 100) / 100 : 0;
 
         const expData = {
           category: formData.get('category'),
           vendor: formData.get('vendor'),
           expenseDate: formData.get('date'),
-          amount: amount,
-          gst: gst,
+          amount,
+          gst,
           notes: formData.get('notes'),
           isRecurring: false
         };
@@ -863,9 +795,7 @@ const Accounting = (() => {
     });
   }
 
-  function editExpense(id) {
-    showExpenseModal(id);
-  }
+  function editExpense(id) { showExpenseModal(id); }
 
   function deleteExpense(id) {
     App.showConfirm({
@@ -889,8 +819,6 @@ const Accounting = (() => {
     const expenses = Store.getAll(Store.COLLECTIONS.EXPENSES);
     const settings = Store.getSettings();
 
-    // Summarize quarterly
-    // Q1: Jul-Sep, Q2: Oct-Dec, Q3: Jan-Mar, Q4: Apr-Jun (AU Financial Year starts July)
     const quarters = [
       { name: 'Q1 (Jul - Sep)', months: [6, 7, 8], collected: 0, paid: 0 },
       { name: 'Q2 (Oct - Dec)', months: [9, 10, 11], collected: 0, paid: 0 },
@@ -898,31 +826,22 @@ const Accounting = (() => {
       { name: 'Q4 (Apr - Jun)', months: [3, 4, 5], collected: 0, paid: 0 }
     ];
 
-    // Filter invoices by paid/sent status (BAS is cash/accrual basis, let's do accrual: sent + paid)
     invoices.filter(i => i.status === 'Paid' || i.status === 'Sent').forEach(i => {
-      const date = new Date(i.issueDate);
-      const m = date.getMonth();
-      quarters.forEach(q => {
-        if (q.months.includes(m)) q.collected += i.gstTotal;
-      });
+      const m = new Date(i.issueDate).getMonth();
+      quarters.forEach(q => { if (q.months.includes(m)) q.collected += i.gstTotal; });
     });
 
     expenses.forEach(e => {
-      const date = new Date(e.expenseDate);
-      const m = date.getMonth();
-      quarters.forEach(q => {
-        if (q.months.includes(m)) q.paid += e.gst;
-      });
+      const m = new Date(e.expenseDate).getMonth();
+      quarters.forEach(q => { if (q.months.includes(m)) q.paid += e.gst; });
     });
 
-    // Total GST liability
     const totalCollected = quarters.reduce((sum, q) => sum + q.collected, 0);
     const totalPaid = quarters.reduce((sum, q) => sum + q.paid, 0);
     const netGst = totalCollected - totalPaid;
 
     container.innerHTML = `
       <div class="d-grid gap-6" style="grid-template-columns: 1fr 2fr;">
-        <!-- BAS Info Card -->
         <div class="d-flex flex-col gap-4">
           <div class="card p-5">
             <h3 class="font-display text-sm mb-3">GST Liability Summary</h3>
@@ -943,7 +862,6 @@ const Accounting = (() => {
               </div>
             </div>
           </div>
-
           <div class="card p-5">
             <h4 class="text-xs font-semibold text-gold mb-2">Australian ATO Compliance</h4>
             <p class="text-xs text-muted font-light m-0">
@@ -952,8 +870,6 @@ const Accounting = (() => {
             </p>
           </div>
         </div>
-
-        <!-- Quarterly breakdown Table -->
         <div class="card p-0">
           <div class="card-header">
             <div class="card-title">Business Activity Statement (BAS) Quarters</div>
@@ -998,12 +914,10 @@ const Accounting = (() => {
     const invoices = Store.getAll(Store.COLLECTIONS.INVOICES).filter(i => i.status === 'Paid');
     const expenses = Store.getAll(Store.COLLECTIONS.EXPENSES);
 
-    // Sum revenue and expenses
-    const totalRev = invoices.reduce((sum, i) => sum + i.subtotal, 0); // Profit is calculated on subtotal (ex GST)
-    const totalExp = expenses.reduce((sum, e) => sum + (e.amount - e.gst), 0); // Expense excl GST
+    const totalRev = invoices.reduce((sum, i) => sum + i.subtotal, 0);
+    const totalExp = expenses.reduce((sum, e) => sum + (e.amount - e.gst), 0);
     const operatingProfit = totalRev - totalExp;
 
-    // Categorized expense lists
     const categoriesMap = {};
     expenses.forEach(e => {
       categoriesMap[e.category] = (categoriesMap[e.category] || 0) + (e.amount - e.gst);
@@ -1016,13 +930,10 @@ const Accounting = (() => {
           <p class="text-xs text-gold text-uppercase mt-1">Profit & Loss Statement (Cash-Basis)</p>
           <p class="text-xs text-muted mt-1">For Period: 01 Jul 2025 to 30 Jun 2026</p>
         </div>
-
         <div class="d-flex flex-col gap-4">
-          <!-- Revenues section -->
           <div>
             <div class="d-flex justify-between items-center text-sm font-semibold text-gold" style="border-bottom: 1px solid var(--pc-border); padding-bottom: 6px;">
-              <span>1. OPERATING REVENUE</span>
-              <span>EX GST</span>
+              <span>1. OPERATING REVENUE</span><span>EX GST</span>
             </div>
             <div class="d-flex justify-between text-xs p-2 mt-2">
               <span class="text-muted">Couture Sales & Design Fees</span>
@@ -1033,47 +944,155 @@ const Accounting = (() => {
               <span class="font-mono">${Utils.formatCurrency(totalRev)}</span>
             </div>
           </div>
-
-          <!-- Expenses section -->
           <div>
             <div class="d-flex justify-between items-center text-sm font-semibold text-gold" style="border-bottom: 1px solid var(--pc-border); padding-bottom: 6px;">
-              <span>2. OPERATING EXPENSES</span>
-              <span>EX GST</span>
+              <span>2. OPERATING EXPENSES</span><span>EX GST</span>
             </div>
-
             ${Object.entries(categoriesMap).map(([cat, val]) => `
               <div class="d-flex justify-between text-xs p-2">
                 <span class="text-muted">${cat} Expenses</span>
                 <span class="font-mono">${Utils.formatCurrency(val)}</span>
               </div>
             `).join('')}
-
-            ${Object.keys(categoriesMap).length === 0 ? `
-              <div class="text-xs text-muted p-2">No expenses logged.</div>
-            ` : ''}
-
+            ${Object.keys(categoriesMap).length === 0 ? `<div class="text-xs text-muted p-2">No expenses logged.</div>` : ''}
             <div class="d-flex justify-between text-xs font-semibold p-2" style="background: rgba(255,255,255,0.01); border-top: 1px solid var(--pc-border);">
               <span>Total Operating Expenses</span>
               <span class="font-mono">${Utils.formatCurrency(totalExp)}</span>
             </div>
           </div>
-
-          <!-- Totals summary -->
           <div class="mt-4" style="border-top: 2px solid var(--pc-border); border-bottom: 2px solid var(--pc-border); padding: 12px 0;">
             <div class="d-flex justify-between items-center font-bold text-md">
               <span class="text-gold">NET OPERATING PROFIT / LOSS</span>
-              <span class="font-mono ${operatingProfit >= 0 ? 'text-success' : 'text-danger'}">
-                ${Utils.formatCurrency(operatingProfit)}
-              </span>
+              <span class="font-mono ${operatingProfit >= 0 ? 'text-success' : 'text-danger'}">${Utils.formatCurrency(operatingProfit)}</span>
             </div>
           </div>
         </div>
-
         <div class="d-flex justify-end gap-2 mt-6">
           <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨️ Print Statement</button>
         </div>
       </div>
     `;
+  }
+
+  // ==========================================
+  // MILESTONE PAYMENT RECORDING (from Accounting tab)
+  // ==========================================
+
+  function recordMilestonePayment(invoiceId) {
+    const invoice = Store.getById(Store.COLLECTIONS.INVOICES, invoiceId);
+    if (!invoice) { Utils.showToast('Invoice not found.', 'error'); return; }
+
+    const milestones = invoice.milestones || [];
+    if (milestones.length === 0) {
+      Utils.showToast('This invoice has no milestones.', 'info');
+      return;
+    }
+
+    const milestoneIndex = milestones.findIndex(m => !m.paid);
+    if (milestoneIndex === -1) {
+      Utils.showToast('All milestones are already paid.', 'info');
+      return;
+    }
+
+    const m = milestones[milestoneIndex];
+    const totalPaidSoFar = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
+    const mBalance = Math.round((m.amount - (m.paidAmount || 0)) * 100) / 100;
+
+    const milestonesHTML = milestones.map((ms, idx) => {
+      const isCurrent = idx === milestoneIndex;
+      return '<div class="d-flex justify-between items-center p-2 rounded-md text-xs" style="background:rgba(255,255,255,0.02);border:1px solid ' + (isCurrent ? 'var(--pc-gold)' : 'var(--pc-border)') + '">' +
+        '<span class="' + (isCurrent ? 'font-semibold text-gold' : 'text-muted') + '">' + Utils.sanitizeHTML(ms.label) + (isCurrent ? ' \u2190 current' : '') + '</span>' +
+        '<span class="font-mono ' + (ms.paid ? 'text-success' : isCurrent ? 'text-gold' : 'text-muted') + '">' +
+          (ms.paid ? '\u2713 ' + Utils.formatCurrency(ms.paidAmount) : Utils.formatCurrency(ms.amount)) +
+        '</span>' +
+      '</div>';
+    }).join('');
+
+    App.showModal({
+      title: '\uD83D\uDCB3 Record Payment \u2014 ' + m.label,
+      content: '<form id="acct-milestone-pay-form" class="animate-fade-in-scale">' +
+        '<div class="p-3 rounded-md mb-3" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">' +
+          '<div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Invoice:</span><span class="font-mono font-bold">' + Utils.sanitizeHTML(invoice.invoiceNumber) + '</span></div>' +
+          '<div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Client:</span><span class="font-semibold">' + Utils.sanitizeHTML(invoice.clientName) + '</span></div>' +
+        '</div>' +
+        '<div class="p-3 rounded-md mb-4" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">' +
+          '<div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Milestone amount:</span><span class="font-mono font-bold">' + Utils.formatCurrency(m.amount) + '</span></div>' +
+          (m.paidAmount > 0 ? '<div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Already paid:</span><span class="font-mono text-success">' + Utils.formatCurrency(m.paidAmount) + '</span></div>' : '') +
+          '<div class="d-flex justify-between text-sm font-bold" style="border-top:1px solid var(--pc-border);padding-top:6px;margin-top:4px"><span>Outstanding:</span><span class="font-mono text-danger">' + Utils.formatCurrency(mBalance) + '</span></div>' +
+        '</div>' +
+        '<div class="d-flex flex-col gap-2 mb-4">' + milestonesHTML + '</div>' +
+        '<div class="form-group">' +
+          '<label class="form-label">Amount Received (AUD) <span class="required">*</span></label>' +
+          '<input type="number" name="amount" class="form-input" id="acct-milestone-amount" min="0" step="0.01" value="' + mBalance + '" required>' +
+          '<div id="acct-milestone-hint" class="text-xs text-muted mt-1">Pre-filled with outstanding amount. Edit if partial payment received.</div>' +
+        '</div>' +
+        '<div class="form-group m-0">' +
+          '<label class="form-label">Payment Method</label>' +
+          '<select name="paymentMethod" class="form-select">' +
+            '<option value="Bank Transfer">Bank Transfer</option>' +
+            '<option value="Cash">Cash</option>' +
+            '<option value="Card">Card</option>' +
+            '<option value="Other">Other</option>' +
+          '</select>' +
+        '</div>' +
+      '</form>',
+      submitText: '\u2713 Confirm Payment',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#acct-milestone-pay-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const fd = new FormData(form);
+        const amount = parseFloat(fd.get('amount')) || 0;
+        if (amount <= 0) { Utils.showToast('Enter a payment amount greater than zero.', 'error'); return false; }
+
+        const shortfall = Math.max(0, Math.round((m.amount - (m.paidAmount || 0) - amount) * 100) / 100);
+        const updatedMilestones = milestones.map((ms, idx) => {
+          if (idx === milestoneIndex) {
+            const newPaidAmount = Math.round(((ms.paidAmount || 0) + amount) * 100) / 100;
+            return Object.assign({}, ms, { paidAmount: newPaidAmount, paid: newPaidAmount >= ms.amount });
+          }
+          if (idx === milestoneIndex + 1 && shortfall > 0) {
+            const newAmount = Math.round((ms.amount + shortfall) * 100) / 100;
+            return Object.assign({}, ms, { amount: newAmount, rollover: Math.round(((ms.rollover || 0) + shortfall) * 100) / 100 });
+          }
+          return ms;
+        });
+
+        const newTotalPaid = Math.round((totalPaidSoFar + amount) * 100) / 100;
+        const newBalance   = Math.round((invoice.total - newTotalPaid) * 100) / 100;
+        const newStatus    = newBalance <= 0 ? 'Paid' : 'Partially Paid';
+
+        await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
+          amountPaid: newTotalPaid,
+          status: newStatus,
+          milestones: updatedMilestones,
+          notes: (invoice.notes || '') + '\n' + m.label + ': ' + Utils.formatCurrency(amount) + ' via ' + fd.get('paymentMethod') + ' on ' + new Date().toLocaleDateString('en-AU') + '.'
+        });
+
+        Utils.showToast('Payment of ' + Utils.formatCurrency(amount) + ' recorded. Balance: ' + Utils.formatCurrency(newBalance) + '.', 'success');
+        App.closeModal();
+        renderSubTab();
+        return true;
+      }
+    });
+
+    setTimeout(() => {
+      const input = document.getElementById('acct-milestone-amount');
+      const hint  = document.getElementById('acct-milestone-hint');
+      if (!input || !hint) return;
+      input.addEventListener('input', () => {
+        const amt = parseFloat(input.value) || 0;
+        if (amt < mBalance && amt > 0) {
+          hint.textContent = 'Partial payment. ' + Utils.formatCurrency(mBalance - amt) + ' will remain outstanding on this milestone.';
+          hint.style.color = '#a78bfa';
+        } else if (amt >= mBalance && amt > 0) {
+          hint.textContent = '\u2713 Clears this milestone fully.';
+          hint.style.color = '#10b981';
+        } else {
+          hint.textContent = 'Pre-filled with outstanding amount. Edit if partial payment received.';
+          hint.style.color = '';
+        }
+      });
+    }, 100);
   }
 
   return {
@@ -1082,6 +1101,7 @@ const Accounting = (() => {
     markInvoicePaid,
     deleteInvoice,
     editExpense,
-    deleteExpense
+    deleteExpense,
+    recordMilestonePayment
   };
 })();
