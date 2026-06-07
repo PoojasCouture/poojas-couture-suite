@@ -128,7 +128,7 @@ const App = (() => {
     // Update breadcrumb
     const breadcrumbLabel = Utils.$('#topbar-breadcrumb-active');
       const routesMap = {
-      dashboard:  'Overview Dashboard'
+      dashboard:  'Overview Dashboard',
       crm:        'Sales Dashboard',
       products:   'Stock & Inventory',
       accounting: 'Accounting & Finance',
