@@ -133,7 +133,7 @@ const App = (() => {
       products:   'Stock & Inventory',
       accounting: 'Accounting & Finance',
       hrm:        'Human Capital',
-      admin:      'Admin Center'
+      admin:      'Admin Center',
       settings:   'Boutique Settings',
 
       };
