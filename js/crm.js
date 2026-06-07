@@ -9,9 +9,9 @@ const CRM = (() => {
 
   // EmailJS config — fill in your own keys from emailjs.com (free tier = 200/month)
   const EMAILJS_CONFIG = {
-    serviceId: 'YOUR_SERVICE_ID',
-    templateId: 'YOUR_TEMPLATE_ID',
-    publicKey: 'YOUR_PUBLIC_KEY'
+    serviceId: 'service_w6v2tms',
+    templateId: 'template_h8dn3gn',
+    publicKey: 'p6cyFWFbulcvknqQ1'
   };
 
   const EMAIL_TEMPLATES = [
