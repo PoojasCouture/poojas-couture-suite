@@ -2285,8 +2285,8 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           const paid = invoice ? ((invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0) : 0;
           const balance = invoice ? Math.round((invoice.total - paid) * 100) / 100 : 0;
           const invoiceBtn = !invoice
-            ? '<button class="btn btn-primary btn-sm" onclick="CRM.createProjectInvoice(\'' + proj.id + '\')">🧾 Create Invoice</button>'
-            : '<button class="btn btn-secondary btn-sm" onclick="CRM.updateProjectInvoice(\'' + proj.id + '\')">🔄 Update Invoice</button>';
+            ? '<button class="btn btn-primary btn-sm" onclick="CRM.createProjectInvoice(\' + proj.id + \')">🧾 Create Invoice</button>'
+            : '<button class="btn btn-secondary btn-sm" onclick="CRM.updateProjectInvoice(\' + proj.id + \')">🔄 Update Invoice</button>';
           const balanceDiv = invoice
             ? '<div class="text-xs ' + (balance > 0 ? 'text-danger' : 'text-success') + '">Balance: ' + Utils.formatCurrency(balance) + '</div>'
             : '<div class="text-xs text-muted">No invoice yet</div>';
@@ -2329,8 +2329,8 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
                   '<div class="font-mono font-bold text-gold">' + Utils.formatCurrency(proj.totalPrice) + '</div>' +
                   balanceDiv +
                   '<div class="d-flex gap-1 justify-end mt-1">' +
-                    '<button class="btn btn-secondary btn-sm" onclick="CRM.addSubOrder(\'' + proj.id + '\')">+ Add Garment</button>' +
-                    '<button class="btn btn-secondary btn-sm" onclick="CRM.viewProject(\'' + proj.id + '\')">View</button>' +
+                    '<button class="btn btn-secondary btn-sm" onclick="CRM.addSubOrder(\' + proj.id + \')">+ Add Garment</button>' +
+                    '<button class="btn btn-secondary btn-sm" onclick="CRM.viewProject(\' + proj.id + \')">View</button>' +
                     invoiceBtn +
                   '</div>' +
                 '</div>' +
