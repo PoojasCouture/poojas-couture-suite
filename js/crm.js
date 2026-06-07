@@ -2029,7 +2029,7 @@ poojascouture.com.au`
       </div>
 
       <!-- Pipeline health strip -->
-      <div class="card p-4 mb-4 animate-fade-in stagger-1">
+      <div class="card p-4 mb-4 animate-fade-in stagger-1" style="margin-top: 24px;">
         <div class="card-title mb-3">📋 Pipeline Health</div>
         <div class="d-grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
           <div class="p-3 rounded-md text-center" style="background:rgba(139,92,246,0.08);border:1px solid var(--pc-border)">
