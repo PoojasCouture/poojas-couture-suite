@@ -1933,61 +1933,225 @@ poojascouture.com.au`
     `;
   }
 
-  // ==========================================
-  // SALES (Summary view)
+// ==========================================
+  // CRM TAB (formerly Sales — now a proper CRM dashboard)
   // ==========================================
 
   function renderSales(container, actions) {
-    actions.innerHTML = `<button class="btn btn-primary" id="btn-add-sale">+ Record Sale</button>`;
-    Utils.$('#btn-add-sale').addEventListener('click', () => {
-      App.showModal({
-        title: 'Record Sale',
-        content: '<p class="text-muted text-sm">Sales recording module coming soon. Use Accounting Portal for invoices and payments.</p>',
-        submitText: 'Go to Accounting', hideCancel: true,
-        onSubmit: () => { App.navigate('accounting'); return true; }
-      });
+    const allOrders  = Store.getAll(Store.COLLECTIONS.ORDERS);
+    const allClients = Store.getAll(Store.COLLECTIONS.CLIENTS);
+    const invoices   = Store.getAll(Store.COLLECTIONS.INVOICES);
+    const paidInvoices = invoices.filter(i => i.status === 'Paid');
+    const deliveredOrders = allOrders.filter(o => o.status === 'Delivered');
+
+    const totalRevenue  = paidInvoices.reduce((sum, i) => sum + i.total, 0);
+    const outstanding   = invoices.filter(i => i.status === 'Partially Paid' || i.status === 'Sent' || i.status === 'Draft');
+    const outstandingAmt = outstanding.reduce((sum, i) => {
+      const paid = (i.amountPaid != null && i.amountPaid !== '') ? i.amountPaid : 0;
+      return sum + Math.max(0, i.total - paid);
+    }, 0);
+    const avgOrderValue = deliveredOrders.length > 0
+      ? Math.round((deliveredOrders.reduce((s, o) => s + (o.price || 0), 0) / deliveredOrders.length) * 100) / 100
+      : 0;
+    const conversionRate = allOrders.length > 0
+      ? Math.round((deliveredOrders.length / allOrders.length) * 100)
+      : 0;
+
+    // Top clients by total order value
+    const clientSpend = {};
+    allOrders.forEach(o => {
+      if (!clientSpend[o.clientName]) clientSpend[o.clientName] = { spend: 0, orders: 0, clientId: o.clientId };
+      clientSpend[o.clientName].spend  += (o.price || 0);
+      clientSpend[o.clientName].orders += 1;
+    });
+    const topClients = Object.entries(clientSpend)
+      .sort((a, b) => b[1].spend - a[1].spend)
+      .slice(0, 5);
+
+    // Product type breakdown
+    const productMap = {};
+    allOrders.forEach(o => {
+      const t = o.productType || 'GEN';
+      productMap[t] = (productMap[t] || 0) + 1;
     });
 
-    const orders = Store.query(Store.COLLECTIONS.ORDERS, o=>o.status==='Delivered');
-    const invoices = Store.query(Store.COLLECTIONS.INVOICES, i=>i.status==='Paid');
-    const totalRevenue = invoices.reduce((sum,i)=>sum+i.total,0);
+    // Pipeline by stage groups
+    const inWorkshop  = allOrders.filter(o => ['New','In Design','Fabric Sourced','In Production','Fitting'].includes(o.status)).length;
+    const inTransit   = allOrders.filter(o => ['Ready','Shipped to Shashank','At Shashank','In Transit'].includes(o.status)).length;
+    const awaitingAct = allOrders.filter(o => ['Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery'].includes(o.status)).length;
+
+    // Upcoming deadlines (next 30 days, not delivered)
+    const now = new Date();
+    const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const upcoming = allOrders
+      .filter(o => o.status !== 'Delivered' && o.deadline && new Date(o.deadline) <= in30 && new Date(o.deadline) >= now)
+      .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
+      .slice(0, 5);
+
+    // Overdue orders
+    const overdue = allOrders
+      .filter(o => o.status !== 'Delivered' && o.deadline && new Date(o.deadline) < now)
+      .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
 
     container.innerHTML = `
-      <div class="d-flex flex-col gap-4">
-        <div class="d-grid gap-4" style="grid-template-columns:repeat(3,1fr)">
-          <div class="stat-card">
-            <div class="stat-card-header"><span class="stat-card-icon green">💰</span></div>
-            <div class="stat-card-value">${Utils.formatCurrency(totalRevenue)}</div>
-            <div class="stat-card-label">Revenue (Paid Invoices)</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-header"><span class="stat-card-icon gold">📦</span></div>
-            <div class="stat-card-value">${orders.length}</div>
-            <div class="stat-card-label">Orders Delivered</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-header"><span class="stat-card-icon blue">🧾</span></div>
-            <div class="stat-card-value">${invoices.length}</div>
-            <div class="stat-card-label">Paid Invoices</div>
-          </div>
+      <!-- KPI Row -->
+      <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon green">💰</span></div>
+          <div class="stat-card-value">${Utils.formatCurrency(totalRevenue)}</div>
+          <div class="stat-card-label">Revenue Collected</div>
         </div>
-        <div class="card p-4">
-          <div class="card-title mb-3">Delivered Orders</div>
-          ${orders.length===0?`<div class="text-center text-muted text-xs p-6">No delivered orders yet.</div>`:`
-            <div class="table-container" style="border:none">
-              <table class="data-table">
-                <thead><tr><th>Order</th><th>Client</th><th>Value</th><th>Delivered</th></tr></thead>
-                <tbody>
-                  ${orders.map(o=>`<tr>
-                    <td class="font-medium">${Utils.sanitizeHTML(o.title)}</td>
-                    <td>${Utils.sanitizeHTML(o.clientName)}</td>
-                    <td class="font-mono">${Utils.formatCurrency(o.price)}</td>
-                    <td>${Utils.formatDate(o.updatedAt||o.deadline)}</td>
-                  </tr>`).join('')}
-                </tbody>
-              </table>
-            </div>`}
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon amber">⏳</span></div>
+          <div class="stat-card-value">${Utils.formatCurrency(outstandingAmt)}</div>
+          <div class="stat-card-label">Outstanding Balance</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon gold">📦</span></div>
+          <div class="stat-card-value">${deliveredOrders.length} / ${allOrders.length}</div>
+          <div class="stat-card-label">Delivered / Total Orders</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon blue">📊</span></div>
+          <div class="stat-card-value">${Utils.formatCurrency(avgOrderValue)}</div>
+          <div class="stat-card-label">Avg Order Value</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon purple">👑</span></div>
+          <div class="stat-card-value">${allClients.length}</div>
+          <div class="stat-card-label">Total Clients</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon ${conversionRate >= 70 ? 'green' : conversionRate >= 40 ? 'amber' : 'red'}">🎯</span></div>
+          <div class="stat-card-value">${conversionRate}%</div>
+          <div class="stat-card-label">Delivery Rate</div>
+        </div>
+      </div>
+
+      <!-- Pipeline health strip -->
+      <div class="card p-4 mb-4 animate-fade-in stagger-1">
+        <div class="card-title mb-3">📋 Pipeline Health</div>
+        <div class="d-grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+          <div class="p-3 rounded-md text-center" style="background:rgba(139,92,246,0.08);border:1px solid var(--pc-border)">
+            <div class="text-lg font-bold" style="color:#a78bfa">${inWorkshop}</div>
+            <div class="text-xs text-muted mt-1">In Workshop</div>
+          </div>
+          <div class="p-3 rounded-md text-center" style="background:rgba(59,130,246,0.08);border:1px solid var(--pc-border)">
+            <div class="text-lg font-bold" style="color:#60a5fa">${inTransit}</div>
+            <div class="text-xs text-muted mt-1">In Transit / Ready</div>
+          </div>
+          <div class="p-3 rounded-md text-center" style="background:rgba(236,182,118,0.08);border:1px solid var(--pc-border)">
+            <div class="text-lg font-bold text-gold">${awaitingAct}</div>
+            <div class="text-xs text-muted mt-1">Awaiting Action</div>
+          </div>
+          <div class="p-3 rounded-md text-center" style="background:rgba(16,185,129,0.08);border:1px solid var(--pc-border)">
+            <div class="text-lg font-bold text-success">${deliveredOrders.length}</div>
+            <div class="text-xs text-muted mt-1">Delivered</div>
+          </div>
+          ${overdue.length > 0 ? `
+          <div class="p-3 rounded-md text-center" style="background:rgba(220,38,38,0.08);border:1px solid var(--pc-danger)">
+            <div class="text-lg font-bold text-danger">${overdue.length}</div>
+            <div class="text-xs text-muted mt-1">Overdue</div>
+          </div>` : ''}
+        </div>
+      </div>
+
+      <!-- Main content grid -->
+      <div class="d-grid gap-4 mb-4 animate-fade-in stagger-2" style="grid-template-columns:1fr 1fr">
+
+        <!-- Top Clients -->
+        <div class="card p-5">
+          <div class="card-title mb-4">🏆 Top Clients by Spend</div>
+          ${topClients.length === 0 ? '<div class="text-xs text-muted text-center p-4">No orders yet.</div>' :
+            topClients.map(([name, data], idx) => `
+              <div class="d-flex justify-between items-center p-2 rounded-md mb-2" style="background:rgba(255,255,255,0.02);border:1px solid var(--pc-border)">
+                <div class="d-flex items-center gap-2">
+                  <span class="font-mono text-xs text-muted">#${idx + 1}</span>
+                  <div class="avatar avatar-sm" style="background:${Utils.getAvatarColor(name)};color:var(--pc-text-inverse);width:26px;height:26px;font-size:10px">${Utils.getInitials(name)}</div>
+                  <div>
+                    <div class="text-sm font-semibold">${Utils.sanitizeHTML(name)}</div>
+                    <div class="text-xs text-muted">${data.orders} order${data.orders !== 1 ? 's' : ''}</div>
+                  </div>
+                </div>
+                <span class="font-mono text-sm font-bold text-gold">${Utils.formatCurrency(data.spend)}</span>
+              </div>`).join('')}
+        </div>
+
+        <!-- Product Type Breakdown -->
+        <div class="card p-5">
+          <div class="card-title mb-4">🧵 Orders by Product Type</div>
+          ${Object.keys(productMap).length === 0 ? '<div class="text-xs text-muted text-center p-4">No orders yet.</div>' :
+            Object.entries(productMap).sort((a, b) => b[1] - a[1]).map(([type, count]) => {
+              const pct = Math.round((count / allOrders.length) * 100);
+              const labels = { BLS: 'Bridal Lehenga Set', SAR: 'Saree', SAL: 'Salwar Suit', SHE: 'Sherwani', BSN: 'Bridal Sneakers', GEN: 'Other' };
+              return `
+                <div class="mb-3">
+                  <div class="d-flex justify-between text-xs mb-1">
+                    <span class="font-semibold">${labels[type] || type}</span>
+                    <span class="text-muted">${count} (${pct}%)</span>
+                  </div>
+                  <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+                </div>`;
+            }).join('')}
+        </div>
+      </div>
+
+      <!-- Upcoming deadlines + overdue -->
+      <div class="d-grid gap-4 animate-fade-in stagger-3" style="grid-template-columns:${overdue.length > 0 ? '1fr 1fr' : '1fr'}">
+
+        ${upcoming.length > 0 ? `
+        <div class="card p-0">
+          <div class="card-header"><div class="card-title">📅 Deadlines — Next 30 Days</div></div>
+          <div class="table-container" style="border:none">
+            <table class="data-table">
+              <thead><tr><th>Order</th><th>Client</th><th>Stage</th><th>Deadline</th></tr></thead>
+              <tbody>
+                ${upcoming.map(o => {
+                  const days = Utils.daysFromNow(o.deadline);
+                  const cls  = days <= 3 ? 'text-danger font-semibold' : days <= 7 ? 'text-warning' : 'text-muted';
+                  return `<tr>
+                    <td class="font-medium">${Utils.sanitizeHTML(o.orderCode || o.title)}</td>
+                    <td class="text-xs">${Utils.sanitizeHTML(o.clientName)}</td>
+                    <td><span class="badge badge-gold text-xs">${o.status}</span></td>
+                    <td class="font-mono text-xs ${cls}">${Utils.formatDate(o.deadline)} (${days}d)</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : ''}
+
+        ${overdue.length > 0 ? `
+        <div class="card p-0" style="border-color:var(--pc-danger)">
+          <div class="card-header" style="background:rgba(220,38,38,0.06)">
+            <div class="card-title text-danger">⚠️ Overdue Orders (${overdue.length})</div>
+          </div>
+          <div class="table-container" style="border:none">
+            <table class="data-table">
+              <thead><tr><th>Order</th><th>Client</th><th>Stage</th><th>Overdue By</th></tr></thead>
+              <tbody>
+                ${overdue.map(o => {
+                  const days = Math.abs(Utils.daysFromNow(o.deadline));
+                  return `<tr>
+                    <td class="font-medium">${Utils.sanitizeHTML(o.orderCode || o.title)}</td>
+                    <td class="text-xs">${Utils.sanitizeHTML(o.clientName)}</td>
+                    <td><span class="badge badge-gold text-xs">${o.status}</span></td>
+                    <td class="font-mono text-xs text-danger font-semibold">${days} day${days !== 1 ? 's' : ''}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : ''}
+
+        ${upcoming.length === 0 && overdue.length === 0 ? `
+        <div class="card p-8 text-center text-muted">
+          <div class="empty-state">
+            <div class="empty-state-icon">✅</div>
+            <div class="empty-state-title">All clear</div>
+            <div class="empty-state-text">No upcoming deadlines in the next 30 days.</div>
+          </div>
+        </div>` : ''}
       </div>
     `;
   }
