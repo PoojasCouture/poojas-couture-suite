@@ -620,25 +620,72 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderOrdersPanel();
   };
 
-  // Route B (India/Overseas): moves to Awaiting Payment so Pooja can chase payment
+  // Route B (India/Overseas): auto-adds shipping to invoice then moves to Awaiting Payment
   window._pcMarkAwaitingPayment = async function(orderId) {
-    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
-    const paid    = invoice ? ((invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0) : 0;
-    const balance = invoice ? Math.round((invoice.total - paid) * 100) / 100 : 0;
+    const order = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!order) return;
+
+    // Step 1: Auto-add shipping to invoice (flat order or project invoice)
+    if (order.shippingCost && order.shippingAllocation && order.shippingAllocation !== 'None') {
+      // Find invoice — flat order uses orderId, project order uses projectId
+      const invoice = order.projectId
+        ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === order.projectId)[0]
+        : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+
+      if (invoice) {
+        const already = (invoice.items || []).some(it => it.isShipping);
+        if (!already) {
+          const shipCost  = parseFloat(order.shippingCost) || 0;
+          const share     = order.shippingAllocation === 'Half'
+            ? Math.round((shipCost / 2) * 100) / 100 : shipCost;
+          const lineGst   = Math.round((share * 0.10) * 100) / 100;
+          const lineSub   = Math.round(share * 100) / 100;
+          const lineTotal = Math.round((share + lineGst) * 100) / 100;
+
+          const items  = (invoice.items || []).slice();
+          items.push({
+            description: 'Shipping — ' + (order.orderCode || orderId),
+            quantity: 1, unitPrice: lineSub, gst: lineGst, amount: lineTotal, isShipping: true
+          });
+
+          const newTotal = Math.round((invoice.total + lineTotal) * 100) / 100;
+          const newGst   = Math.round((invoice.gstTotal + lineGst) * 100) / 100;
+          const newSub   = Math.round((invoice.subtotal + lineSub) * 100) / 100;
+          const paidSoFar = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
+          let newInvStatus = invoice.status;
+          if (paidSoFar >= newTotal && newTotal > 0) newInvStatus = 'Paid';
+          else if (paidSoFar > 0) newInvStatus = 'Partially Paid';
+          else if (newInvStatus === 'Paid') newInvStatus = 'Partially Paid';
+
+          await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
+            items, subtotal: newSub, gstTotal: newGst, total: newTotal, status: newInvStatus
+          });
+          toast('Shipping ' + money(lineTotal) + ' (inc GST) auto-added to invoice.');
+        }
+      }
+    }
+
+    // Step 2: Re-read invoice balance after possible shipping addition
+    const updatedInvoice = order.projectId
+      ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === order.projectId)[0]
+      : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+    const paid    = updatedInvoice ? ((updatedInvoice.amountPaid != null && updatedInvoice.amountPaid !== '') ? parseFloat(updatedInvoice.amountPaid) : 0) : 0;
+    const balance = updatedInvoice ? Math.round((updatedInvoice.total - paid) * 100) / 100 : 0;
+
     if (balance <= 0) {
-      // No balance — deliver directly
       const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, { status: 'Delivered' });
       if (!res) return;
-      toast('Balance is zero — order marked Delivered directly.');
+      toast('Balance zero — order marked Delivered directly.');
       renderOrdersPanel();
       return;
     }
+
     const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
       status: 'Awaiting Payment',
       awaitingPaymentDate: new Date().toISOString()
     });
     if (!res) return;
-    toast('Order held — Awaiting Payment. Pooja will chase the customer.');
+    toast('Shipping added. Order held — Awaiting Payment. Pooja will chase the customer.');
     renderOrdersPanel();
   };
 
