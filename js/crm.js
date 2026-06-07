@@ -1879,6 +1879,7 @@ poojascouture.com.au`
     const client = Store.getById(Store.COLLECTIONS.CLIENTS, clientId);
     if (!client) return;
     const orders = Store.query(Store.COLLECTIONS.ORDERS, o=>o.clientId===clientId);
+    orders.sort((a,b) => new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
 
     const milestones = [
       { name:'Design Consultation & Sketching', desc:'Discuss theme, motifs, colour palette and take preliminary measurements.' },
@@ -1898,7 +1899,7 @@ poojascouture.com.au`
       <div class="d-flex items-center justify-between mb-6" style="border-bottom:1px solid var(--pc-border);padding-bottom:var(--sp-4)">
         <div>
           <h3 class="font-display text-md text-gold">${Utils.sanitizeHTML(client.name)} — Journey</h3>
-          <p class="text-xs text-muted mt-1">From concept sketch to delivery</p>
+          <p class="text-xs text-muted mt-1">${orders.length} garment${orders.length!==1?'s':''} tracked${(()=>{ if(!orders.length||!orders[0].projectId) return ''; const p=Store.getById(Store.COLLECTIONS.ORDER_PROJECTS,orders[0].projectId); return p?' · 📁 '+Utils.sanitizeHTML(p.projectName):''; })()}</p>
         </div>
         <div class="d-flex items-center gap-3">
           <div class="text-right">
@@ -1922,9 +1923,13 @@ poojascouture.com.au`
                 <h4 class="timeline-title text-sm mt-1">${m.name}</h4>
                 <p class="timeline-description text-xs mt-2">${m.desc}</p>
               </div>
-            </div>`;
+            </div>\`;
         }).join('')}
       </div>
+      ${orders.length > 1 ? (() => {
+        const rows = orders.map(o => { const pct = Math.round((statusMap[o.status]||0)/12*100); return '<div class="d-flex justify-between items-center p-2 rounded-md text-xs mb-1" style="background:rgba(255,255,255,0.02);border:1px solid var(--pc-border)"><div><div class="font-semibold">'+Utils.sanitizeHTML(o.title)+'</div>'+(o.orderCode?'<div class="font-mono text-xs" style="color:#a78bfa">'+Utils.sanitizeHTML(o.orderCode)+'</div>':'')+'</div><div class="text-right"><span class="badge badge-gold text-xs">'+o.status+'</span><div class="text-xs text-muted mt-1">'+pct+'%</div></div></div>'; }).join('');
+        return '<div class="mt-4" style="border-top:1px solid var(--pc-border);padding-top:16px"><div class="text-xs font-semibold text-gold mb-2">Individual Garments</div>'+rows+'</div>';
+      })() : ''}
     `;
   }
 
@@ -2075,7 +2080,9 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
 
     // Step 1: Auto-add shipping contribution to invoice if not already done
     if (o.shippingCost && o.shippingAllocation && o.shippingAllocation !== 'None') {
-      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+      const invoice = o.projectId
+        ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0]
+        : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
       if (invoice) {
         const already = (invoice.items || []).some(it => it.isShipping);
         if (!already) {
@@ -2111,7 +2118,9 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
     }
 
     // Step 2: Refresh invoice after possible update, check balance
-    const updatedInvoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+    const updatedInvoice = o.projectId
+      ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0]
+      : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
     const paid    = updatedInvoice ? ((updatedInvoice.amountPaid != null && updatedInvoice.amountPaid !== '') ? updatedInvoice.amountPaid : 0) : 0;
     const balance = updatedInvoice ? Math.round((updatedInvoice.total - paid) * 100) / 100 : 0;
 
@@ -2229,11 +2238,38 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
     actions.innerHTML = `<button class="btn btn-primary" id="btn-add-project">+ New Project</button>`;
     Utils.$('#btn-add-project').addEventListener('click', () => showProjectModal());
 
-    const projects = Store.getAll(Store.COLLECTIONS.ORDER_PROJECTS);
-    const allOrders = Store.getAll(Store.COLLECTIONS.ORDERS);
+    const allProjects = Store.getAll(Store.COLLECTIONS.ORDER_PROJECTS);
+    const allOrders   = Store.getAll(Store.COLLECTIONS.ORDERS);
 
     container.innerHTML = `
-      <div class="d-flex flex-col gap-4">
+      <div class="card p-4 mb-4">
+        <div class="filter-bar m-0">
+          <div class="filter-search">
+            <span class="filter-search-icon">🔍</span>
+            <input type="text" id="project-search" class="form-input" placeholder="Search project or client...">
+          </div>
+          <select id="project-filter-status" class="form-select">
+            <option value="all">All</option>
+            <option value="Active">Active</option>
+            <option value="On Hold">On Hold</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+          <div class="text-muted text-sm font-mono" id="project-count"></div>
+        </div>
+      </div>
+      <div id="projects-list"></div>
+    \`;
+
+    const renderList = () => {
+      const q = (Utils.$('#project-search').value||'').toLowerCase();
+      const s = Utils.$('#project-filter-status').value;
+      const projects = allProjects.filter(p =>
+        (s==='all'||p.status===s) &&
+        (!q||(p.projectName||'').toLowerCase().includes(q)||(p.clientName||'').toLowerCase().includes(q))
+      );
+      Utils.$('#project-count').textContent = projects.length + ' of ' + allProjects.length;
+      Utils.$('#projects-list').innerHTML = `<div class="d-flex flex-col gap-4">
         ${projects.length === 0 ? `
           <div class="card p-8 text-center text-muted">
             <div class="empty-state">
@@ -2294,6 +2330,10 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         }
       </div>
     `;
+    };
+    Utils.$('#project-search').addEventListener('input', Utils.debounce(renderList));
+    Utils.$('#project-filter-status').addEventListener('change', renderList);
+    renderList();
   }
 
   function showProjectModal(projectId = null) {
