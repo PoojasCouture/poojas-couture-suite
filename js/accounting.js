@@ -648,7 +648,7 @@ const Accounting = (() => {
           </html>
         `);
         printWindow.document.close();
-        return true;
+        return false; // keep modal open after printing
       }
     });
   }
