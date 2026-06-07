@@ -2269,67 +2269,78 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         (!q||(p.projectName||'').toLowerCase().includes(q)||(p.clientName||'').toLowerCase().includes(q))
       );
       Utils.$('#project-count').textContent = projects.length + ' of ' + allProjects.length;
-      Utils.$('#projects-list').innerHTML = `<div class="d-flex flex-col gap-4">
-        ${projects.length === 0 ? `
-          <div class="card p-8 text-center text-muted">
-            <div class="empty-state">
-              <div class="empty-state-icon">📁</div>
-              <div class="empty-state-title">No projects yet</div>
-              <div class="empty-state-text">Create a project to group multiple garment orders under one client event.</div>
-            </div>
-          </div>` :
-          projects.slice().sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map(proj => {
-            const subOrders = allOrders.filter(o => o.projectId === proj.id);
-            const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === proj.id)[0];
-            const paid = invoice ? ((invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0) : 0;
-            const balance = invoice ? Math.round((invoice.total - paid) * 100) / 100 : 0;
-            return `
-              <div class="card p-0" style="overflow:hidden">
-                <div class="d-flex items-center justify-between p-4" style="background:rgba(139,92,246,0.06);border-bottom:1px solid var(--pc-border)">
-                  <div>
-                    <div class="d-flex items-center gap-2">
-                      <span class="font-mono text-xs" style="color:#a78bfa">${Utils.sanitizeHTML(proj.projectCode || '')}</span>
-                      <span class="badge badge-muted text-xs">${proj.status}</span>
-                    </div>
-                    <div class="font-display text-md mt-1">${Utils.sanitizeHTML(proj.projectName)}</div>
-                    <div class="text-xs text-muted mt-1">${Utils.sanitizeHTML(proj.clientName)} · ${proj.eventName ? Utils.sanitizeHTML(proj.eventName) : ''} ${proj.eventDate ? '· ' + Utils.formatDate(proj.eventDate) : ''}</div>
-                  </div>
-                  <div class="text-right d-flex flex-col gap-1">
-                    <div class="font-mono font-bold text-gold">${Utils.formatCurrency(proj.totalPrice)}</div>
-                    ${invoice ? `<div class="text-xs ${balance > 0 ? 'text-danger' : 'text-success'}">Balance: ${Utils.formatCurrency(balance)}</div>` : '<div class="text-xs text-muted">No invoice yet</div>'}
-                    <div class="d-flex gap-1 justify-end mt-1">
-                      <button class="btn btn-secondary btn-sm" onclick="CRM.addSubOrder('${proj.id}')">+ Add Garment</button>
-                      <button class="btn btn-secondary btn-sm" onclick="CRM.viewProject('${proj.id}')">View</button>
-                      ${!invoice
-                        ? `<button class="btn btn-primary btn-sm" onclick="CRM.createProjectInvoice('${proj.id}')">🧾 Create Invoice</button>`
-                        : `<button class="btn btn-secondary btn-sm" onclick="CRM.updateProjectInvoice('${proj.id}')">🔄 Update Invoice</button>`}
-                    </div>
-                  </div>
-                </div>
-                <div class="p-4">
-                  ${subOrders.length === 0 ? `<div class="text-xs text-muted">No garments added yet. Click "+ Add Garment" to add sub-orders.</div>` : `
-                    <div class="table-container" style="border:none;margin:0">
-                      <table class="data-table text-xs">
-                        <thead><tr>
-                          <th>Code</th><th>Garment</th><th>Price</th><th>Status</th><th>Deadline</th>
-                        </tr></thead>
-                        <tbody>
-                          ${subOrders.map(o => `<tr>
-                            <td class="font-mono text-gold">${Utils.sanitizeHTML(o.orderCode || '—')}</td>
-                            <td class="font-medium">${Utils.sanitizeHTML(o.title)}</td>
-                            <td class="font-mono">${Utils.formatCurrency(o.price)}</td>
-                            <td><span class="badge badge-gold text-xs">${o.status}</span></td>
-                            <td>${Utils.formatDate(o.deadline)}</td>
-                          </tr>`).join('')}
-                        </tbody>
-                      </table>
-                    </div>`}
-                </div>
-              </div>`;
-          }).join('')
-        }
-      </div>
-    `;
+
+      // Build HTML using string concatenation to avoid nested template literal browser issues
+      let projHTML = '<div class="d-flex flex-col gap-4">';
+      if (projects.length === 0) {
+        projHTML += '<div class="card p-8 text-center text-muted"><div class="empty-state">' +
+          '<div class="empty-state-icon">📁</div>' +
+          '<div class="empty-state-title">No projects yet</div>' +
+          '<div class="empty-state-text">Create a project to group multiple garment orders under one client event.</div>' +
+          '</div></div>';
+      } else {
+        projects.slice().sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).forEach(proj => {
+          const subOrders = allOrders.filter(o => o.projectId === proj.id);
+          const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === proj.id)[0];
+          const paid = invoice ? ((invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0) : 0;
+          const balance = invoice ? Math.round((invoice.total - paid) * 100) / 100 : 0;
+          const invoiceBtn = !invoice
+            ? '<button class="btn btn-primary btn-sm" onclick="CRM.createProjectInvoice('' + proj.id + '')">🧾 Create Invoice</button>'
+            : '<button class="btn btn-secondary btn-sm" onclick="CRM.updateProjectInvoice('' + proj.id + '')">🔄 Update Invoice</button>';
+          const balanceDiv = invoice
+            ? '<div class="text-xs ' + (balance > 0 ? 'text-danger' : 'text-success') + '">Balance: ' + Utils.formatCurrency(balance) + '</div>'
+            : '<div class="text-xs text-muted">No invoice yet</div>';
+
+          let subOrdersHTML = '';
+          if (subOrders.length === 0) {
+            subOrdersHTML = '<div class="text-xs text-muted">No garments added yet. Click "+ Add Garment" to add sub-orders.</div>';
+          } else {
+            let rows = '';
+            subOrders.forEach(o => {
+              rows += '<tr>' +
+                '<td class="font-mono text-gold">' + Utils.sanitizeHTML(o.orderCode || '—') + '</td>' +
+                '<td class="font-medium">' + Utils.sanitizeHTML(o.title) + '</td>' +
+                '<td class="font-mono">' + Utils.formatCurrency(o.price) + '</td>' +
+                '<td><span class="badge badge-gold text-xs">' + o.status + '</span></td>' +
+                '<td>' + Utils.formatDate(o.deadline) + '</td>' +
+                '</tr>';
+            });
+            subOrdersHTML = '<div class="table-container" style="border:none;margin:0">' +
+              '<table class="data-table text-xs"><thead><tr>' +
+              '<th>Code</th><th>Garment</th><th>Price</th><th>Status</th><th>Deadline</th>' +
+              '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+          }
+
+          projHTML +=
+            '<div class="card p-0" style="overflow:hidden">' +
+              '<div class="d-flex items-center justify-between p-4" style="background:rgba(139,92,246,0.06);border-bottom:1px solid var(--pc-border)">' +
+                '<div>' +
+                  '<div class="d-flex items-center gap-2">' +
+                    '<span class="font-mono text-xs" style="color:#a78bfa">' + Utils.sanitizeHTML(proj.projectCode || '') + '</span>' +
+                    '<span class="badge badge-muted text-xs">' + proj.status + '</span>' +
+                  '</div>' +
+                  '<div class="font-display text-md mt-1">' + Utils.sanitizeHTML(proj.projectName) + '</div>' +
+                  '<div class="text-xs text-muted mt-1">' + Utils.sanitizeHTML(proj.clientName) +
+                    (proj.eventName ? ' · ' + Utils.sanitizeHTML(proj.eventName) : '') +
+                    (proj.eventDate ? ' · ' + Utils.formatDate(proj.eventDate) : '') +
+                  '</div>' +
+                '</div>' +
+                '<div class="text-right d-flex flex-col gap-1">' +
+                  '<div class="font-mono font-bold text-gold">' + Utils.formatCurrency(proj.totalPrice) + '</div>' +
+                  balanceDiv +
+                  '<div class="d-flex gap-1 justify-end mt-1">' +
+                    '<button class="btn btn-secondary btn-sm" onclick="CRM.addSubOrder('' + proj.id + '')">+ Add Garment</button>' +
+                    '<button class="btn btn-secondary btn-sm" onclick="CRM.viewProject('' + proj.id + '')">View</button>' +
+                    invoiceBtn +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="p-4">' + subOrdersHTML + '</div>' +
+            '</div>';
+        });
+      }
+      projHTML += '</div>';
+      Utils.$('#projects-list').innerHTML = projHTML;
     };
     Utils.$('#project-search').addEventListener('input', Utils.debounce(renderList));
     Utils.$('#project-filter-status').addEventListener('change', renderList);
