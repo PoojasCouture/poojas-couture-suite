@@ -127,14 +127,16 @@ const App = (() => {
 
     // Update breadcrumb
     const breadcrumbLabel = Utils.$('#topbar-breadcrumb-active');
-    const routesMap = {
-      dashboard: 'Overview Dashboard',
-      crm: 'CRM Center',
-      hrm: 'HRM Center',
-      accounting: 'Accounting Portal',
-      settings: 'Boutique Settings',
-      admin: 'Admin Center'
-    };
+      const routesMap = {
+      dashboard:  'Overview Dashboard'
+      crm:        'Sales Dashboard',
+      products:   'Stock & Inventory',
+      accounting: 'Accounting & Finance',
+      hrm:        'Human Capital',
+      admin:      'Admin Center'
+      settings:   'Boutique Settings',
+
+      };
     if (breadcrumbLabel) {
       breadcrumbLabel.textContent = routesMap[route] || 'System Panel';
     }
