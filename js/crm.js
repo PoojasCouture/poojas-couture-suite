@@ -1923,7 +1923,7 @@ poojascouture.com.au`
                 <h4 class="timeline-title text-sm mt-1">${m.name}</h4>
                 <p class="timeline-description text-xs mt-2">${m.desc}</p>
               </div>
-            </div>\`;
+            </div>`;
         }).join('')}
       </div>
       ${orders.length > 1 ? (() => {
