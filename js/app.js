@@ -808,8 +808,23 @@ if (user) {
     const nameEl = Utils.$('.sidebar-user-name');
     if (nameEl) nameEl.textContent = user.name;
 
-    const roleEl = Utils.$('.sidebar-user-role');
-    if (roleEl) roleEl.textContent = user.role;
+const roleEl = Utils.$('.sidebar-user-role');
+if (roleEl) {
+  const roleTitles = {
+    admin:      'Operations Director',
+    operations: 'Operations Manager',
+    social_crm: 'CRM & Social',
+    tailor:     'Master Tailor',
+    logistics:  'Logistics Manager'
+  };
+  const appRoleKey = (user.appRole || user.app_role || user.role || '').toLowerCase();
+  const displayName = (user.name || '').toLowerCase();
+  if (displayName.includes('pooja')) {
+    roleEl.textContent = 'Managing Director';
+  } else {
+    roleEl.textContent = roleTitles[appRoleKey] || user.role;
+  }
+}
   }
 
   function showAccessDenied() {
