@@ -53,6 +53,19 @@ body {
   margin-bottom: var(--sp-6);
 }
 
+.brand-wordmark {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  margin: 0 auto var(--sp-3) auto;
+  display: block;
+  /* Raised, dimensional feel on the dark login card */
+  filter:
+    drop-shadow(0 2px 2px rgba(0,0,0,0.55))
+    drop-shadow(0 4px 8px rgba(0,0,0,0.35))
+    drop-shadow(0 0 2px rgba(236,182,118,0.45));
+}
+
 .brand-logo {
   width: 48px;
   height: 48px;
@@ -140,4 +153,26 @@ body {
   border-radius: var(--radius-sm);
   font-family: monospace;
   font-size: 11px;
+}
+
+/* ============================================================
+   MOBILE-FIRST RESPONSIVE OVERRIDES
+   ============================================================ */
+
+@media (max-width: 600px) {
+  .app-container { max-width: 100%; border-radius: 0; }
+  .workspace-header { height: 56px; padding: 0 14px; }
+  .workspace-content { padding: 12px; }
+  .user-name { font-size: 13px; }
+}
+
+.metrics-grid { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 400px) {
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 480px) {
+  .btn { min-height: 44px; font-size: 14px; }
 }
