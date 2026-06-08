@@ -467,6 +467,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!tracking) { toast('Tracking number is required.', 'error'); return false; }
         if (!cost)     { toast('Shipping cost is required.', 'error'); return false; }
 
+        // ── M3 HARD GATE: block dispatch until final payment received ──
+        const _inv = o.projectId
+          ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0]
+          : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+        if (_inv && _inv.milestones && _inv.milestones[2]) {
+          const m3 = _inv.milestones[2];
+          const m3paid = m3.paid || ((m3.paidAmount || 0) >= m3.amount);
+          if (!m3paid) {
+            openModal({
+              title: '⛔ Final Payment Required',
+              bodyHTML: '<div style="text-align:center;padding:16px 0">' +
+                '<div style="font-size:36px;margin-bottom:12px">⛔</div>' +
+                '<div style="font-weight:700;color:#e06;margin-bottom:8px">Cannot Dispatch</div>' +
+                '<div style="font-size:13px;color:#aaa;margin-bottom:8px">Milestone 3 (30% final payment) of <strong style="color:#d4af37">AUD $' + m3.amount.toFixed(2) + '</strong> has not been received.</div>' +
+                '<div style="font-size:12px;color:#888">Pooja must record the final payment before this order can be dispatched.</div>' +
+                '</div>',
+              submitLabel: 'OK',
+              onSubmit: () => true
+            });
+            return false;
+          }
+        }
+
         // Customs value auto-set from order price — Shashank never sees it
         const customsVal = (o && o.price) ? o.price : 0;
 
@@ -546,6 +569,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       onSubmit: async (box) => {
         const cost = parseFloat(box.querySelector('#f-cost').value) || 0;
         if (!cost) { toast('Delivery cost is required.', 'error'); return false; }
+
+        // ── M3 HARD GATE: block dispatch until final payment received ──
+        const _inv2 = o.projectId
+          ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0]
+          : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+        if (_inv2 && _inv2.milestones && _inv2.milestones[2]) {
+          const m3 = _inv2.milestones[2];
+          const m3paid = m3.paid || ((m3.paidAmount || 0) >= m3.amount);
+          if (!m3paid) {
+            openModal({
+              title: '⛔ Final Payment Required',
+              bodyHTML: '<div style="text-align:center;padding:16px 0">' +
+                '<div style="font-size:36px;margin-bottom:12px">⛔</div>' +
+                '<div style="font-weight:700;color:#e06;margin-bottom:8px">Cannot Dispatch</div>' +
+                '<div style="font-size:13px;color:#aaa;margin-bottom:8px">Milestone 3 (30% final payment) of <strong style="color:#d4af37">AUD $' + m3.amount.toFixed(2) + '</strong> has not been received.</div>' +
+                '<div style="font-size:12px;color:#888">Pooja must record the final payment before this order can be dispatched.</div>' +
+                '</div>',
+              submitLabel: 'OK',
+              onSubmit: () => true
+            });
+            return false;
+          }
+        }
 
         const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
           status: 'In Transit',
