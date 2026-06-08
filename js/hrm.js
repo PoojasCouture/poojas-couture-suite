@@ -76,6 +76,14 @@ const HRM = (() => {
   // EMPLOYEES / STAFF DIRECTORY
   // ==========================================
   
+
+  // Display role helper
+  function getDisplayRole(emp) {
+    if (!emp) return '';
+    if (emp.name === 'Pooja Shah') return 'Managing Director';
+    return emp.role || '';
+  }
+
   function renderEmployees(container, actions) {
     actions.innerHTML = `
       <button class="btn btn-primary" id="btn-add-employee">
@@ -369,7 +377,7 @@ const HRM = (() => {
         <div class="form-group">
           <label class="form-label">Select Staff <span class="required">*</span></label>
           <select name="employeeId" class="form-select" required>
-            ${staff.map(s => `<option value="${s.id}">${Utils.sanitizeHTML(s.name)} (${s.role})</option>`).join('')}
+            ${staff.map(s => `<option value="${s.id}">${Utils.sanitizeHTML(s.name)} (${getDisplayRole(s)})</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -825,7 +833,7 @@ const HRM = (() => {
             <td style="padding: 6px; font-weight: bold;">Department:</td>
             <td style="padding: 6px;">${emp ? emp.department : '—'}</td>
             <td style="padding: 6px; font-weight: bold;">Role:</td>
-            <td style="padding: 6px;">${emp ? (emp.name === 'Pooja Shah' ? 'Managing Director' : emp.role) : '—'}</td>
+            <td style="padding: 6px;">${emp ? getDisplayRole(emp) : "-"}</td>
           </tr>
         </table>
 
@@ -935,7 +943,7 @@ const HRM = (() => {
                 </div>
                 <div class="list-item-content">
                   <div class="list-item-title">${Utils.sanitizeHTML(s.name)}</div>
-                  <div class="list-item-subtitle">${s.role}</div>
+                  <div class="list-item-subtitle">${getDisplayRole(s)}</div>
                 </div>
               </div>
             `).join('')}
@@ -990,7 +998,7 @@ const HRM = (() => {
         <div class="d-flex justify-between items-start gap-4 mb-6" style="border-bottom: 1px solid var(--pc-border); padding-bottom: 16px;">
           <div>
             <h3 class="font-display text-md">${Utils.sanitizeHTML(emp.name)}</h3>
-            <p class="text-xs text-gold">${emp.name === 'Pooja Shah' ? 'Managing Director' : emp.role} — ${emp.department} Department</p>
+            <p class="text-xs text-gold">${getDisplayRole(emp)} — ${emp.department} Department</p>
           </div>
           <div class="text-right">
             <span class="text-xs text-muted">Review Score</span>
