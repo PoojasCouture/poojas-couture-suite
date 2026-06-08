@@ -26,8 +26,9 @@
 }
 
 .card:hover {
-  border-color: var(--pc-border-light);
-  box-shadow: var(--pc-shadow-md);
+  border-color: var(--pc-gold, #d4af37);
+  box-shadow: 0 6px 24px rgba(212,175,55,0.12);
+  transform: translateY(-2px);
 }
 
 .card-header {
@@ -79,9 +80,12 @@
 }
 
 .stat-card:hover {
-  border-color: var(--pc-border-light);
-  transform: translateY(-2px);
-  box-shadow: var(--pc-shadow-md);
+  border-color: var(--pc-gold, #d4af37);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 28px rgba(212,175,55,0.18);
+}
+.stat-card:hover .stat-card-value {
+  color: var(--pc-gold, #d4af37);
 }
 
 .stat-card-header {
@@ -1083,3 +1087,24 @@
   margin: 0 auto var(--sp-3) auto;
   box-shadow: var(--pc-shadow-gold);
 }
+
+/* -- Entry animations -- */
+@keyframes pcCardIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.card, .stat-card {
+  animation: pcCardIn 0.35s ease both;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.d-grid > .card:nth-child(1),  .d-grid > .stat-card:nth-child(1)  { animation-delay: 0.00s; }
+.d-grid > .card:nth-child(2),  .d-grid > .stat-card:nth-child(2)  { animation-delay: 0.05s; }
+.d-grid > .card:nth-child(3),  .d-grid > .stat-card:nth-child(3)  { animation-delay: 0.10s; }
+.d-grid > .card:nth-child(4),  .d-grid > .stat-card:nth-child(4)  { animation-delay: 0.15s; }
+.d-grid > .card:nth-child(5),  .d-grid > .stat-card:nth-child(5)  { animation-delay: 0.20s; }
+.d-grid > .card:nth-child(6),  .d-grid > .stat-card:nth-child(6)  { animation-delay: 0.25s; }
+.d-grid > .card:nth-child(7),  .d-grid > .stat-card:nth-child(7)  { animation-delay: 0.30s; }
+.d-grid > .card:nth-child(8),  .d-grid > .stat-card:nth-child(8)  { animation-delay: 0.35s; }
+.d-grid > .card:nth-child(n+9) { animation-delay: 0.40s; }
