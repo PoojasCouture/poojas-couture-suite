@@ -106,6 +106,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   function tdStyle(idx) { const bg = idx%2===0?'#12122a':'#0f0f22'; return `padding:10px 14px; border-bottom:1px solid #1e1e38; background:${bg}; vertical-align:top;`; }
   function btnStyle(bg, color='#1a1a2e') { return `padding:6px 14px; border-radius:6px; border:none; background:${bg}; color:${color}; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;`; }
   function badgeStyle(bg) { return `display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; background:${bg}; color:#fff;`; }
+  // Inject mobile CSS + KPI animation once
+  if (!document.getElementById('shipping-mobile-css')) {
+    const s = document.createElement('style');
+    s.id = 'shipping-mobile-css';
+    s.textContent = [
+      '@keyframes kpiIn{from{opacity:0;transform:translateY(10px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}',
+      '.workspace-content{padding:16px!important;}',
+      '@media(max-width:480px){',
+        '.workspace-header{padding:0 12px!important;height:56px!important;}',
+        '.workspace-content{padding:12px!important;}',
+        'table{font-size:12px!important;}',
+        'th,td{padding:8px 10px!important;}',
+      '}',
+    ].join('');
+    document.head.appendChild(s);
+  }
+
   function tabStyle(active) {
     return 'font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;cursor:pointer;border:none;' +
       (active ? 'background:#d4af37;color:#12122a;' : 'background:rgba(255,255,255,0.06);color:#aaa;');
@@ -158,12 +175,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!content) { showGate('Page layout error: .workspace-content not found in HTML.', true); return; }
 
   content.innerHTML = `
-    <div style="margin-bottom:20px;">
-      <h1 style="font-size:22px; font-weight:800; color:#d4af37; margin:0;">Welcome, ${esc(currentUser.name || 'Shashank')}</h1>
-      <p style="font-size:13px; color:#888; margin:4px 0 0;">Logistics Workstation · India Hub</p>
+    <!-- Mobile header greeting -->
+    <div style="padding:0 0 16px;border-bottom:1px solid #2a2a4a;margin-bottom:20px;">
+      <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;">Logistics Workstation</div>
+      <div style="font-size:24px;font-weight:800;color:#d4af37;line-height:1.1;">Hey, ${esc((currentUser.name || 'Shashank').split(' ')[0])} 👋</div>
+      <div style="font-size:12px;color:#666;margin-top:2px;">India & Overseas Hub</div>
     </div>
+
+    <!-- KPI Dashboard strip -->
+    <div id="kpi-strip" style="margin-bottom:24px;"></div>
+
+    <!-- Pill tabs -->
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
-      <button id="tab-orders" style="${tabStyle(true)}">📦 Custom Orders</button>
+      <button id="tab-orders" style="${tabStyle(true)}">📦 Orders</button>
       <button id="tab-stock"  style="${tabStyle(false)}">🛍️ Inventory</button>
     </div>
     <div id="panel-orders"></div>
@@ -197,13 +221,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     else renderStockPanel();
   }
 
+  renderKPI();
   renderOrdersPanel();
 
   // Realtime: re-render when data changes from another portal/user
   window.addEventListener('pc:datachange', Utils && Utils.debounce ? Utils.debounce(() => {
+    renderKPI();
     if (activeTab === 'orders') renderOrdersPanel();
     else renderStockPanel();
   }, 500) : () => {
+    renderKPI();
     if (activeTab === 'orders') renderOrdersPanel();
     else renderStockPanel();
   });
@@ -214,6 +241,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         await Store.refresh('orders');
         await Store.refresh('invoices');
+        renderKPI();
         if (activeTab === 'orders') renderOrdersPanel();
         else renderStockPanel();
       } catch (e) { /* ignore */ }
@@ -223,6 +251,48 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ==========================================================
      TAB 1 — CUSTOM ORDERS
      ========================================================== */
+  function renderKPI() {
+    const strip = document.getElementById('kpi-strip');
+    if (!strip) return;
+    const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
+    const incoming        = orders.filter(o => o.status === 'Shipped to Shashank').length;
+    const atWarehouse     = orders.filter(o => o.status === 'At Shashank').length;
+    const inTransit       = orders.filter(o => o.status === 'In Transit').length;
+    const awaitingPay     = orders.filter(o => o.status === 'Awaiting Payment').length;
+    const cleared         = orders.filter(o => o.status === 'Cleared for Delivery').length;
+    const deliveredMonth  = orders.filter(o => {
+      if (o.status !== 'Delivered') return false;
+      const d = new Date(o.updatedAt || o.createdAt || 0);
+      const n = new Date();
+      return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
+    }).length;
+
+    const kpis = [
+      { icon: '📬', label: 'Incoming', value: incoming,    color: awaitingPay > 0 ? '#e06' : '#d4af37', urgent: incoming > 0 },
+      { icon: '🏠', label: 'At Warehouse', value: atWarehouse,  color: '#60a5fa', urgent: false },
+      { icon: '✈️', label: 'In Transit',  value: inTransit,    color: '#a78bfa', urgent: false },
+      { icon: '🔴', label: 'Awaiting Pay',value: awaitingPay,  color: '#ef4444', urgent: awaitingPay > 0 },
+      { icon: '✅', label: 'Cleared',     value: cleared,      color: '#10b981', urgent: cleared > 0 },
+      { icon: '🎯', label: 'Delivered (mo)', value: deliveredMonth, color: '#34d399', urgent: false },
+    ];
+
+    strip.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">' +
+      kpis.map((k, i) =>
+        '<div style="' +
+          'background:#12122a;border:1px solid ' + (k.urgent ? k.color : '#2a2a4a') + ';' +
+          'border-radius:12px;padding:14px 10px;text-align:center;' +
+          'animation:kpiIn 0.35s ease both;animation-delay:' + (i * 0.06).toFixed(2) + 's;' +
+          'transition:transform 0.2s,box-shadow 0.2s;cursor:default;' +
+          (k.urgent ? 'box-shadow:0 0 12px ' + k.color + '33;' : '') +
+        '">' +
+          '<div style="font-size:20px;margin-bottom:6px;">' + k.icon + '</div>' +
+          '<div style="font-size:28px;font-weight:900;color:' + k.color + ';line-height:1;">' + k.value + '</div>' +
+          '<div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-top:4px;">' + k.label + '</div>' +
+        '</div>'
+      ).join('') +
+    '</div>';
+  }
+
   function renderOrdersPanel() {
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
     const incoming        = orders.filter(o => o.status === 'Shipped to Shashank');
