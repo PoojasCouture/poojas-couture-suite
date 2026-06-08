@@ -26,12 +26,12 @@ const Accounting = (() => {
         </div>
       </div>
 
-      <div class="tabs animate-fade-in stagger-1">
-        <button class="tab-btn ${activeTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">Overview</button>
-        <button class="tab-btn ${activeTab === 'invoices' ? 'active' : ''}" data-tab="invoices">Invoices</button>
-        <button class="tab-btn ${activeTab === 'expenses' ? 'active' : ''}" data-tab="expenses">Expenses</button>
-        <button class="tab-btn ${activeTab === 'gst' ? 'active' : ''}" data-tab="gst">GST BAS Report</button>
-        <button class="tab-btn ${activeTab === 'reports' ? 'active' : ''}" data-tab="reports">Financial Reports</button>
+      <div class="animate-fade-in" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+        <button class="tab-btn ${activeTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Overview</button>
+        <button class="tab-btn ${activeTab === 'invoices' ? 'active' : ''}" data-tab="invoices" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Invoices</button>
+        <button class="tab-btn ${activeTab === 'expenses' ? 'active' : ''}" data-tab="expenses" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Expenses</button>
+        <button class="tab-btn ${activeTab === 'gst' ? 'active' : ''}" data-tab="gst" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">GST BAS Report</button>
+        <button class="tab-btn ${activeTab === 'reports' ? 'active' : ''}" data-tab="reports" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Financial Reports</button>
       </div>
 
       <div id="accounting-tab-content" class="animate-fade-in stagger-2">
