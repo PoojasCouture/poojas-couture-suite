@@ -26,10 +26,10 @@ const Admin = (() => {
         </div>
       </div>
 
-      <div class="tabs animate-fade-in stagger-1">
-        <button class="tab-btn ${activeTab === 'users' ? 'active' : ''}" data-tab="users">System Users</button>
-        <button class="tab-btn ${activeTab === 'logs' ? 'active' : ''}" data-tab="logs">Audit Logs</button>
-        <button class="tab-btn ${activeTab === 'metrics' ? 'active' : ''}" data-tab="metrics">System Diagnostics</button>
+      <div class="animate-fade-in" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+        <button class="tab-btn ${activeTab === 'users' ? 'active' : ''}" data-tab="users" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">System Users</button>
+        <button class="tab-btn ${activeTab === 'logs' ? 'active' : ''}" data-tab="logs" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Audit Logs</button>
+        <button class="tab-btn ${activeTab === 'metrics' ? 'active' : ''}" data-tab="metrics" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">System Diagnostics</button>
       </div>
 
       <div id="admin-tab-content" class="animate-fade-in stagger-2">
