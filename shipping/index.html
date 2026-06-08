@@ -44,24 +44,6 @@
       transition: opacity 0.3s;
     }
     #kpi-overlay.open { opacity: 1; pointer-events: all; }
-    #kpi-toggle-btn {
-      position: fixed;
-      right: 0; top: 88px;
-      z-index: 998;
-      background: var(--pc-gold, #d4af37);
-      color: #12122a;
-      border: none;
-      border-radius: 10px 0 0 10px;
-      padding: 8px 6px;
-      cursor: pointer;
-      font-size: 13px;
-      writing-mode: vertical-rl;
-      font-weight: 800;
-      letter-spacing: 1px;
-      box-shadow: -4px 0 16px rgba(212,175,55,0.3);
-      transition: padding 0.2s;
-    }
-    #kpi-toggle-btn:hover { padding: 12px 12px; }
 
     @keyframes kpiIn {
       from { opacity:0; transform:translateY(10px) scale(.95); }
@@ -99,7 +81,6 @@
 
   <!-- KPI Drawer -->
   <div id="kpi-overlay"></div>
-  <button id="kpi-toggle-btn" title="KPI Dashboard">📊 KPI</button>
   <div id="kpi-drawer">
     <div class="d-flex justify-between items-center mb-4">
       <div class="font-display text-md text-gold">📊 KPI Dashboard</div>
