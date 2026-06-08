@@ -825,7 +825,7 @@ const HRM = (() => {
             <td style="padding: 6px; font-weight: bold;">Department:</td>
             <td style="padding: 6px;">${emp ? emp.department : '—'}</td>
             <td style="padding: 6px; font-weight: bold;">Role:</td>
-            <td style="padding: 6px;">${emp ? emp.role : '—'}</td>
+            <td style="padding: 6px;">${emp ? (emp.name === 'Pooja Shah' ? 'Managing Director' : emp.role) : '—'}</td>
           </tr>
         </table>
 
@@ -990,7 +990,7 @@ const HRM = (() => {
         <div class="d-flex justify-between items-start gap-4 mb-6" style="border-bottom: 1px solid var(--pc-border); padding-bottom: 16px;">
           <div>
             <h3 class="font-display text-md">${Utils.sanitizeHTML(emp.name)}</h3>
-            <p class="text-xs text-gold">${emp.role} — ${emp.department} Department</p>
+            <p class="text-xs text-gold">${emp.name === 'Pooja Shah' ? 'Managing Director' : emp.role} — ${emp.department} Department</p>
           </div>
           <div class="text-right">
             <span class="text-xs text-muted">Review Score</span>
