@@ -101,14 +101,14 @@ poojascouture.com.au`
         </div>
         <div class="page-actions" id="crm-page-actions"></div>
       </div>
-      <div class="tabs animate-fade-in stagger-1">
-        <button class="tab-btn ${activeTab==='sales'?'active':''}" data-tab="sales">💵 CRM</button>
-        <button class="tab-btn ${activeTab==='clients'?'active':''}" data-tab="clients">👑 Clients</button>
-        <button class="tab-btn ${activeTab==='appointments'?'active':''}" data-tab="appointments">📅 Appointments</button>
-        <button class="tab-btn ${activeTab==='orders'?'active':''}" data-tab="orders">🧵 Order Pipeline</button>
-        <button class="tab-btn ${activeTab==='projects'?'active':''}" data-tab="projects">📁 Projects</button>
-        <button class="tab-btn ${activeTab==='journey'?'active':''}" data-tab="journey">💍 Bridal Journey</button>
-        <button class="tab-btn ${activeTab==='email'?'active':''}" data-tab="email">✉️ Email Centre</button>
+      <div class="animate-fade-in stagger-1" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+        <button class="tab-btn ${activeTab==='sales'?'active':''}" data-tab="sales" style="font-size:11px;padding:5px 12px;border-radius:20px;">💵 Sales</button>
+        <button class="tab-btn ${activeTab==='clients'?'active':''}" data-tab="clients" style="font-size:11px;padding:5px 12px;border-radius:20px;">👑 Clients</button>
+        <button class="tab-btn ${activeTab==='appointments'?'active':''}" data-tab="appointments" style="font-size:11px;padding:5px 12px;border-radius:20px;">📅 Appts</button>
+        <button class="tab-btn ${activeTab==='orders'?'active':''}" data-tab="orders" style="font-size:11px;padding:5px 12px;border-radius:20px;">🧵 Pipeline</button>
+        <button class="tab-btn ${activeTab==='projects'?'active':''}" data-tab="projects" style="font-size:11px;padding:5px 12px;border-radius:20px;">📁 Projects</button>
+        <button class="tab-btn ${activeTab==='journey'?'active':''}" data-tab="journey" style="font-size:11px;padding:5px 12px;border-radius:20px;">💍 Journey</button>
+        <button class="tab-btn ${activeTab==='email'?'active':''}" data-tab="email" style="font-size:11px;padding:5px 12px;border-radius:20px;">✉️ Email</button>
       </div>
       <div id="crm-tab-content" class="animate-fade-in stagger-2"></div>
     `;
