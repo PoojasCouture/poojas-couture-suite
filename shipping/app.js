@@ -107,9 +107,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   function btnStyle(bg, color='#1a1a2e') { return `padding:6px 14px; border-radius:6px; border:none; background:${bg}; color:${color}; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;`; }
   function badgeStyle(bg) { return `display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; background:${bg}; color:#fff;`; }
   function tabStyle(active) {
-    return `padding:10px 22px; border:none; cursor:pointer; font-size:14px; font-weight:700;
-      border-radius:8px 8px 0 0; background:${active ? '#12122a' : 'transparent'};
-      color:${active ? '#d4af37' : '#888'}; border-bottom:${active ? '2px solid #d4af37' : '2px solid transparent'};`;
+    return 'font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;cursor:pointer;border:none;' +
+      (active ? 'background:#d4af37;color:#12122a;' : 'background:rgba(255,255,255,0.06);color:#aaa;');
   }
 
   // ── session bootstrap ─────────────────────────────────────
@@ -163,7 +162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <h1 style="font-size:22px; font-weight:800; color:#d4af37; margin:0;">Welcome, ${esc(currentUser.name || 'Shashank')}</h1>
       <p style="font-size:13px; color:#888; margin:4px 0 0;">Logistics Workstation · India Hub</p>
     </div>
-    <div style="display:flex; gap:4px; border-bottom:2px solid #2a2a4a; margin-bottom:24px;">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
       <button id="tab-orders" style="${tabStyle(true)}">📦 Custom Orders</button>
       <button id="tab-stock"  style="${tabStyle(false)}">🛍️ Inventory</button>
     </div>
@@ -467,29 +466,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!tracking) { toast('Tracking number is required.', 'error'); return false; }
         if (!cost)     { toast('Shipping cost is required.', 'error'); return false; }
 
-        // ── M3 HARD GATE: block dispatch until final payment received ──
-        const _inv = o.projectId
-          ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0]
-          : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
-        if (_inv && _inv.milestones && _inv.milestones[2]) {
-          const m3 = _inv.milestones[2];
-          const m3paid = m3.paid || ((m3.paidAmount || 0) >= m3.amount);
-          if (!m3paid) {
-            openModal({
-              title: '⛔ Final Payment Required',
-              bodyHTML: '<div style="text-align:center;padding:16px 0">' +
-                '<div style="font-size:36px;margin-bottom:12px">⛔</div>' +
-                '<div style="font-weight:700;color:#e06;margin-bottom:8px">Cannot Dispatch</div>' +
-                '<div style="font-size:13px;color:#aaa;margin-bottom:8px">Milestone 3 (30% final payment) of <strong style="color:#d4af37">AUD $' + m3.amount.toFixed(2) + '</strong> has not been received.</div>' +
-                '<div style="font-size:12px;color:#888">Pooja must record the final payment before this order can be dispatched.</div>' +
-                '</div>',
-              submitLabel: 'OK',
-              onSubmit: () => true
-            });
-            return false;
-          }
-        }
-
         // Customs value auto-set from order price — Shashank never sees it
         const customsVal = (o && o.price) ? o.price : 0;
 
@@ -569,29 +545,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       onSubmit: async (box) => {
         const cost = parseFloat(box.querySelector('#f-cost').value) || 0;
         if (!cost) { toast('Delivery cost is required.', 'error'); return false; }
-
-        // ── M3 HARD GATE: block dispatch until final payment received ──
-        const _inv2 = o.projectId
-          ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0]
-          : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
-        if (_inv2 && _inv2.milestones && _inv2.milestones[2]) {
-          const m3 = _inv2.milestones[2];
-          const m3paid = m3.paid || ((m3.paidAmount || 0) >= m3.amount);
-          if (!m3paid) {
-            openModal({
-              title: '⛔ Final Payment Required',
-              bodyHTML: '<div style="text-align:center;padding:16px 0">' +
-                '<div style="font-size:36px;margin-bottom:12px">⛔</div>' +
-                '<div style="font-weight:700;color:#e06;margin-bottom:8px">Cannot Dispatch</div>' +
-                '<div style="font-size:13px;color:#aaa;margin-bottom:8px">Milestone 3 (30% final payment) of <strong style="color:#d4af37">AUD $' + m3.amount.toFixed(2) + '</strong> has not been received.</div>' +
-                '<div style="font-size:12px;color:#888">Pooja must record the final payment before this order can be dispatched.</div>' +
-                '</div>',
-              submitLabel: 'OK',
-              onSubmit: () => true
-            });
-            return false;
-          }
-        }
 
         const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
           status: 'In Transit',
