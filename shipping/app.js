@@ -276,20 +276,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       { icon: '🎯', label: 'Delivered (mo)', value: deliveredMonth, color: '#34d399', urgent: false },
     ];
 
-    strip.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">' +
-      kpis.map((k, i) =>
-        '<div style="' +
-          'background:#12122a;border:1px solid ' + (k.urgent ? k.color : '#2a2a4a') + ';' +
-          'border-radius:12px;padding:14px 10px;text-align:center;' +
+    strip.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px;">' +
+      kpis.map(function(k, i) {
+        return '<div style="' +
+          'background:#12122a;' +
+          'border:1px solid ' + (k.urgent ? k.color : '#2a2a4a') + ';' +
+          'border-radius:10px;padding:10px 8px;text-align:center;' +
+          'opacity:0;' +
           'animation:kpiIn 0.35s ease both;animation-delay:' + (i * 0.06).toFixed(2) + 's;' +
-          'transition:transform 0.2s,box-shadow 0.2s;cursor:default;' +
-          (k.urgent ? 'box-shadow:0 0 12px ' + k.color + '33;' : '') +
-        '">' +
-          '<div style="font-size:20px;margin-bottom:6px;">' + k.icon + '</div>' +
-          '<div style="font-size:28px;font-weight:900;color:' + k.color + ';line-height:1;">' + k.value + '</div>' +
-          '<div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-top:4px;">' + k.label + '</div>' +
-        '</div>'
-      ).join('') +
+          'transition:transform 0.18s ease,box-shadow 0.18s ease,border-color 0.18s ease;' +
+          (k.urgent ? 'box-shadow:0 0 10px ' + k.color + '44;' : '') +
+        '" onmouseover="this.style.transform='translateY(-3px) scale(1.04)';this.style.borderColor='' + k.color + ''" ' +
+           'onmouseout="this.style.transform='';this.style.borderColor='' + (k.urgent ? k.color : '#2a2a4a') + ''">' +
+          '<div style="font-size:13px;color:#888;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:4px;">' + k.label + '</div>' +
+          '<div style="font-size:11px;margin-bottom:4px;">' + k.icon + '</div>' +
+          '<div style="font-size:22px;font-weight:900;color:' + k.color + ';line-height:1;">' + k.value + '</div>' +
+        '</div>';
+      }).join('') +
     '</div>';
   }
 
@@ -302,13 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const clearedDelivery = orders.filter(o => o.status === 'Cleared for Delivery');
 
     panelOrders.innerHTML = `
-      <section style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
-        <div style="${metricBoxStyle('#c0392b')}"><div style="font-size:32px; font-weight:800;">${incoming.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Incoming Pieces</div></div>
-        <div style="${metricBoxStyle('#2d6a4f')}"><div style="font-size:32px; font-weight:800;">${ready.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Ready to Dispatch</div></div>
-        <div style="${metricBoxStyle('#1a4a7a')}"><div style="font-size:32px; font-weight:800;">${transit.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">In Transit</div></div>
-        <div style="${metricBoxStyle('#7a1a1a')}"><div style="font-size:32px; font-weight:800;">${awaitingPayment.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Awaiting Payment</div></div>
-        <div style="${metricBoxStyle('#1a5a2a')}"><div style="font-size:32px; font-weight:800;">${clearedDelivery.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Cleared for Delivery</div></div>
-      </section>
+
       <section style="${sectionCardStyle()}">
         <div style="${cardHeaderStyle()}"><span>📬 Incoming from Tailors</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: Shipped to Shashank</span></div>
         <div id="incoming-wrap" style="padding:0 4px 4px;"></div>
