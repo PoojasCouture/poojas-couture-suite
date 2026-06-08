@@ -40,7 +40,7 @@ const Products = (() => {
     container.innerHTML = `
       <div class="page-header animate-fade-in">
         <div>
-          <h1 class="page-title">Products &amp; Inventory</h1>
+          <h1 class="page-title">Stock & Inventory</h1>
           <p class="page-subtitle">Track stock, ready-made pieces, bridal sneakers, purses and accessories</p>
         </div>
         <div class="page-actions">
