@@ -2075,20 +2075,52 @@ poojascouture.com.au`
 
     container.innerHTML = `
       <!-- KPI Strip — single scrollable row -->
-      <div style="overflow-x:auto;margin-bottom:20px;" class="animate-fade-in">
+      <style>
+        @keyframes kpiSlideIn {
+          from { opacity:0; transform:translateY(12px) scale(0.96); }
+          to   { opacity:1; transform:translateY(0) scale(1); }
+        }
+        @keyframes kpiPulse {
+          0%,100% { box-shadow: 0 0 0 0 rgba(212,175,55,0); }
+          50%      { box-shadow: 0 0 0 4px rgba(212,175,55,0.15); }
+        }
+        .kpi-card {
+          display:flex;flex-direction:column;
+          background:var(--pc-card-bg);
+          border:1px solid var(--pc-border);
+          border-radius:10px;padding:10px 14px;
+          min-width:120px;gap:3px;
+          opacity:0;
+          animation: kpiSlideIn 0.4s ease forwards;
+          transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+          cursor:default;
+        }
+        .kpi-card:hover {
+          transform: translateY(-3px) scale(1.03);
+          border-color: var(--pc-gold, #d4af37);
+          box-shadow: 0 6px 20px rgba(212,175,55,0.15);
+        }
+        .kpi-value {
+          font-size:17px;font-weight:800;
+          color:var(--pc-text);line-height:1.2;
+          transition: color 0.2s;
+        }
+        .kpi-card:hover .kpi-value { color: var(--pc-gold, #d4af37); }
+      </style>
+      <div style="overflow-x:auto;margin-bottom:20px;">
         <div style="display:flex;gap:10px;padding-bottom:6px;min-width:max-content;">
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Revenue</div><div style="font-size:13px;">💰</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${Utils.formatCurrency(totalRevenue)}</div></div>
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Outstanding</div><div style="font-size:13px;">⏳</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${Utils.formatCurrency(outstandingAmt)}</div></div>
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Order Value</div><div style="font-size:13px;">📊</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${Utils.formatCurrency(avgOrderValue)}</div></div>
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg LTV</div><div style="font-size:13px;">👑</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${Utils.formatCurrency(avgCLTV)}</div></div>
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Delivered</div><div style="font-size:13px;">📦</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${deliveredOrders.length} / ${allOrders.length}</div></div>
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Completion</div><div style="font-size:13px;">🎯</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${conversionRate}%</div></div>
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Fulfillment</div><div style="font-size:13px;">📅</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${avgFulfillDays > 0 ? avgFulfillDays + String.fromCharCode(100) : String.fromCharCode(8212)}</div></div>
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Overdue</div><div style="font-size:13px;">⚠️</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${overdue.length}</div></div>
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Total Clients</div><div style="font-size:13px;">👥</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${allClients.length}</div></div>
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Repeat Rate</div><div style="font-size:13px;">🔁</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${repeatRate}%</div></div>
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Brides</div><div style="font-size:13px;">💍</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${allClients.filter(function(c){return c.type===String.fromCharCode(66,114,105,100,101);}).length}</div></div>
-          <div style="display:flex;flex-direction:column;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:120px;gap:3px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Appointments</div><div style="font-size:13px;">📋</div><div style="font-size:17px;font-weight:800;color:var(--pc-text);line-height:1.2;">${appointments.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.00s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Revenue</div><div style="font-size:13px;">💰</div><div style="class="kpi-value"">${Utils.formatCurrency(totalRevenue)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.05s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Outstanding</div><div style="font-size:13px;">⏳</div><div style="class="kpi-value"">${Utils.formatCurrency(outstandingAmt)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.10s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Order Value</div><div style="font-size:13px;">📊</div><div style="class="kpi-value"">${Utils.formatCurrency(avgOrderValue)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.15s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg LTV</div><div style="font-size:13px;">👑</div><div style="class="kpi-value"">${Utils.formatCurrency(avgCLTV)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.20s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Delivered</div><div style="font-size:13px;">📦</div><div style="class="kpi-value"">${deliveredOrders.length} / ${allOrders.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.25s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Completion</div><div style="font-size:13px;">🎯</div><div style="class="kpi-value"">${conversionRate}%</div></div>
+          <div class="kpi-card" style="animation-delay:0.30s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Fulfillment</div><div style="font-size:13px;">📅</div><div style="class="kpi-value"">${avgFulfillDays > 0 ? avgFulfillDays + String.fromCharCode(100) : String.fromCharCode(8212)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.35s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Overdue</div><div style="font-size:13px;">⚠️</div><div style="class="kpi-value"">${overdue.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.40s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Total Clients</div><div style="font-size:13px;">👥</div><div style="class="kpi-value"">${allClients.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.45s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Repeat Rate</div><div style="font-size:13px;">🔁</div><div style="class="kpi-value"">${repeatRate}%</div></div>
+          <div class="kpi-card" style="animation-delay:0.50s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Brides</div><div style="font-size:13px;">💍</div><div style="class="kpi-value"">${allClients.filter(function(c){return c.type===String.fromCharCode(66,114,105,100,101);}).length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.55s;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Appointments</div><div style="font-size:13px;">📋</div><div style="class="kpi-value"">${appointments.length}</div></div>
         </div>
       </div>
 
