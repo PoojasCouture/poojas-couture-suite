@@ -106,24 +106,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   function tdStyle(idx) { const bg = idx%2===0?'#12122a':'#0f0f22'; return `padding:10px 14px; border-bottom:1px solid #1e1e38; background:${bg}; vertical-align:top;`; }
   function btnStyle(bg, color='#1a1a2e') { return `padding:6px 14px; border-radius:6px; border:none; background:${bg}; color:${color}; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;`; }
   function badgeStyle(bg) { return `display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; background:${bg}; color:#fff;`; }
-  // Inject mobile CSS + KPI animation once
-  if (!document.getElementById('shipping-mobile-css')) {
-    const s = document.createElement('style');
-    s.id = 'shipping-mobile-css';
-    s.textContent = [
-      '@keyframes kpiIn{from{opacity:0;transform:translateY(10px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}',
-      '.kpi-tile:hover{transform:translateY(-3px) scale(1.04)!important;filter:brightness(1.2);}',
-      '.workspace-content{padding:16px!important;}',
-      '@media(max-width:480px){',
-        '.workspace-header{padding:0 12px!important;height:56px!important;}',
-        '.workspace-content{padding:12px!important;}',
-        'table{font-size:12px!important;}',
-        'th,td{padding:8px 10px!important;}',
-      '}',
-    ].join('');
-    document.head.appendChild(s);
-  }
-
   function tabStyle(active) {
     return 'font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;cursor:pointer;border:none;' +
       (active ? 'background:#d4af37;color:#12122a;' : 'background:rgba(255,255,255,0.06);color:#aaa;');
@@ -172,12 +154,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const roleEl = workspace.querySelector('#user-display-role');
   if (roleEl) roleEl.textContent = 'Logistics · India Hub';
 
-  const content = workspace.querySelector('.workspace-content');
-  if (!content) { showGate('Page layout error: .workspace-content not found in HTML.', true); return; }
+  const content = document.getElementById('shipping-main');
+  if (!content) { showGate('Page layout error: #shipping-main not found in HTML.', true); return; }
 
   content.innerHTML = `
-    <!-- KPI Dashboard strip -->
-    <div id="kpi-strip" style="margin-bottom:24px;"></div>
+    <!-- Pill tabs -->
 
     <!-- Pill tabs -->
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
@@ -215,16 +196,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     else renderStockPanel();
   }
 
-  renderKPI();
+  // ── Wire KPI drawer ──────────────────────────────────
+  function openKPI() {
+    document.getElementById('kpi-drawer').classList.add('open');
+    document.getElementById('kpi-overlay').classList.add('open');
+    renderKPIDrawer();
+  }
+  function closeKPI() {
+    document.getElementById('kpi-drawer').classList.remove('open');
+    document.getElementById('kpi-overlay').classList.remove('open');
+  }
+  document.getElementById('kpi-toggle-btn').addEventListener('click', openKPI);
+  document.getElementById('kpi-close-btn').addEventListener('click', closeKPI);
+  document.getElementById('kpi-overlay').addEventListener('click', closeKPI);
+
   renderOrdersPanel();
 
   // Realtime: re-render when data changes from another portal/user
   window.addEventListener('pc:datachange', Utils && Utils.debounce ? Utils.debounce(() => {
-    renderKPI();
+    if (document.getElementById('kpi-drawer').classList.contains('open')) renderKPIDrawer();
     if (activeTab === 'orders') renderOrdersPanel();
     else renderStockPanel();
   }, 500) : () => {
-    renderKPI();
+    if (document.getElementById('kpi-drawer').classList.contains('open')) renderKPIDrawer();
     if (activeTab === 'orders') renderOrdersPanel();
     else renderStockPanel();
   });
@@ -245,8 +239,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ==========================================================
      TAB 1 — CUSTOM ORDERS
      ========================================================== */
-  function renderKPI() {
-    const strip = document.getElementById('kpi-strip');
+  function renderKPIDrawer() {
+    const strip = document.getElementById('kpi-content');
     if (!strip) return;
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
     const incoming        = orders.filter(o => o.status === 'Shipped to Shashank').length;
