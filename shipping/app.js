@@ -164,6 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
       <button id="tab-orders" style="${tabStyle(true)}">📦 Orders</button>
       <button id="tab-stock"  style="${tabStyle(false)}">🛍️ Inventory</button>
+      <button id="kpi-toggle-btn" style="${tabStyle(false)}">📊 KPI</button>
     </div>
     <div id="panel-orders"></div>
     <div id="panel-stock" style="display:none;"></div>
