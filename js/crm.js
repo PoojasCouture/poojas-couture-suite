@@ -1377,14 +1377,60 @@ poojascouture.com.au`
     });
   }
 
+
+  // Find invoice for an order — handles both flat orders and project sub-orders
+  function _getOrderInvoice(order) {
+    if (!order) return null;
+    return order.projectId
+      ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === order.projectId)[0]
+      : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === order.id)[0];
+  }
+
+  // Get M2 milestone amount from invoice
+  function _getM2Amount(invoice) {
+    if (!invoice || !invoice.milestones || !invoice.milestones[1]) return null;
+    return invoice.milestones[1];
+  }
+
+  // Get M3 milestone amount from invoice
+  function _getM3Amount(invoice) {
+    if (!invoice || !invoice.milestones || !invoice.milestones[2]) return null;
+    return invoice.milestones[2];
+  }
+
+  // Check if a milestone is paid
+  function _milestoneIsPaid(m) {
+    if (!m) return true; // no milestone = no gate
+    return m.paid || ((m.paidAmount || 0) >= m.amount);
+  }
   function moveOrderStage(id, status) {
-    // Guard: block moving to Delivered if invoice balance > 0
-    // (full payment gate built in Stage 3/4 — this is the CRM-side guard)
+    const order = Store.getById(Store.COLLECTIONS.ORDERS, id);
+    const invoice = _getOrderInvoice(order);
+
+    // ── M2 HARD GATE: block moving to In Design until M2 is paid ──
+    if (status === 'In Design' && invoice && invoice.milestones) {
+      const m2 = _getM2Amount(invoice);
+      if (m2 && !_milestoneIsPaid(m2)) {
+        App.showModal({
+          title: '🔒 M2 Payment Required',
+          content: `
+            <div class="d-flex flex-col gap-4">
+              <div class="p-3 rounded-md" style="background:rgba(220,38,38,0.08);border:1px solid var(--pc-danger)">
+                <div class="text-sm font-semibold text-danger mb-1">⛔ Design & Production Payment Not Received</div>
+                <div class="text-xs text-muted">Milestone 2 (40% — Design Approval) of <strong>${Utils.formatCurrency(m2.amount)}</strong> must be paid before this order can move into production.</div>
+              </div>
+              <div class="text-xs text-muted">Go to the project invoice to record the M2 payment, then move this order to In Design.</div>
+            </div>`,
+          submitText: 'OK',
+          hideCancel: true,
+          onSubmit: () => true
+        });
+        return;
+      }
+    }
+
+    // ── Delivered gate: warn if balance > 0 ──
     if (status === 'Delivered') {
-      const order = Store.getById(Store.COLLECTIONS.ORDERS, id);
-      const invoice = order
-        ? Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === order.id)[0]
-        : null;
       if (invoice) {
         const paid = (invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0;
         const balance = Math.round((invoice.total - paid) * 100) / 100;
@@ -1403,6 +1449,7 @@ poojascouture.com.au`
         }
       }
     }
+
     Store.update(Store.COLLECTIONS.ORDERS, id, { status });
     Utils.showToast(`Order moved to: ${status}`);
     renderSubTab();
@@ -2329,9 +2376,31 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
   function markReadyToDeliver(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
     if (!o) return;
-    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
-    const paid    = invoice ? ((invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0) : 0;
+    const invoice = _getOrderInvoice(o);
+    const paid    = invoice ? ((invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0) : 0;
     const balance = invoice ? Math.round((invoice.total - paid) * 100) / 100 : 0;
+
+    // ── M3 HARD GATE: block delivery until M3 is paid ──
+    if (invoice && invoice.milestones) {
+      const m3 = _getM3Amount(invoice);
+      if (m3 && !_milestoneIsPaid(m3)) {
+        App.showModal({
+          title: '🔒 Final Payment Required',
+          content: `
+            <div class="d-flex flex-col gap-4">
+              <div class="p-3 rounded-md" style="background:rgba(220,38,38,0.08);border:1px solid var(--pc-danger)">
+                <div class="text-sm font-semibold text-danger mb-1">⛔ Final Payment Not Received</div>
+                <div class="text-xs text-muted">Milestone 3 (30% — Before Delivery) of <strong>${Utils.formatCurrency(m3.amount)}</strong> must be paid before the garment can be handed over.</div>
+              </div>
+              <div class="text-xs text-muted">Record the M3 payment from the project invoice, then confirm delivery.</div>
+            </div>`,
+          submitText: 'OK',
+          hideCancel: true,
+          onSubmit: () => true
+        });
+        return;
+      }
+    }
 
     if (balance > 0) {
       App.showModal({
