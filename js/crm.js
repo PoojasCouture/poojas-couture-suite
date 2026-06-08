@@ -102,13 +102,13 @@ poojascouture.com.au`
         <div class="page-actions" id="crm-page-actions"></div>
       </div>
       <div class="animate-fade-in stagger-1" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
-        <button class="tab-btn ${activeTab==='sales'?'active':''}" data-tab="sales" style="font-size:11px;padding:5px 12px;border-radius:20px;">💵 Sales</button>
-        <button class="tab-btn ${activeTab==='clients'?'active':''}" data-tab="clients" style="font-size:11px;padding:5px 12px;border-radius:20px;">👑 Clients</button>
-        <button class="tab-btn ${activeTab==='appointments'?'active':''}" data-tab="appointments" style="font-size:11px;padding:5px 12px;border-radius:20px;">📅 Appts</button>
-        <button class="tab-btn ${activeTab==='orders'?'active':''}" data-tab="orders" style="font-size:11px;padding:5px 12px;border-radius:20px;">🧵 Pipeline</button>
-        <button class="tab-btn ${activeTab==='projects'?'active':''}" data-tab="projects" style="font-size:11px;padding:5px 12px;border-radius:20px;">📁 Projects</button>
-        <button class="tab-btn ${activeTab==='journey'?'active':''}" data-tab="journey" style="font-size:11px;padding:5px 12px;border-radius:20px;">💍 Journey</button>
-        <button class="tab-btn ${activeTab==='email'?'active':''}" data-tab="email" style="font-size:11px;padding:5px 12px;border-radius:20px;">✉️ Email</button>
+        <button class="tab-btn ${activeTab==='sales'?'active':''}" data-tab="sales" style="font-size:12px;padding:6px 16px;border-radius:20px;">💵 Sales</button>
+        <button class="tab-btn ${activeTab==='clients'?'active':''}" data-tab="clients" style="font-size:12px;padding:6px 16px;border-radius:20px;">👑 Clients</button>
+        <button class="tab-btn ${activeTab==='appointments'?'active':''}" data-tab="appointments" style="font-size:12px;padding:6px 16px;border-radius:20px;">📅 Appts</button>
+        <button class="tab-btn ${activeTab==='orders'?'active':''}" data-tab="orders" style="font-size:12px;padding:6px 16px;border-radius:20px;">🧵 Pipeline</button>
+        <button class="tab-btn ${activeTab==='projects'?'active':''}" data-tab="projects" style="font-size:12px;padding:6px 16px;border-radius:20px;">📁 Projects</button>
+        <button class="tab-btn ${activeTab==='journey'?'active':''}" data-tab="journey" style="font-size:12px;padding:6px 16px;border-radius:20px;">💍 Journey</button>
+        <button class="tab-btn ${activeTab==='email'?'active':''}" data-tab="email" style="font-size:12px;padding:6px 16px;border-radius:20px;">✉️ Email</button>
       </div>
       <div id="crm-tab-content" class="animate-fade-in stagger-2"></div>
     `;
@@ -2074,78 +2074,69 @@ poojascouture.com.au`
     const typeLabels = { BLS: 'Bridal Lehenga', SAR: 'Saree', SAL: 'Salwar Suit', SHE: 'Sherwani', BSN: 'Bridal Sneakers', GEN: 'Other' };
 
     container.innerHTML = `
-      <!-- Section: KPI Row 1 — Financial -->
-      <div class="text-xs font-semibold text-gold mb-2" style="text-transform:uppercase;letter-spacing:.6px">💰 Financial Performance</div>
-      <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon green">💰</span></div>
-          <div class="stat-card-value">${Utils.formatCurrency(totalRevenue)}</div>
-          <div class="stat-card-label">Revenue Collected</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon amber">⏳</span></div>
-          <div class="stat-card-value">${Utils.formatCurrency(outstandingAmt)}</div>
-          <div class="stat-card-label">Outstanding Balance</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon blue">📊</span></div>
-          <div class="stat-card-value">${Utils.formatCurrency(avgOrderValue)}</div>
-          <div class="stat-card-label">Avg Order Value</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon purple">👑</span></div>
-          <div class="stat-card-value">${Utils.formatCurrency(avgCLTV)}</div>
-          <div class="stat-card-label">Avg Client LTV</div>
-        </div>
-      </div>
-
-      <!-- Section: KPI Row 2 — Operations -->
-      <div class="text-xs font-semibold text-gold mb-2" style="text-transform:uppercase;letter-spacing:.6px">👗 Operations & Production</div>
-      <div class="d-grid gap-4 mb-5 animate-fade-in stagger-1" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon gold">📦</span></div>
-          <div class="stat-card-value">${deliveredOrders.length} / ${allOrders.length}</div>
-          <div class="stat-card-label">Delivered / Total</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon ${conversionRate >= 70 ? 'green' : conversionRate >= 40 ? 'amber' : 'red'}">🎯</span></div>
-          <div class="stat-card-value">${conversionRate}%</div>
-          <div class="stat-card-label">Order Completion Rate</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon blue">📅</span></div>
-          <div class="stat-card-value">${avgFulfillDays > 0 ? avgFulfillDays + 'd' : '—'}</div>
-          <div class="stat-card-label">Avg Fulfillment Time</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon ${overdue.length > 0 ? 'red' : 'green'}">⚠️</span></div>
-          <div class="stat-card-value ${overdue.length > 0 ? 'text-danger' : 'text-success'}">${overdue.length}</div>
-          <div class="stat-card-label">Overdue Orders</div>
-        </div>
-      </div>
-
-      <!-- Section: KPI Row 3 — Client -->
-      <div class="text-xs font-semibold text-gold mb-2" style="text-transform:uppercase;letter-spacing:.6px">💖 Client Retention</div>
-      <div class="d-grid gap-4 mb-5 animate-fade-in stagger-2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon purple">👥</span></div>
-          <div class="stat-card-value">${allClients.length}</div>
-          <div class="stat-card-label">Total Clients</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon green">🔁</span></div>
-          <div class="stat-card-value">${repeatRate}%</div>
-          <div class="stat-card-label">Repeat Client Rate</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon gold">💍</span></div>
-          <div class="stat-card-value">${allClients.filter(c => c.type === 'Bride').length}</div>
-          <div class="stat-card-label">Bridal Clients</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon blue">📋</span></div>
-          <div class="stat-card-value">${appointments.length}</div>
-          <div class="stat-card-label">Total Appointments</div>
+      <!-- KPI Strip — all 12 metrics in one scrollable row -->
+      <div style="overflow-x:auto;margin-bottom:20px;" class="animate-fade-in">
+        <div style="display:flex;gap:10px;min-width:max-content;padding-bottom:4px;">
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon green">💰</span></div>
+            <div class="stat-card-value" style="font-size:16px">${Utils.formatCurrency(totalRevenue)}</div>
+            <div class="stat-card-label">Revenue</div>
+          </div>
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon amber">⏳</span></div>
+            <div class="stat-card-value" style="font-size:16px">${Utils.formatCurrency(outstandingAmt)}</div>
+            <div class="stat-card-label">Outstanding</div>
+          </div>
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon blue">📊</span></div>
+            <div class="stat-card-value" style="font-size:16px">${Utils.formatCurrency(avgOrderValue)}</div>
+            <div class="stat-card-label">Avg Order Value</div>
+          </div>
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon purple">👑</span></div>
+            <div class="stat-card-value" style="font-size:16px">${Utils.formatCurrency(avgCLTV)}</div>
+            <div class="stat-card-label">Avg LTV</div>
+          </div>
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon gold">📦</span></div>
+            <div class="stat-card-value" style="font-size:16px">${deliveredOrders.length} / ${allOrders.length}</div>
+            <div class="stat-card-label">Delivered</div>
+          </div>
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon ${conversionRate >= 70 ? 'green' : conversionRate >= 40 ? 'amber' : 'red'}">🎯</span></div>
+            <div class="stat-card-value" style="font-size:16px">${conversionRate}%</div>
+            <div class="stat-card-label">Completion Rate</div>
+          </div>
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon blue">📅</span></div>
+            <div class="stat-card-value" style="font-size:16px">${avgFulfillDays > 0 ? avgFulfillDays + 'd' : '—'}</div>
+            <div class="stat-card-label">Avg Fulfillment</div>
+          </div>
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon ${overdue.length > 0 ? 'red' : 'green'}">⚠️</span></div>
+            <div class="stat-card-value" style="font-size:16px;${overdue.length > 0 ? 'color:var(--pc-danger)' : 'color:var(--pc-success)'}">${overdue.length}</div>
+            <div class="stat-card-label">Overdue</div>
+          </div>
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon purple">👥</span></div>
+            <div class="stat-card-value" style="font-size:16px">${allClients.length}</div>
+            <div class="stat-card-label">Total Clients</div>
+          </div>
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon green">🔁</span></div>
+            <div class="stat-card-value" style="font-size:16px">${repeatRate}%</div>
+            <div class="stat-card-label">Repeat Rate</div>
+          </div>
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon gold">💍</span></div>
+            <div class="stat-card-value" style="font-size:16px">${allClients.filter(c => c.type === 'Bride').length}</div>
+            <div class="stat-card-label">Brides</div>
+          </div>
+          <div class="stat-card" style="min-width:130px;padding:12px 14px;">
+            <div class="stat-card-header"><span class="stat-card-icon blue">📋</span></div>
+            <div class="stat-card-value" style="font-size:16px">${appointments.length}</div>
+            <div class="stat-card-label">Appointments</div>
+          </div>
         </div>
       </div>
 
