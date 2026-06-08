@@ -2074,82 +2074,25 @@ poojascouture.com.au`
     const typeLabels = { BLS: 'Bridal Lehenga', SAR: 'Saree', SAL: 'Salwar Suit', SHE: 'Sherwani', BSN: 'Bridal Sneakers', GEN: 'Other' };
 
     container.innerHTML = `
-      <!-- Section: KPI Row 1 — Financial -->
-      <div class="text-xs font-semibold text-gold mb-2" style="text-transform:uppercase;letter-spacing:.6px">💰 Financial Performance</div>
-      <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon green">💰</span></div>
-          <div class="stat-card-value">${Utils.formatCurrency(totalRevenue)}</div>
-          <div class="stat-card-label">Revenue Collected</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon amber">⏳</span></div>
-          <div class="stat-card-value">${Utils.formatCurrency(outstandingAmt)}</div>
-          <div class="stat-card-label">Outstanding Balance</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon blue">📊</span></div>
-          <div class="stat-card-value">${Utils.formatCurrency(avgOrderValue)}</div>
-          <div class="stat-card-label">Avg Order Value</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon purple">👑</span></div>
-          <div class="stat-card-value">${Utils.formatCurrency(avgCLTV)}</div>
-          <div class="stat-card-label">Avg Client LTV</div>
+      <!-- KPI Strip — single scrollable row, label on top -->
+      <div style="overflow-x:auto;margin-bottom:20px;" class="animate-fade-in">
+        <div style="display:flex;gap:10px;padding-bottom:6px;min-width:max-content;">
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Revenue</div><div style="font-size:11px;margin-bottom:2px;">💰</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${Utils.formatCurrency(totalRevenue)}</div></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Outstanding</div><div style="font-size:11px;margin-bottom:2px;">⏳</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${Utils.formatCurrency(outstandingAmt)}</div></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Avg Order Value</div><div style="font-size:11px;margin-bottom:2px;">📊</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${Utils.formatCurrency(avgOrderValue)}</div></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Avg LTV</div><div style="font-size:11px;margin-bottom:2px;">👑</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${Utils.formatCurrency(avgCLTV)}</div></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Delivered</div><div style="font-size:11px;margin-bottom:2px;">📦</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${deliveredOrders.length} / ${allOrders.length}</div></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Completion</div><div style="font-size:11px;margin-bottom:2px;">🎯</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${conversionRate}%</div></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Avg Fulfillment</div><div style="font-size:11px;margin-bottom:2px;">📅</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${avgFulfillDays > 0 ? avgFulfillDays + \'d\' : \'—\'}</div></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Overdue</div><div style="font-size:11px;margin-bottom:2px;">⚠️</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${overdue.length}</div></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Total Clients</div><div style="font-size:11px;margin-bottom:2px;">👥</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${allClients.length}</div></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Repeat Rate</div><div style="font-size:11px;margin-bottom:2px;">🔁</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${repeatRate}%</div></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Brides</div><div style="font-size:11px;margin-bottom:2px;">💍</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${allClients.filter(c => c.type === \'Bride\').length}</div></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;background:var(--pc-card-bg);border:1px solid var(--pc-border);border-radius:10px;padding:10px 14px;min-width:110px;gap:4px;"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Appointments</div><div style="font-size:11px;margin-bottom:2px;">📋</div><div style="font-size:18px;font-weight:800;color:var(--pc-text);line-height:1.1;">${appointments.length}</div></div>
         </div>
       </div>
 
-      <!-- Section: KPI Row 2 — Operations -->
-      <div class="text-xs font-semibold text-gold mb-2" style="text-transform:uppercase;letter-spacing:.6px">👗 Operations & Production</div>
-      <div class="d-grid gap-4 mb-5 animate-fade-in stagger-1" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon gold">📦</span></div>
-          <div class="stat-card-value">${deliveredOrders.length} / ${allOrders.length}</div>
-          <div class="stat-card-label">Delivered / Total</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon ${conversionRate >= 70 ? 'green' : conversionRate >= 40 ? 'amber' : 'red'}">🎯</span></div>
-          <div class="stat-card-value">${conversionRate}%</div>
-          <div class="stat-card-label">Order Completion Rate</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon blue">📅</span></div>
-          <div class="stat-card-value">${avgFulfillDays > 0 ? avgFulfillDays + 'd' : '—'}</div>
-          <div class="stat-card-label">Avg Fulfillment Time</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon ${overdue.length > 0 ? 'red' : 'green'}">⚠️</span></div>
-          <div class="stat-card-value ${overdue.length > 0 ? 'text-danger' : 'text-success'}">${overdue.length}</div>
-          <div class="stat-card-label">Overdue Orders</div>
-        </div>
-      </div>
-
-      <!-- Section: KPI Row 3 — Client -->
-      <div class="text-xs font-semibold text-gold mb-2" style="text-transform:uppercase;letter-spacing:.6px">💖 Client Retention</div>
-      <div class="d-grid gap-4 mb-5 animate-fade-in stagger-2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon purple">👥</span></div>
-          <div class="stat-card-value">${allClients.length}</div>
-          <div class="stat-card-label">Total Clients</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon green">🔁</span></div>
-          <div class="stat-card-value">${repeatRate}%</div>
-          <div class="stat-card-label">Repeat Client Rate</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon gold">💍</span></div>
-          <div class="stat-card-value">${allClients.filter(c => c.type === 'Bride').length}</div>
-          <div class="stat-card-label">Bridal Clients</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon blue">📋</span></div>
-          <div class="stat-card-value">${appointments.length}</div>
-          <div class="stat-card-label">Total Appointments</div>
-        </div>
-      </div>
-
-      <!-- Pipeline Health -->
+            <!-- Pipeline Health -->
       <div class="card p-4 mb-4 animate-fade-in stagger-3">
         <div class="card-title mb-3">📋 Pipeline Health</div>
         <div class="d-grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
