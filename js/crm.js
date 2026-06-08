@@ -1985,64 +1985,98 @@ poojascouture.com.au`
   // ==========================================
 
   function renderSales(container, actions) {
-    const allOrders  = Store.getAll(Store.COLLECTIONS.ORDERS);
-    const allClients = Store.getAll(Store.COLLECTIONS.CLIENTS);
-    const invoices   = Store.getAll(Store.COLLECTIONS.INVOICES);
-    const paidInvoices = invoices.filter(i => i.status === 'Paid');
-    const deliveredOrders = allOrders.filter(o => o.status === 'Delivered');
+    const allOrders   = Store.getAll(Store.COLLECTIONS.ORDERS);
+    const allClients  = Store.getAll(Store.COLLECTIONS.CLIENTS);
+    const invoices    = Store.getAll(Store.COLLECTIONS.INVOICES);
+    const appointments = Store.getAll(Store.COLLECTIONS.APPOINTMENTS);
+    const now = new Date();
 
-    const totalRevenue  = paidInvoices.reduce((sum, i) => sum + i.total, 0);
-    const outstanding   = invoices.filter(i => i.status === 'Partially Paid' || i.status === 'Sent' || i.status === 'Draft');
-    const outstandingAmt = outstanding.reduce((sum, i) => {
-      const paid = (i.amountPaid != null && i.amountPaid !== '') ? i.amountPaid : 0;
-      return sum + Math.max(0, i.total - paid);
+    // ── Revenue metrics ──
+    const paidInvoices    = invoices.filter(i => i.status === 'Paid');
+    const totalRevenue    = paidInvoices.reduce((s, i) => s + (i.total || 0), 0);
+    const outstanding     = invoices.filter(i => ['Partially Paid','Sent','Draft'].includes(i.status));
+    const outstandingAmt  = outstanding.reduce((s, i) => {
+      const p = (i.amountPaid != null && i.amountPaid !== '') ? parseFloat(i.amountPaid) : 0;
+      return s + Math.max(0, (i.total || 0) - p);
     }, 0);
-    const avgOrderValue = deliveredOrders.length > 0
-      ? Math.round((deliveredOrders.reduce((s, o) => s + (o.price || 0), 0) / deliveredOrders.length) * 100) / 100
-      : 0;
-    const conversionRate = allOrders.length > 0
-      ? Math.round((deliveredOrders.length / allOrders.length) * 100)
-      : 0;
 
-    // Top clients by total order value
+    // ── Order metrics ──
+    const deliveredOrders = allOrders.filter(o => o.status === 'Delivered');
+    const activeOrders    = allOrders.filter(o => o.status !== 'Delivered');
+    const avgOrderValue   = deliveredOrders.length > 0
+      ? Math.round((deliveredOrders.reduce((s, o) => s + (o.price || 0), 0) / deliveredOrders.length) * 100) / 100 : 0;
+
+    // ── Fulfillment time (consultation/created → delivered) ──
+    const fulfilledWithDates = deliveredOrders.filter(o => o.createdAt && o.updatedAt);
+    const avgFulfillDays = fulfilledWithDates.length > 0
+      ? Math.round(fulfilledWithDates.reduce((s, o) => {
+          return s + (new Date(o.updatedAt) - new Date(o.createdAt)) / (1000 * 60 * 60 * 24);
+        }, 0) / fulfilledWithDates.length) : 0;
+
+    // ── Conversion rate (orders → delivered) ──
+    const conversionRate = allOrders.length > 0
+      ? Math.round((deliveredOrders.length / allOrders.length) * 100) : 0;
+
+    // ── Repeat clients ──
+    const clientOrderCount = {};
+    allOrders.forEach(o => { clientOrderCount[o.clientId] = (clientOrderCount[o.clientId] || 0) + 1; });
+    const repeatClients = Object.values(clientOrderCount).filter(c => c > 1).length;
+    const repeatRate = allClients.length > 0 ? Math.round((repeatClients / allClients.length) * 100) : 0;
+
+    // ── Client lifetime value ──
     const clientSpend = {};
     allOrders.forEach(o => {
-      if (!clientSpend[o.clientName]) clientSpend[o.clientName] = { spend: 0, orders: 0, clientId: o.clientId };
-      clientSpend[o.clientName].spend  += (o.price || 0);
-      clientSpend[o.clientName].orders += 1;
+      if (!clientSpend[o.clientId]) clientSpend[o.clientId] = { name: o.clientName, spend: 0, orders: 0 };
+      clientSpend[o.clientId].spend  += (o.price || 0);
+      clientSpend[o.clientId].orders += 1;
     });
     const topClients = Object.entries(clientSpend)
-      .sort((a, b) => b[1].spend - a[1].spend)
-      .slice(0, 5);
+      .sort((a, b) => b[1].spend - a[1].spend).slice(0, 5);
+    const avgCLTV = Object.keys(clientSpend).length > 0
+      ? Math.round(Object.values(clientSpend).reduce((s, c) => s + c.spend, 0) / Object.keys(clientSpend).length) : 0;
 
-    // Product type breakdown
-    const productMap = {};
+    // ── Revenue by product type ──
+    const revenueByType = {};
     allOrders.forEach(o => {
       const t = o.productType || 'GEN';
-      productMap[t] = (productMap[t] || 0) + 1;
+      if (!revenueByType[t]) revenueByType[t] = { revenue: 0, count: 0 };
+      revenueByType[t].revenue += (o.price || 0);
+      revenueByType[t].count  += 1;
     });
 
-    // Pipeline by stage groups
+    // ── Revenue by month (last 6 months) ──
+    const monthRevenue = {};
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = d.toLocaleString('en-AU', { month: 'short', year: '2-digit' });
+      monthRevenue[key] = 0;
+    }
+    paidInvoices.forEach(inv => {
+      if (!inv.issueDate) return;
+      const d = new Date(inv.issueDate);
+      const key = d.toLocaleString('en-AU', { month: 'short', year: '2-digit' });
+      if (key in monthRevenue) monthRevenue[key] += (inv.total || 0);
+    });
+    const maxMonthRev = Math.max(...Object.values(monthRevenue), 1);
+
+    // ── Pipeline health ──
     const inWorkshop  = allOrders.filter(o => ['New','In Design','Fabric Sourced','In Production','Fitting'].includes(o.status)).length;
     const inTransit   = allOrders.filter(o => ['Ready','Shipped to Shashank','At Shashank','In Transit'].includes(o.status)).length;
     const awaitingAct = allOrders.filter(o => ['Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery'].includes(o.status)).length;
 
-    // Upcoming deadlines (next 30 days, not delivered)
-    const now = new Date();
+    // ── Upcoming + overdue ──
     const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const upcoming = allOrders
-      .filter(o => o.status !== 'Delivered' && o.deadline && new Date(o.deadline) <= in30 && new Date(o.deadline) >= now)
-      .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
-      .slice(0, 5);
-
-    // Overdue orders
-    const overdue = allOrders
-      .filter(o => o.status !== 'Delivered' && o.deadline && new Date(o.deadline) < now)
+    const upcoming = allOrders.filter(o => o.status !== 'Delivered' && o.deadline && new Date(o.deadline) <= in30 && new Date(o.deadline) >= now)
+      .sort((a, b) => new Date(a.deadline) - new Date(b.deadline)).slice(0, 5);
+    const overdue = allOrders.filter(o => o.status !== 'Delivered' && o.deadline && new Date(o.deadline) < now)
       .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
 
+    const typeLabels = { BLS: 'Bridal Lehenga', SAR: 'Saree', SAL: 'Salwar Suit', SHE: 'Sherwani', BSN: 'Bridal Sneakers', GEN: 'Other' };
+
     container.innerHTML = `
-      <!-- KPI Row -->
-      <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+      <!-- Section: KPI Row 1 — Financial -->
+      <div class="text-xs font-semibold text-gold mb-2" style="text-transform:uppercase;letter-spacing:.6px">💰 Financial Performance</div>
+      <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
         <div class="stat-card">
           <div class="stat-card-header"><span class="stat-card-icon green">💰</span></div>
           <div class="stat-card-value">${Utils.formatCurrency(totalRevenue)}</div>
@@ -2054,31 +2088,71 @@ poojascouture.com.au`
           <div class="stat-card-label">Outstanding Balance</div>
         </div>
         <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon gold">📦</span></div>
-          <div class="stat-card-value">${deliveredOrders.length} / ${allOrders.length}</div>
-          <div class="stat-card-label">Delivered / Total Orders</div>
-        </div>
-        <div class="stat-card">
           <div class="stat-card-header"><span class="stat-card-icon blue">📊</span></div>
           <div class="stat-card-value">${Utils.formatCurrency(avgOrderValue)}</div>
           <div class="stat-card-label">Avg Order Value</div>
         </div>
         <div class="stat-card">
           <div class="stat-card-header"><span class="stat-card-icon purple">👑</span></div>
-          <div class="stat-card-value">${allClients.length}</div>
-          <div class="stat-card-label">Total Clients</div>
+          <div class="stat-card-value">${Utils.formatCurrency(avgCLTV)}</div>
+          <div class="stat-card-label">Avg Client LTV</div>
+        </div>
+      </div>
+
+      <!-- Section: KPI Row 2 — Operations -->
+      <div class="text-xs font-semibold text-gold mb-2" style="text-transform:uppercase;letter-spacing:.6px">👗 Operations & Production</div>
+      <div class="d-grid gap-4 mb-5 animate-fade-in stagger-1" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon gold">📦</span></div>
+          <div class="stat-card-value">${deliveredOrders.length} / ${allOrders.length}</div>
+          <div class="stat-card-label">Delivered / Total</div>
         </div>
         <div class="stat-card">
           <div class="stat-card-header"><span class="stat-card-icon ${conversionRate >= 70 ? 'green' : conversionRate >= 40 ? 'amber' : 'red'}">🎯</span></div>
           <div class="stat-card-value">${conversionRate}%</div>
-          <div class="stat-card-label">Delivery Rate</div>
+          <div class="stat-card-label">Order Completion Rate</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon blue">📅</span></div>
+          <div class="stat-card-value">${avgFulfillDays > 0 ? avgFulfillDays + 'd' : '—'}</div>
+          <div class="stat-card-label">Avg Fulfillment Time</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon ${overdue.length > 0 ? 'red' : 'green'}">⚠️</span></div>
+          <div class="stat-card-value ${overdue.length > 0 ? 'text-danger' : 'text-success'}">${overdue.length}</div>
+          <div class="stat-card-label">Overdue Orders</div>
         </div>
       </div>
 
-      <!-- Pipeline health strip -->
-      <div class="card p-4 mb-4 animate-fade-in stagger-1" style="margin-top: 18px;">
+      <!-- Section: KPI Row 3 — Client -->
+      <div class="text-xs font-semibold text-gold mb-2" style="text-transform:uppercase;letter-spacing:.6px">💖 Client Retention</div>
+      <div class="d-grid gap-4 mb-5 animate-fade-in stagger-2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon purple">👥</span></div>
+          <div class="stat-card-value">${allClients.length}</div>
+          <div class="stat-card-label">Total Clients</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon green">🔁</span></div>
+          <div class="stat-card-value">${repeatRate}%</div>
+          <div class="stat-card-label">Repeat Client Rate</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon gold">💍</span></div>
+          <div class="stat-card-value">${allClients.filter(c => c.type === 'Bride').length}</div>
+          <div class="stat-card-label">Bridal Clients</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon blue">📋</span></div>
+          <div class="stat-card-value">${appointments.length}</div>
+          <div class="stat-card-label">Total Appointments</div>
+        </div>
+      </div>
+
+      <!-- Pipeline Health -->
+      <div class="card p-4 mb-4 animate-fade-in stagger-3">
         <div class="card-title mb-3">📋 Pipeline Health</div>
-        <div class="d-grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+        <div class="d-grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
           <div class="p-3 rounded-md text-center" style="background:rgba(139,92,246,0.08);border:1px solid var(--pc-border)">
             <div class="text-lg font-bold" style="color:#a78bfa">${inWorkshop}</div>
             <div class="text-xs text-muted mt-1">In Workshop</div>
@@ -2103,105 +2177,117 @@ poojascouture.com.au`
         </div>
       </div>
 
-      <!-- Main content grid -->
-      <div class="d-grid gap-4 mb-4 animate-fade-in stagger-2" style="grid-template-columns:1fr 1fr">
+      <!-- Revenue trend + Product type -->
+      <div class="d-grid gap-4 mb-4 animate-fade-in stagger-3" style="grid-template-columns:1fr 1fr">
 
-        <!-- Top Clients -->
+        <!-- Revenue by month bar chart -->
         <div class="card p-5">
-          <div class="card-title mb-4">🏆 Top Clients by Spend</div>
-          ${topClients.length === 0 ? '<div class="text-xs text-muted text-center p-4">No orders yet.</div>' :
-            topClients.map(([name, data], idx) => `
-              <div class="d-flex justify-between items-center p-2 rounded-md mb-2" style="background:rgba(255,255,255,0.02);border:1px solid var(--pc-border)">
-                <div class="d-flex items-center gap-2">
-                  <span class="font-mono text-xs text-muted">#${idx + 1}</span>
-                  <div class="avatar avatar-sm" style="background:${Utils.getAvatarColor(name)};color:var(--pc-text-inverse);width:26px;height:26px;font-size:10px">${Utils.getInitials(name)}</div>
-                  <div>
-                    <div class="text-sm font-semibold">${Utils.sanitizeHTML(name)}</div>
-                    <div class="text-xs text-muted">${data.orders} order${data.orders !== 1 ? 's' : ''}</div>
-                  </div>
-                </div>
-                <span class="font-mono text-sm font-bold text-gold">${Utils.formatCurrency(data.spend)}</span>
-              </div>`).join('')}
+          <div class="card-title mb-4">📈 Revenue — Last 6 Months</div>
+          <div class="d-flex flex-col gap-2">
+            ${Object.entries(monthRevenue).map(([month, rev]) => {
+              const pct = Math.round((rev / maxMonthRev) * 100);
+              return '<div class="d-flex items-center gap-2">' +
+                '<div class="text-xs text-muted font-mono" style="width:48px;flex-shrink:0">' + month + '</div>' +
+                '<div style="flex:1;background:rgba(255,255,255,0.05);border-radius:4px;height:18px;overflow:hidden">' +
+                  '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,var(--pc-gold),#f59e0b);border-radius:4px;transition:width .3s"></div>' +
+                '</div>' +
+                '<div class="font-mono text-xs" style="width:72px;text-align:right;flex-shrink:0">' + Utils.formatCurrency(rev) + '</div>' +
+              '</div>';
+            }).join('')}
+          </div>
         </div>
 
-        <!-- Product Type Breakdown -->
+        <!-- Revenue by product type -->
         <div class="card p-5">
-          <div class="card-title mb-4">🧵 Orders by Product Type</div>
-          ${Object.keys(productMap).length === 0 ? '<div class="text-xs text-muted text-center p-4">No orders yet.</div>' :
-            Object.entries(productMap).sort((a, b) => b[1] - a[1]).map(([type, count]) => {
-              const pct = Math.round((count / allOrders.length) * 100);
-              const labels = { BLS: 'Bridal Lehenga Set', SAR: 'Saree', SAL: 'Salwar Suit', SHE: 'Sherwani', BSN: 'Bridal Sneakers', GEN: 'Other' };
-              return `
-                <div class="mb-3">
-                  <div class="d-flex justify-between text-xs mb-1">
-                    <span class="font-semibold">${labels[type] || type}</span>
-                    <span class="text-muted">${count} (${pct}%)</span>
-                  </div>
-                  <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-                </div>`;
+          <div class="card-title mb-4">🧵 Revenue by Garment Type</div>
+          ${Object.keys(revenueByType).length === 0 ? '<div class="text-xs text-muted text-center p-4">No orders yet.</div>' :
+            Object.entries(revenueByType).sort((a, b) => b[1].revenue - a[1].revenue).map(([type, data]) => {
+              const totalRev2 = Object.values(revenueByType).reduce((s, d) => s + d.revenue, 0) || 1;
+              const pct = Math.round((data.revenue / totalRev2) * 100);
+              return '<div class="mb-3">' +
+                '<div class="d-flex justify-between text-xs mb-1">' +
+                  '<span class="font-semibold">' + (typeLabels[type] || type) + '</span>' +
+                  '<span class="text-muted">' + data.count + ' orders · ' + Utils.formatCurrency(data.revenue) + ' (' + pct + '%)</span>' +
+                '</div>' +
+                '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
+              '</div>';
             }).join('')}
         </div>
       </div>
 
-      <!-- Upcoming deadlines + overdue -->
-      <div class="d-grid gap-4 animate-fade-in stagger-3" style="grid-template-columns:${overdue.length > 0 ? '1fr 1fr' : '1fr'}">
+      <!-- Top clients + upcoming deadlines -->
+      <div class="d-grid gap-4 mb-4 animate-fade-in stagger-4" style="grid-template-columns:1fr 1fr">
 
-        ${upcoming.length > 0 ? `
+        <!-- Top clients -->
+        <div class="card p-5">
+          <div class="card-title mb-4">🏆 Top Clients by Lifetime Value</div>
+          ${topClients.length === 0 ? '<div class="text-xs text-muted text-center p-4">No orders yet.</div>' :
+            topClients.map(([clientId, data], idx) =>
+              '<div class="d-flex justify-between items-center p-2 rounded-md mb-2" style="background:rgba(255,255,255,0.02);border:1px solid var(--pc-border)">' +
+                '<div class="d-flex items-center gap-2">' +
+                  '<span class="font-mono text-xs text-muted">#' + (idx+1) + '</span>' +
+                  '<div class="avatar avatar-sm" style="background:' + Utils.getAvatarColor(data.name) + ';color:var(--pc-text-inverse);width:26px;height:26px;font-size:10px">' + Utils.getInitials(data.name) + '</div>' +
+                  '<div>' +
+                    '<div class="text-sm font-semibold">' + Utils.sanitizeHTML(data.name) + '</div>' +
+                    '<div class="text-xs text-muted">' + data.orders + ' order' + (data.orders !== 1 ? 's' : '') + '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<span class="font-mono text-sm font-bold text-gold">' + Utils.formatCurrency(data.spend) + '</span>' +
+              '</div>'
+            ).join('')}
+        </div>
+
+        <!-- Upcoming deadlines -->
         <div class="card p-0">
           <div class="card-header"><div class="card-title">📅 Deadlines — Next 30 Days</div></div>
-          <div class="table-container" style="border:none">
-            <table class="data-table">
-              <thead><tr><th>Order</th><th>Client</th><th>Stage</th><th>Deadline</th></tr></thead>
-              <tbody>
-                ${upcoming.map(o => {
-                  const days = Utils.daysFromNow(o.deadline);
-                  const cls  = days <= 3 ? 'text-danger font-semibold' : days <= 7 ? 'text-warning' : 'text-muted';
-                  return `<tr>
-                    <td class="font-medium">${Utils.sanitizeHTML(o.orderCode || o.title)}</td>
-                    <td class="text-xs">${Utils.sanitizeHTML(o.clientName)}</td>
-                    <td><span class="badge badge-gold text-xs">${o.status}</span></td>
-                    <td class="font-mono text-xs ${cls}">${Utils.formatDate(o.deadline)} (${days}d)</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>` : ''}
-
-        ${overdue.length > 0 ? `
-        <div class="card p-0" style="border-color:var(--pc-danger)">
-          <div class="card-header" style="background:rgba(220,38,38,0.06)">
-            <div class="card-title text-danger">⚠️ Overdue Orders (${overdue.length})</div>
-          </div>
-          <div class="table-container" style="border:none">
-            <table class="data-table">
-              <thead><tr><th>Order</th><th>Client</th><th>Stage</th><th>Overdue By</th></tr></thead>
-              <tbody>
-                ${overdue.map(o => {
-                  const days = Math.abs(Utils.daysFromNow(o.deadline));
-                  return `<tr>
-                    <td class="font-medium">${Utils.sanitizeHTML(o.orderCode || o.title)}</td>
-                    <td class="text-xs">${Utils.sanitizeHTML(o.clientName)}</td>
-                    <td><span class="badge badge-gold text-xs">${o.status}</span></td>
-                    <td class="font-mono text-xs text-danger font-semibold">${days} day${days !== 1 ? 's' : ''}</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>` : ''}
-
-        ${upcoming.length === 0 && overdue.length === 0 ? `
-        <div class="card p-8 text-center text-muted">
-          <div class="empty-state">
-            <div class="empty-state-icon">✅</div>
-            <div class="empty-state-title">All clear</div>
-            <div class="empty-state-text">No upcoming deadlines in the next 30 days.</div>
-          </div>
-        </div>` : ''}
+          ${upcoming.length === 0 ?
+            '<div class="p-6 text-center text-muted text-xs">No deadlines in the next 30 days. ✅</div>' :
+            '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Order</th><th>Client</th><th>Stage</th><th>Due</th></tr></thead><tbody>' +
+            upcoming.map(o => {
+              const days = Utils.daysFromNow(o.deadline);
+              const cls  = days <= 3 ? 'text-danger font-semibold' : days <= 7 ? 'text-warning' : 'text-muted';
+              return '<tr>' +
+                '<td class="font-medium">' + Utils.sanitizeHTML(o.orderCode || o.title) + '</td>' +
+                '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
+                '<td><span class="badge badge-gold text-xs">' + o.status + '</span></td>' +
+                '<td class="font-mono text-xs ' + cls + '">' + Utils.formatDate(o.deadline) + ' (' + days + 'd)</td>' +
+              '</tr>';
+            }).join('') +
+            '</tbody></table></div>'}
+        </div>
       </div>
+
+      <!-- Overdue orders (full width if any) -->
+      ${overdue.length > 0 ? `
+      <div class="card p-0 animate-fade-in stagger-4" style="border-color:var(--pc-danger)">
+        <div class="card-header" style="background:rgba(220,38,38,0.06)">
+          <div class="card-title text-danger">⚠️ Overdue Orders (${overdue.length})</div>
+        </div>
+        <div class="table-container" style="border:none">
+          <table class="data-table">
+            <thead><tr><th>Order</th><th>Client</th><th>Stage</th><th>Overdue By</th><th>Balance</th></tr></thead>
+            <tbody>
+              ${overdue.map(o => {
+                const days = Math.abs(Utils.daysFromNow(o.deadline));
+                const inv  = o.projectId
+                  ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0]
+                  : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === o.id)[0];
+                const bal  = inv ? Math.max(0, (inv.total || 0) - ((inv.amountPaid != null && inv.amountPaid !== '') ? parseFloat(inv.amountPaid) : 0)) : 0;
+                return '<tr>' +
+                  '<td class="font-medium">' + Utils.sanitizeHTML(o.orderCode || o.title) + '</td>' +
+                  '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
+                  '<td><span class="badge badge-gold text-xs">' + o.status + '</span></td>' +
+                  '<td class="font-mono text-xs text-danger font-semibold">' + days + ' day' + (days !== 1 ? 's' : '') + '</td>' +
+                  '<td class="font-mono text-xs ' + (bal > 0 ? 'text-danger' : 'text-success') + '">' + Utils.formatCurrency(bal) + '</td>' +
+                '</tr>';
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : ''}
     `;
   }
+
 
   // ── STAGE 3: Pooja records payment → Cleared for Delivery ──
   function recordPaymentAndClear(orderId) {
