@@ -112,6 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     s.id = 'shipping-mobile-css';
     s.textContent = [
       '@keyframes kpiIn{from{opacity:0;transform:translateY(10px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}',
+      '.kpi-tile:hover{transform:translateY(-3px) scale(1.04)!important;filter:brightness(1.2);}',
       '.workspace-content{padding:16px!important;}',
       '@media(max-width:480px){',
         '.workspace-header{padding:0 12px!important;height:56px!important;}',
@@ -278,16 +279,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     strip.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px;">' +
       kpis.map(function(k, i) {
-        return '<div style="' +
+        return '<div class="kpi-tile" style="' +
           'background:#12122a;' +
           'border:1px solid ' + (k.urgent ? k.color : '#2a2a4a') + ';' +
           'border-radius:10px;padding:10px 8px;text-align:center;' +
           'opacity:0;' +
           'animation:kpiIn 0.35s ease both;animation-delay:' + (i * 0.06).toFixed(2) + 's;' +
-          'transition:transform 0.18s ease,box-shadow 0.18s ease,border-color 0.18s ease;' +
+          'transition:transform 0.18s ease,box-shadow 0.18s ease;' +
           (k.urgent ? 'box-shadow:0 0 10px ' + k.color + '44;' : '') +
-        '" onmouseover="this.style.transform='translateY(-3px) scale(1.04)';this.style.borderColor='' + k.color + ''" ' +
-           'onmouseout="this.style.transform='';this.style.borderColor='' + (k.urgent ? k.color : '#2a2a4a') + ''">' +
+        '">' +
           '<div style="font-size:13px;color:#888;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:4px;">' + k.label + '</div>' +
           '<div style="font-size:11px;margin-bottom:4px;">' + k.icon + '</div>' +
           '<div style="font-size:22px;font-weight:900;color:' + k.color + ';line-height:1;">' + k.value + '</div>' +
