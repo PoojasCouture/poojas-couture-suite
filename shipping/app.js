@@ -176,13 +176,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!content) { showGate('Page layout error: .workspace-content not found in HTML.', true); return; }
 
   content.innerHTML = `
-    <!-- Mobile header greeting -->
-    <div style="padding:0 0 16px;border-bottom:1px solid #2a2a4a;margin-bottom:20px;">
-      <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;">Logistics Workstation</div>
-      <div style="font-size:24px;font-weight:800;color:#d4af37;line-height:1.1;">Hey, ${esc((currentUser.name || 'Shashank').split(' ')[0])} 👋</div>
-      <div style="font-size:12px;color:#666;margin-top:2px;">India & Overseas Hub</div>
-    </div>
-
     <!-- KPI Dashboard strip -->
     <div id="kpi-strip" style="margin-bottom:24px;"></div>
 
