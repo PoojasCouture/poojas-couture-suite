@@ -26,12 +26,12 @@ const HRM = (() => {
         </div>
       </div>
 
-      <div class="tabs animate-fade-in stagger-1">
-        <button class="tab-btn ${activeTab === 'employees' ? 'active' : ''}" data-tab="employees">Staff Directory</button>
-        <button class="tab-btn ${activeTab === 'attendance' ? 'active' : ''}" data-tab="attendance">Attendance Log</button>
-        <button class="tab-btn ${activeTab === 'leaves' ? 'active' : ''}" data-tab="leaves">Leave Requests</button>
-        <button class="tab-btn ${activeTab === 'payroll' ? 'active' : ''}" data-tab="payroll">Payroll Center</button>
-        <button class="tab-btn ${activeTab === 'performance' ? 'active' : ''}" data-tab="performance">Performance</button>
+      <div class="animate-fade-in" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+        <button class="tab-btn ${activeTab === 'employees' ? 'active' : ''}" data-tab="employees" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Staff Directory</button>
+        <button class="tab-btn ${activeTab === 'attendance' ? 'active' : ''}" data-tab="attendance" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Attendance Log</button>
+        <button class="tab-btn ${activeTab === 'leaves' ? 'active' : ''}" data-tab="leaves" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Leave Requests</button>
+        <button class="tab-btn ${activeTab === 'payroll' ? 'active' : ''}" data-tab="payroll" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Payroll Center</button>
+        <button class="tab-btn ${activeTab === 'performance' ? 'active' : ''}" data-tab="performance" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Performance</button>
       </div>
 
       <div id="hrm-tab-content" class="animate-fade-in stagger-2">
