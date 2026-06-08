@@ -8,114 +8,142 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="PC Logistics">
   <meta name="theme-color" content="#0a0a1a">
-  <title>Pooja's Couture — International Shipping (India)</title>
+  <title>Pooja's Couture — Logistics Portal</title>
   <link rel="icon" type="image/png" href="../assets/logo-mark.png">
-  <link rel="stylesheet" href="../css/index.css">
-  <link rel="stylesheet" href="style.css">
 
-  <!-- Supabase client + config (shared with main app) -->
+  <!-- Main app design system CSS -->
+  <link rel="stylesheet" href="../css/index.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/layout.css">
+
+  <!-- Supabase + config -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/config.js"></script>
+
+  <style>
+    /* ── KPI Drawer ─────────────────────────────────────── */
+    #kpi-drawer {
+      position: fixed;
+      top: 0; right: -340px;
+      width: 320px;
+      height: 100vh;
+      background: var(--pc-bg-card, #12122a);
+      border-left: 1px solid var(--pc-border, #2a2a4a);
+      z-index: 1000;
+      transition: right 0.3s cubic-bezier(.4,0,.2,1);
+      overflow-y: auto;
+      padding: 20px 16px;
+      box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+    }
+    #kpi-drawer.open { right: 0; }
+    #kpi-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    #kpi-overlay.open { opacity: 1; pointer-events: all; }
+    #kpi-toggle-btn {
+      position: fixed;
+      right: 0; top: 50%;
+      transform: translateY(-50%);
+      z-index: 998;
+      background: var(--pc-gold, #d4af37);
+      color: #12122a;
+      border: none;
+      border-radius: 10px 0 0 10px;
+      padding: 12px 8px;
+      cursor: pointer;
+      font-size: 18px;
+      writing-mode: vertical-rl;
+      font-weight: 800;
+      letter-spacing: 1px;
+      box-shadow: -4px 0 16px rgba(212,175,55,0.3);
+      transition: padding 0.2s;
+    }
+    #kpi-toggle-btn:hover { padding: 12px 12px; }
+
+    @keyframes kpiIn {
+      from { opacity:0; transform:translateY(10px) scale(.95); }
+      to   { opacity:1; transform:translateY(0) scale(1); }
+    }
+    .kpi-tile {
+      background: var(--pc-bg-dark, #0d0d1f);
+      border: 1px solid var(--pc-border, #2a2a4a);
+      border-radius: 10px;
+      padding: 12px 10px;
+      text-align: center;
+      animation: kpiIn 0.35s ease both;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      cursor: default;
+    }
+    .kpi-tile:hover {
+      transform: translateY(-3px) scale(1.04);
+      border-color: var(--pc-gold, #d4af37);
+      box-shadow: 0 6px 20px rgba(212,175,55,0.15);
+    }
+    .kpi-tile:hover .kpi-tile-value { color: var(--pc-gold, #d4af37); }
+    .kpi-tile-label { font-size:10px; font-weight:700; color:var(--pc-text-muted,#888); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+    .kpi-tile-icon  { font-size:14px; margin-bottom:4px; }
+    .kpi-tile-value { font-size:24px; font-weight:900; color:var(--pc-text,#fff); line-height:1; transition:color 0.2s; }
+
+    /* Mobile full-width */
+    @media (max-width: 600px) {
+      #kpi-drawer { width: 85vw; }
+      .nav-sidebar { display: none; }
+      .main-content { margin-left: 0 !important; }
+    }
+  </style>
 </head>
 <body>
 
-  <div class="app-container">
-
-    <!-- Loading / gate screen (shown while we check the shared session) -->
-    <div id="gate-screen" class="auth-overlay active">
-      <div class="login-card text-center">
-        <div class="brand-header">
-          <img src="../assets/logo-wordmark-light.png" alt="Pooja's Couture" class="brand-wordmark">
-          <h2 class="font-display">Shipping &amp; Logistics</h2>
-          <p class="text-muted text-xs" id="gate-message">Checking your session…</p>
-        </div>
-        <div id="gate-actions" class="d-none">
-          <a href="../index.html" class="btn btn-primary w-full">Go to Login</a>
-        </div>
-      </div>
+  <!-- KPI Drawer -->
+  <div id="kpi-overlay"></div>
+  <button id="kpi-toggle-btn" title="KPI Dashboard">📊 KPI</button>
+  <div id="kpi-drawer">
+    <div class="d-flex justify-between items-center mb-4">
+      <div class="font-display text-md text-gold">📊 KPI Dashboard</div>
+      <button id="kpi-close-btn" class="btn btn-secondary btn-sm">✕</button>
     </div>
-
-    <!-- Main Workspace -->
-    <div id="shipping-workspace" class="d-none">
-      <header class="workspace-header">
-        <div class="user-profile">
-          <div class="avatar avatar-sm" id="user-avatar">??</div>
-          <div>
-            <div class="user-name" id="user-display-name">Loading...</div>
-            <div class="user-role text-xs text-gold" id="user-display-role">Logistics Operator</div>
-          </div>
-        </div>
-        <div class="header-actions">
-          <button class="btn btn-secondary btn-sm" id="btn-logout">Logout</button>
-        </div>
-      </header>
-
-      <main class="workspace-content">
-        <!-- Dashboard Statistics -->
-        <section class="metrics-grid mb-6">
-          <div class="metric-box">
-            <div class="metric-val" id="count-ready">0</div>
-            <div class="metric-lbl">Awaiting Packing</div>
-          </div>
-          <div class="metric-box">
-            <div class="metric-val" id="count-transit">0</div>
-            <div class="metric-lbl">In Transit (Australia)</div>
-          </div>
-        </section>
-
-        <!-- Packing List Table -->
-        <section class="card p-0 mb-6">
-          <div class="card-header">
-            <div class="card-title">📦 Ready for Collection / Packing List</div>
-          </div>
-          <div class="table-container" style="border: none; border-radius: 0;">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Order Ref</th>
-                  <th>Client</th>
-                  <th>Value</th>
-                  <th>Deadline</th>
-                  <th style="width: 120px; text-align: right;">Action</th>
-                </tr>
-              </thead>
-              <tbody id="packing-table-body">
-                <!-- Dynamically populated -->
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- Shipped / Transit Tracking Table -->
-        <section class="card p-0">
-          <div class="card-header">
-            <div class="card-title">✈️ Active Export Shipments &amp; Tracking</div>
-          </div>
-          <div class="table-container" style="border: none; border-radius: 0;">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Tracking Code</th>
-                  <th>Carrier</th>
-                  <th>Outfit Item</th>
-                  <th>Shipment Value</th>
-                  <th style="width: 120px; text-align: right;">Mark Delivered</th>
-                </tr>
-              </thead>
-              <tbody id="transit-table-body">
-                <!-- Dynamically populated -->
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
+    <div id="kpi-content">
+      <div class="text-xs text-muted text-center p-4">Loading...</div>
     </div>
   </div>
 
-  <!-- Reusable Toast notifications -->
+  <!-- Gate screen -->
+  <div id="gate-screen" class="auth-overlay active">
+    <div class="login-card text-center">
+      <div class="brand-header">
+        <img src="../assets/logo-wordmark-light.png" alt="Pooja's Couture" class="brand-wordmark">
+        <h2 class="font-display">Shipping &amp; Logistics</h2>
+        <p class="text-muted text-xs" id="gate-message">Checking your session…</p>
+      </div>
+      <div id="gate-actions" class="d-none">
+        <a href="../index.html" class="btn btn-primary w-full">Go to Login</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <div id="shipping-workspace" class="d-none">
+    <header class="workspace-header">
+      <div class="user-profile">
+        <div class="avatar avatar-sm" id="user-avatar">??</div>
+        <div>
+          <div class="user-name" id="user-display-name">Loading...</div>
+          <div class="user-role text-xs text-gold" id="user-display-role">Logistics</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary btn-sm" id="btn-logout">Logout</button>
+      </div>
+    </header>
+    <main class="workspace-content" id="shipping-main"></main>
+  </div>
+
   <div id="toast-container"></div>
 
-  <!-- JS Scripts -->
   <script src="../js/utils.js"></script>
   <script src="../js/store.js"></script>
   <script src="app.js"></script>
