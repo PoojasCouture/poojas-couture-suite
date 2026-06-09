@@ -22,8 +22,7 @@ const Accounting = (() => {
           <p class="page-subtitle">Track boutique sales invoices, business expenses, GST BAS reporting and profit statements</p>
         </div>
         <div class="page-actions" id="accounting-page-actions">
-          <!-- Action buttons filled by JS -->
-        </div>
+          </div>
       </div>
 
       <div class="animate-fade-in" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
@@ -35,8 +34,7 @@ const Accounting = (() => {
       </div>
 
       <div id="accounting-tab-content" class="animate-fade-in stagger-2">
-        <!-- Sub-tab content dynamically rendered -->
-      </div>
+        </div>
     `;
 
     Utils.$$('.tab-btn', container).forEach(btn => {
@@ -87,9 +85,6 @@ const Accounting = (() => {
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
     const outstandingAmount = outstandingInvoices.reduce((sum, i) => sum + i.total, 0);
     const netProfit = totalRevenue - totalExpenses;
-
-    const gstCollected = invoices.filter(i => i.status === 'Paid' || i.status === 'Sent').reduce((sum, i) => sum + i.gstTotal, 0);
-    const gstPaid = expenses.reduce((sum, e) => sum + e.gst, 0);
 
     container.innerHTML = `
       <div class="widgets-grid animate-fade-in stagger-1">
@@ -669,7 +664,7 @@ const Accounting = (() => {
     const refreshTable = () => {
       const cat = catFilter.value;
       const expenses = Store.getAll(Store.COLLECTIONS.EXPENSES);
-      expenses.sort((a, b) => new Date(b.expenseDate) - new Date(a.expenseDate));
+      expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
       const filtered = expenses.filter(e => cat === 'all' || e.category === cat);
 
       Utils.$('#expense-count').textContent = `Showing ${filtered.length} of ${expenses.length} expenses`;
@@ -678,28 +673,22 @@ const Accounting = (() => {
       tbody.innerHTML = '';
 
       if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-muted">No expenses found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-muted">No expenses recorded.</td></tr>`;
         return;
       }
 
       filtered.forEach(e => {
         const tr = Utils.createElement('tr');
         tr.innerHTML = `
-          <td class="font-mono">${Utils.formatDate(e.expenseDate)}</td>
-          <td>
-            <span class="badge ${e.category === 'Fabric' ? 'badge-gold' : e.category === 'Salary' ? 'badge-info' : e.category === 'Rent' ? 'badge-purple' : 'badge-muted'}">
-              ${e.category}
-            </span>
-          </td>
-          <td class="font-medium">${Utils.sanitizeHTML(e.vendor)}</td>
-          <td class="text-muted truncate" style="max-width: 250px;" title="${Utils.sanitizeHTML(e.notes || '')}">
-            ${Utils.sanitizeHTML(e.notes || '—')}
-          </td>
-          <td class="font-mono text-muted">${Utils.formatCurrency(e.gst)}</td>
-          <td class="font-mono font-bold text-danger">-${Utils.formatCurrency(e.amount)}</td>
+          <td class="font-mono">${Utils.formatDate(e.date)}</td>
+          <td><span class="badge badge-muted">${e.category}</span></td>
+          <td class="font-medium">${Utils.sanitizeHTML(e.vendor || '')}</td>
+          <td class="text-muted text-sm">${Utils.sanitizeHTML(e.description || '')}</td>
+          <td class="font-mono text-muted">${Utils.formatCurrency(e.gst || 0)}</td>
+          <td class="font-mono font-semibold text-danger">${Utils.formatCurrency(e.amount)}</td>
           <td>
             <div class="table-actions justify-end">
-              <button class="btn btn-icon btn-ghost sm" title="Edit" onclick="Accounting.editExpense('${e.id}')">✏️</button>
+              <button class="btn btn-icon btn-ghost sm text-gold" title="Edit Expense" onclick="Accounting.showExpenseModal('${e.id}')">✏️</button>
               <button class="btn btn-icon btn-ghost sm text-danger" title="Delete" onclick="Accounting.deleteExpense('${e.id}')">🗑️</button>
             </div>
           </td>
@@ -712,81 +701,103 @@ const Accounting = (() => {
     refreshTable();
   }
 
-  function showExpenseModal(expId = null) {
-    const isEdit = !!expId;
-    const exp = isEdit ? Store.getById(Store.COLLECTIONS.EXPENSES, expId) : null;
+  function showExpenseModal(expenseId = null) {
+    const isEdit = !!expenseId;
+    const exp = isEdit ? Store.getById(Store.COLLECTIONS.EXPENSES, expenseId) : null;
 
     const modalHTML = `
       <form id="expense-form" class="animate-fade-in-scale">
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Expense Category <span class="required">*</span></label>
+            <label class="form-label">Expense Date <span class="required">*</span></label>
+            <input type="date" name="date" class="form-input" required value="${exp ? exp.date : new Date().toISOString().split('T')[0]}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category <span class="required">*</span></label>
             <select name="category" class="form-select" required>
+              <option value="">-- Choose Category --</option>
               <option value="Fabric" ${exp && exp.category === 'Fabric' ? 'selected' : ''}>Fabric / Materials</option>
               <option value="Rent" ${exp && exp.category === 'Rent' ? 'selected' : ''}>Showroom Rent</option>
               <option value="Utilities" ${exp && exp.category === 'Utilities' ? 'selected' : ''}>Utilities</option>
               <option value="Marketing" ${exp && exp.category === 'Marketing' ? 'selected' : ''}>Marketing / Ads</option>
               <option value="Salary" ${exp && exp.category === 'Salary' ? 'selected' : ''}>Salary / Wages</option>
               <option value="Equipment" ${exp && exp.category === 'Equipment' ? 'selected' : ''}>Equipment / Tools</option>
-              <option value="Other" ${exp && exp.category === 'Other' ? 'selected' : ''}>Other</option>
+              <option value="Other" ${exp && exp.category === 'Other' ? 'selected' : ''}>Other Expenses</option>
             </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Paid to / Vendor <span class="required">*</span></label>
-            <input type="text" name="vendor" class="form-input" required placeholder="e.g. Banaras Fabrics Ltd" value="${exp ? Utils.sanitizeHTML(exp.vendor) : ''}">
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Date of Payment <span class="required">*</span></label>
-            <input type="date" name="date" class="form-input" required value="${exp ? exp.expenseDate : new Date().toISOString().split('T')[0]}">
+            <label class="form-label">Paid To / Vendor <span class="required">*</span></label>
+            <input type="text" name="vendor" class="form-input" required placeholder="e.g., Textile Wholesalers Pty Ltd" value="${exp ? Utils.sanitizeHTML(exp.vendor) : ''}">
           </div>
           <div class="form-group">
-            <label class="form-label">Total Paid Amount (inc GST) <span class="required">*</span></label>
-            <input type="number" name="amount" class="form-input" min="0" step="0.01" required value="${exp ? exp.amount : ''}">
+            <label class="form-label">Total Amount (inc GST) <span class="required">*</span></label>
+            <input type="number" step="0.01" name="amount" id="expense-amount" class="form-input font-mono" required placeholder="0.00" value="${exp ? exp.amount : ''}">
           </div>
         </div>
-        <div class="form-group">
-          <label class="d-flex items-center gap-2 text-sm text-muted">
-            <input type="checkbox" name="gstRegistered" id="expense-gst-registered" ${!exp || exp.gst > 0 ? 'checked' : ''}> Include 10% GST Claim (Wages are GST exempt)
+        <div class="form-row items-center pt-2">
+          <label class="d-flex items-center gap-2 text-sm" style="cursor: pointer;">
+            <input type="checkbox" id="expense-has-gst" ${!exp || exp.gst > 0 ? 'checked' : ''}> This transaction included standard GST (1/11th of total)
           </label>
+          <div class="text-xs text-muted font-mono" style="margin-left: auto;">
+            Calculated GST Component: <span id="expense-gst-preview">$0.00</span>
+          </div>
         </div>
-        <div class="form-group m-0">
-          <label class="form-label">Expense Log Notes</label>
-          <textarea name="notes" class="form-textarea" placeholder="Details of fabric materials, invoice attachments references...">${exp ? Utils.sanitizeHTML(exp.notes || '') : ''}</textarea>
+        <div class="form-group mt-4">
+          <label class="form-label">Description / Remarks</label>
+          <textarea name="description" class="form-textarea" placeholder="Itemize details, raw materials list, or reference order IDs...">${exp ? Utils.sanitizeHTML(exp.description || '') : ''}</textarea>
         </div>
       </form>
     `;
 
     App.showModal({
-      title: isEdit ? 'Edit Ledger Expense' : 'Log Business Expense',
+      title: isEdit ? 'Modify Logged Expense' : 'Log Business Expense',
       content: modalHTML,
-      submitText: isEdit ? 'Save Changes' : 'Log Expense',
+      submitText: isEdit ? 'Save Changes' : 'Record Transaction',
+      onReady: (modalEl) => {
+        const amtInput = Utils.$('#expense-amount', modalEl);
+        const gstCheck = Utils.$('#expense-has-gst', modalEl);
+        const gstPreview = Utils.$('#expense-gst-preview', modalEl);
+
+        const updateGstPreview = () => {
+          const total = parseFloat(amtInput.value) || 0;
+          if (gstCheck.checked && total > 0) {
+            const calculatedGst = Math.round((total / 11) * 100) / 100;
+            gstPreview.textContent = Utils.formatCurrency(calculatedGst);
+          } else {
+            gstPreview.textContent = '$0.00';
+          }
+        };
+
+        amtInput.addEventListener('input', updateGstPreview);
+        gstCheck.addEventListener('change', updateGstPreview);
+        updateGstPreview();
+      },
       onSubmit: (modalEl) => {
         const form = Utils.$('#expense-form', modalEl);
         if (!form.checkValidity()) { form.reportValidity(); return false; }
 
         const formData = new FormData(form);
-        const amount = parseFloat(formData.get('amount'));
-        const hasGst = Utils.$('#expense-gst-registered', modalEl).checked;
-        const gst = hasGst ? Math.round((amount / 11) * 100) / 100 : 0;
+        const totalAmount = parseFloat(formData.get('amount')) || 0;
+        const hasGst = Utils.$('#expense-has-gst', modalEl).checked;
+        const calculatedGst = hasGst ? Math.round((totalAmount / 11) * 100) / 100 : 0;
 
-        const expData = {
+        const expenseData = {
+          date: formData.get('date'),
           category: formData.get('category'),
           vendor: formData.get('vendor'),
-          expenseDate: formData.get('date'),
-          amount,
-          gst,
-          notes: formData.get('notes'),
-          isRecurring: false
+          amount: Math.round(totalAmount * 100) / 100,
+          gst: calculatedGst,
+          description: formData.get('description')
         };
 
         if (isEdit) {
-          Store.update(Store.COLLECTIONS.EXPENSES, expId, expData);
-          Utils.showToast('Expense log updated.');
+          Store.update(Store.COLLECTIONS.EXPENSES, expenseId, expenseData);
+          Utils.showToast('Expense entry updated.');
         } else {
-          Store.create(Store.COLLECTIONS.EXPENSES, expData);
-          Utils.showToast('Business expense registered.');
+          Store.create(Store.COLLECTIONS.EXPENSES, expenseData);
+          Utils.showToast('Expense transaction recorded safely.');
         }
 
         renderSubTab();
@@ -795,111 +806,78 @@ const Accounting = (() => {
     });
   }
 
-  function editExpense(id) { showExpenseModal(id); }
-
   function deleteExpense(id) {
     App.showConfirm({
-      title: 'Remove Expense',
-      text: 'Are you sure you want to delete this expense record from the ledger?',
-      confirmText: 'Delete Expense',
+      title: 'Purge Expense Record',
+      text: 'Are you certain you wish to erase this expense entry from your balance sheets?',
+      confirmText: 'Remove Entry',
       onConfirm: () => {
         Store.delete(Store.COLLECTIONS.EXPENSES, id);
-        Utils.showToast('Expense record deleted.', 'info');
+        Utils.showToast('Expense record permanently deleted.', 'info');
         renderSubTab();
       }
     });
   }
 
   // ==========================================
-  // GST BAS REPORT
+  // GST BAS REPORT ENGINE
   // ==========================================
 
   function renderGST(container, actions) {
     const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
     const expenses = Store.getAll(Store.COLLECTIONS.EXPENSES);
-    const settings = Store.getSettings();
 
-    const quarters = [
-      { name: 'Q1 (Jul - Sep)', months: [6, 7, 8], collected: 0, paid: 0 },
-      { name: 'Q2 (Oct - Dec)', months: [9, 10, 11], collected: 0, paid: 0 },
-      { name: 'Q3 (Jan - Mar)', months: [0, 1, 2], collected: 0, paid: 0 },
-      { name: 'Q4 (Apr - Jun)', months: [3, 4, 5], collected: 0, paid: 0 }
-    ];
+    // Calculate Cash Basis BAS allocations
+    const cashInvoices = invoices.filter(i => i.status === 'Paid');
+    const totalG1Sales = cashInvoices.reduce((sum, i) => sum + i.total, 0);
+    const total1ACollected = cashInvoices.reduce((sum, i) => sum + i.gstTotal, 0);
 
-    invoices.filter(i => i.status === 'Paid' || i.status === 'Sent').forEach(i => {
-      const m = new Date(i.issueDate).getMonth();
-      quarters.forEach(q => { if (q.months.includes(m)) q.collected += i.gstTotal; });
-    });
-
-    expenses.forEach(e => {
-      const m = new Date(e.expenseDate).getMonth();
-      quarters.forEach(q => { if (q.months.includes(m)) q.paid += e.gst; });
-    });
-
-    const totalCollected = quarters.reduce((sum, q) => sum + q.collected, 0);
-    const totalPaid = quarters.reduce((sum, q) => sum + q.paid, 0);
-    const netGst = totalCollected - totalPaid;
+    const total1BPaid = expenses.reduce((sum, e) => sum + (e.gst || 0), 0);
+    const netGstPosition = total1ACollected - total1BPaid;
 
     container.innerHTML = `
-      <div class="d-grid gap-6" style="grid-template-columns: 1fr 2fr;">
-        <div class="d-flex flex-col gap-4">
-          <div class="card p-5">
-            <h3 class="font-display text-sm mb-3">GST Liability Summary</h3>
-            <div class="d-flex flex-col gap-3">
+      <div class="card p-6 mb-6 alert-banner ${netGstPosition >= 0 ? 'bg-amber-soft' : 'bg-green-soft'}">
+        <h3 class="font-semibold text-md mb-2">Quarterly Activity Statement Summary (Estimated)</h3>
+        <p class="text-sm text-muted">
+          Calculations below reflect values matching the <strong>Australian Taxation Office (ATO)</strong> continuous cash accounting model format.
+        </p>
+      </div>
+
+      <div class="content-grid" style="grid-template-columns: 1.5fr 1fr; gap: 24px;">
+        <div class="card p-0">
+          <div class="card-header"><span class="font-bold text-gold">BAS Fields Breakdown</span></div>
+          <div class="p-6 d-flex flex-col gap-4">
+            <div class="d-flex justify-between items-center pb-2" style="border-bottom: 1px dashed var(--pc-border);">
               <div>
-                <div class="text-xs text-muted">GST Collected (Sales)</div>
-                <div class="text-md font-mono font-semibold text-success">${Utils.formatCurrency(totalCollected)}</div>
+                <span class="font-mono font-bold bg-muted p-1 rounded text-xs">G1</span>
+                <span class="text-sm font-medium ml-2">Total Gross Sales (inc GST)</span>
               </div>
+              <span class="font-mono font-bold">${Utils.formatCurrency(totalG1Sales)}</span>
+            </div>
+            <div class="d-flex justify-between items-center pb-2" style="border-bottom: 1px dashed var(--pc-border);">
               <div>
-                <div class="text-xs text-muted">GST Paid (Expenses)</div>
-                <div class="text-md font-mono font-semibold text-danger">-${Utils.formatCurrency(totalPaid)}</div>
+                <span class="font-mono font-bold bg-muted p-1 rounded text-xs">1A</span>
+                <span class="text-sm font-medium ml-2">GST Collected from Clients</span>
               </div>
-              <div style="border-top: 1px solid var(--pc-border); padding-top: 12px; margin-top: 4px;">
-                <div class="text-xs text-muted">Net Refund / Liability (ATO Payment)</div>
-                <div class="text-lg font-mono font-bold ${netGst >= 0 ? 'text-gold' : 'text-success'}">
-                  ${Utils.formatCurrency(Math.abs(netGst))} ${netGst >= 0 ? 'Due' : 'Refund'}
-                </div>
+              <span class="font-mono font-bold text-warning">${Utils.formatCurrency(total1ACollected)}</span>
+            </div>
+            <div class="d-flex justify-between items-center pb-2" style="border-bottom: 1px dashed var(--pc-border);">
+              <div>
+                <span class="font-mono font-bold bg-muted p-1 rounded text-xs">1B</span>
+                <span class="text-sm font-medium ml-2">GST Paid on Business Outlays</span>
               </div>
+              <span class="font-mono font-bold text-success">${Utils.formatCurrency(total1BPaid)}</span>
             </div>
           </div>
-          <div class="card p-5">
-            <h4 class="text-xs font-semibold text-gold mb-2">Australian ATO Compliance</h4>
-            <p class="text-xs text-muted font-light m-0">
-              Pooja's Couture is registered for GST (ABN: ${settings.abn}). BAS statements must be submitted quarterly.
-              GST collected represents 10% on tax invoices. GST paid represents 1/11th of eligible business purchases.
-            </p>
-          </div>
         </div>
-        <div class="card p-0">
-          <div class="card-header">
-            <div class="card-title">Business Activity Statement (BAS) Quarters</div>
+
+        <div class="card text-center p-6 d-flex flex-col justify-center items-center" style="background: var(--pc-bg-light);">
+          <div class="text-xs font-semibold text-muted text-transform-uppercase tracking-wider mb-2">Net ATO Settlement Payable</div>
+          <div class="text-3xl font-mono font-bold ${netGstPosition >= 0 ? 'text-warning' : 'text-success'}" style="font-size:32px; margin: 12px 0;">
+            ${Utils.formatCurrency(Math.abs(netGstPosition))}
           </div>
-          <div class="table-container" style="border: none; border-radius: 0;">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Financial Quarter</th>
-                  <th>GST Collected (G1)</th>
-                  <th>GST Paid (1B)</th>
-                  <th>Net Position</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${quarters.map(q => {
-                  const qNet = q.collected - q.paid;
-                  return `
-                    <tr>
-                      <td class="font-medium">${q.name}</td>
-                      <td class="font-mono text-success">${Utils.formatCurrency(q.collected)}</td>
-                      <td class="font-mono text-danger">-${Utils.formatCurrency(q.paid)}</td>
-                      <td class="font-mono font-semibold ${qNet >= 0 ? 'text-gold' : 'text-success'}">
-                        ${qNet >= 0 ? 'Due: ' : 'Refund: '}${Utils.formatCurrency(Math.abs(qNet))}
-                      </td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
+          <div class="text-xs text-muted">
+            ${netGstPosition >= 0 ? '⚠️ Budget this amount for your upcoming quarterly BAS return.' : '✅ Expected refund asset configuration generated.'}
           </div>
         </div>
       </div>
@@ -907,253 +885,91 @@ const Accounting = (() => {
   }
 
   // ==========================================
-  // FINANCIAL REPORTS
+  // FINANCIAL PERFORMANCE REPORT GENERATOR
   // ==========================================
 
   function renderReports(container, actions) {
-    const invoices = Store.getAll(Store.COLLECTIONS.INVOICES).filter(i => i.status === 'Paid');
+    const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
     const expenses = Store.getAll(Store.COLLECTIONS.EXPENSES);
 
-    const totalRev = invoices.reduce((sum, i) => sum + i.subtotal, 0);
-    const totalExp = expenses.reduce((sum, e) => sum + (e.amount - e.gst), 0);
-    const operatingProfit = totalRev - totalExp;
+    const revenue = invoices.filter(i => i.status === 'Paid').reduce((sum, i) => sum + i.total, 0);
+    const costOfGoods = expenses.filter(e => e.category === 'Fabric' || e.category === 'Equipment').reduce((sum, e) => sum + e.amount, 0);
+    const operatingExpenses = expenses.filter(e => e.category !== 'Fabric' && e.category !== 'Equipment').reduce((sum, e) => sum + e.amount, 0);
 
-    const categoriesMap = {};
-    expenses.forEach(e => {
-      categoriesMap[e.category] = (categoriesMap[e.category] || 0) + (e.amount - e.gst);
-    });
+    const grossProfit = revenue - costOfGoods;
+    const netProfit = grossProfit - operatingExpenses;
 
     container.innerHTML = `
-      <div class="card p-8 max-w-xl mx-auto" style="max-width: 680px; margin: 0 auto;">
-        <div class="text-center mb-6" style="border-bottom: 2px solid var(--pc-gold); padding-bottom: 16px;">
-          <h2 class="font-display">Pooja's Couture</h2>
-          <p class="text-xs text-gold text-uppercase mt-1">Profit & Loss Statement (Cash-Basis)</p>
-          <p class="text-xs text-muted mt-1">For Period: 01 Jul 2025 to 30 Jun 2026</p>
+      <div class="card p-8 font-serif" style="background:#fff; color:#222; border-radius: var(--radius-lg); box-shadow: var(--shadow-md);">
+        <div class="text-center mb-6">
+          <h2 style="margin:0; font-size:22px; color:#111;">POOJA'S COUTURE</h2>
+          <div style="font-size:12px; color:#666; font-family:sans-serif; margin-top:4px;">Profit & Loss Year-to-Date Statement</div>
+          <div style="font-size:10px; color:#999; font-family:sans-serif;">Generated via cash flow clearing metrics</div>
         </div>
-        <div class="d-flex flex-col gap-4">
-          <div>
-            <div class="d-flex justify-between items-center text-sm font-semibold text-gold" style="border-bottom: 1px solid var(--pc-border); padding-bottom: 6px;">
-              <span>1. OPERATING REVENUE</span><span>EX GST</span>
-            </div>
-            <div class="d-flex justify-between text-xs p-2 mt-2">
-              <span class="text-muted">Couture Sales & Design Fees</span>
-              <span class="font-mono">${Utils.formatCurrency(totalRev)}</span>
-            </div>
-            <div class="d-flex justify-between text-xs font-semibold p-2" style="background: rgba(255,255,255,0.01);">
-              <span>Total Revenue</span>
-              <span class="font-mono">${Utils.formatCurrency(totalRev)}</span>
-            </div>
+
+        <div style="font-family:sans-serif; font-size:13px; margin-top:24px;">
+          <div class="d-flex justify-between font-bold" style="border-bottom: 2px solid #111; padding-bottom:4px; font-size:14px;">
+            <span>Account Description</span>
+            <span>YTD Balance ($)</span>
           </div>
-          <div>
-            <div class="d-flex justify-between items-center text-sm font-semibold text-gold" style="border-bottom: 1px solid var(--pc-border); padding-bottom: 6px;">
-              <span>2. OPERATING EXPENSES</span><span>EX GST</span>
-            </div>
-            ${Object.entries(categoriesMap).map(([cat, val]) => `
-              <div class="d-flex justify-between text-xs p-2">
-                <span class="text-muted">${cat} Expenses</span>
-                <span class="font-mono">${Utils.formatCurrency(val)}</span>
-              </div>
-            `).join('')}
-            ${Object.keys(categoriesMap).length === 0 ? `<div class="text-xs text-muted p-2">No expenses logged.</div>` : ''}
-            <div class="d-flex justify-between text-xs font-semibold p-2" style="background: rgba(255,255,255,0.01); border-top: 1px solid var(--pc-border);">
-              <span>Total Operating Expenses</span>
-              <span class="font-mono">${Utils.formatCurrency(totalExp)}</span>
-            </div>
+
+          <div class="d-flex justify-between font-semibold mt-3" style="padding-left: 0;">
+            <span>Operating Revenue (Gross Sales Cleared)</span>
+            <span class="font-mono">${Utils.formatCurrency(revenue)}</span>
           </div>
-          <div class="mt-4" style="border-top: 2px solid var(--pc-border); border-bottom: 2px solid var(--pc-border); padding: 12px 0;">
-            <div class="d-flex justify-between items-center font-bold text-md">
-              <span class="text-gold">NET OPERATING PROFIT / LOSS</span>
-              <span class="font-mono ${operatingProfit >= 0 ? 'text-success' : 'text-danger'}">${Utils.formatCurrency(operatingProfit)}</span>
-            </div>
+
+          <div class="d-flex justify-between text-muted mt-2" style="padding-left: var(--sp-4); font-style: italic;">
+            <span>Less: Cost of Goods Sold (COGS — Fabrics/Tools)</span>
+            <span class="font-mono">(${Utils.formatCurrency(costOfGoods)})</span>
           </div>
-        </div>
-        <div class="d-flex justify-end gap-2 mt-6">
-          <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨️ Print Statement</button>
+
+          <div class="d-flex justify-between font-bold mt-2" style="border-top:1px solid #ccc; border-bottom:1px solid #ccc; padding: 4px 0;">
+            <span>Gross Operating Profit Margin</span>
+            <span class="font-mono">${Utils.formatCurrency(grossProfit)}</span>
+          </div>
+
+          <div class="d-flex justify-between font-semibold mt-4">
+            <span>Operating Expenditures (OPEX)</span>
+            <span></span>
+          </div>
+
+          <div class="d-flex justify-between text-muted mt-1" style="padding-left: var(--sp-4);">
+            <span>Rent & Commercial Real Estate Allocations</span>
+            <span class="font-mono">${Utils.formatCurrency(expenses.filter(e => e.category === 'Rent').reduce((s, e) => s + e.amount, 0))}</span>
+          </div>
+          <div class="d-flex justify-between text-muted mt-1" style="padding-left: var(--sp-4);">
+            <span>Marketing Campaigns & Digital Outreach</span>
+            <span class="font-mono">${Utils.formatCurrency(expenses.filter(e => e.category === 'Marketing').reduce((s, e) => s + e.amount, 0))}</span>
+          </div>
+          <div class="d-flex justify-between text-muted mt-1" style="padding-left: var(--sp-4);">
+            <span>Staff Remuneration & Discretionary Compensation</span>
+            <span class="font-mono">${Utils.formatCurrency(expenses.filter(e => e.category === 'Salary').reduce((s, e) => s + e.amount, 0))}</span>
+          </div>
+          <div class="d-flex justify-between text-muted mt-1" style="padding-left: var(--sp-4);">
+            <span>Utilities & Ancillary Operations Overhead</span>
+            <span class="font-mono">${Utils.formatCurrency(expenses.filter(e => e.category === 'Utilities' || e.category === 'Other').reduce((s, e) => s + e.amount, 0))}</span>
+          </div>
+
+          <div class="d-flex justify-between font-bold mt-4" style="border-top: 2px solid #111; border-bottom: 4px double #111; padding: 6px 0; font-size:15px; color:${netProfit >= 0 ? '#10B981' : '#EF4444'}">
+            <span>NET INCOME POSITION (Net Profit / Loss)</span>
+            <span class="font-mono">${Utils.formatCurrency(netProfit)}</span>
+          </div>
         </div>
       </div>
     `;
   }
 
-  // ==========================================
-  // MILESTONE PAYMENT RECORDING (from Accounting tab)
-  // ==========================================
-
-  function recordMilestonePayment(invoiceId) {
-    const invoice = Store.getById(Store.COLLECTIONS.INVOICES, invoiceId);
-    if (!invoice) { Utils.showToast('Invoice not found.', 'error'); return; }
-
-    const milestones = invoice.milestones || [];
-    if (milestones.length === 0) {
-      Utils.showToast('This invoice has no milestones.', 'info');
-      return;
-    }
-
-    const milestoneIndex = milestones.findIndex(m => !m.paid);
-    if (milestoneIndex === -1) {
-      Utils.showToast('All milestones are already paid.', 'info');
-      return;
-    }
-
-    const m = milestones[milestoneIndex];
-    const totalPaidSoFar = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
-    const mBalance = Math.round((m.amount - (m.paidAmount || 0)) * 100) / 100;
-
-    const milestonesHTML = milestones.map((ms, idx) => {
-      const isCurrent = idx === milestoneIndex;
-      return '<div class="d-flex justify-between items-center p-2 rounded-md text-xs" style="background:rgba(255,255,255,0.02);border:1px solid ' + (isCurrent ? 'var(--pc-gold)' : 'var(--pc-border)') + '">' +
-        '<span class="' + (isCurrent ? 'font-semibold text-gold' : 'text-muted') + '">' + Utils.sanitizeHTML(ms.label) + (isCurrent ? ' \u2190 current' : '') + '</span>' +
-        '<span class="font-mono ' + (ms.paid ? 'text-success' : isCurrent ? 'text-gold' : 'text-muted') + '">' +
-          (ms.paid ? '\u2713 ' + Utils.formatCurrency(ms.paidAmount) : Utils.formatCurrency(ms.amount)) +
-        '</span>' +
-      '</div>';
-    }).join('');
-
-    App.showModal({
-      title: '\uD83D\uDCB3 Record Payment \u2014 ' + m.label,
-      content: '<form id="acct-milestone-pay-form" class="animate-fade-in-scale">' +
-        '<div class="p-3 rounded-md mb-3" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">' +
-          '<div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Invoice:</span><span class="font-mono font-bold">' + Utils.sanitizeHTML(invoice.invoiceNumber) + '</span></div>' +
-          '<div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Client:</span><span class="font-semibold">' + Utils.sanitizeHTML(invoice.clientName) + '</span></div>' +
-        '</div>' +
-        '<div class="p-3 rounded-md mb-4" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">' +
-          '<div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Milestone amount:</span><span class="font-mono font-bold">' + Utils.formatCurrency(m.amount) + '</span></div>' +
-          (m.paidAmount > 0 ? '<div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Already paid:</span><span class="font-mono text-success">' + Utils.formatCurrency(m.paidAmount) + '</span></div>' : '') +
-          '<div class="d-flex justify-between text-sm font-bold" style="border-top:1px solid var(--pc-border);padding-top:6px;margin-top:4px"><span>Outstanding:</span><span class="font-mono text-danger">' + Utils.formatCurrency(mBalance) + '</span></div>' +
-        '</div>' +
-        '<div class="d-flex flex-col gap-2 mb-4">' + milestonesHTML + '</div>' +
-        '<div class="form-group">' +
-          '<label class="form-label">Amount Received (AUD) <span class="required">*</span></label>' +
-          '<input type="number" name="amount" class="form-input" id="acct-milestone-amount" min="0" step="0.01" value="' + mBalance + '" required>' +
-          '<div id="acct-milestone-hint" class="text-xs text-muted mt-1">Pre-filled with outstanding amount. Edit if partial payment received.</div>' +
-        '</div>' +
-        '<div class="form-group m-0">' +
-          '<label class="form-label">Payment Method</label>' +
-          '<select name="paymentMethod" class="form-select">' +
-            '<option value="Bank Transfer">Bank Transfer</option>' +
-            '<option value="Cash">Cash</option>' +
-            '<option value="Card">Card</option>' +
-            '<option value="Other">Other</option>' +
-          '</select>' +
-        '</div>' +
-      '</form>',
-      submitText: '\u2713 Confirm Payment',
-      onSubmit: async (modalEl) => {
-        const form = Utils.$('#acct-milestone-pay-form', modalEl);
-        if (!form.checkValidity()) { form.reportValidity(); return false; }
-        const fd = new FormData(form);
-        const amount = parseFloat(fd.get('amount')) || 0;
-        if (amount <= 0) { Utils.showToast('Enter a payment amount greater than zero.', 'error'); return false; }
-
-        const shortfall = Math.max(0, Math.round((m.amount - (m.paidAmount || 0) - amount) * 100) / 100);
-        const updatedMilestones = milestones.map((ms, idx) => {
-          if (idx === milestoneIndex) {
-            const newPaidAmount = Math.round(((ms.paidAmount || 0) + amount) * 100) / 100;
-            return Object.assign({}, ms, { paidAmount: newPaidAmount, paid: newPaidAmount >= ms.amount });
-          }
-          if (idx === milestoneIndex + 1 && shortfall > 0) {
-            const newAmount = Math.round((ms.amount + shortfall) * 100) / 100;
-            return Object.assign({}, ms, { amount: newAmount, rollover: Math.round(((ms.rollover || 0) + shortfall) * 100) / 100 });
-          }
-          return ms;
-        });
-
-        const newTotalPaid = Math.round((totalPaidSoFar + amount) * 100) / 100;
-        const newBalance   = Math.round((invoice.total - newTotalPaid) * 100) / 100;
-        const newStatus    = newBalance <= 0 ? 'Paid' : 'Partially Paid';
-
-        await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-          amountPaid: newTotalPaid,
-          status: newStatus,
-          milestones: updatedMilestones,
-          notes: (invoice.notes || '') + '\n' + m.label + ': ' + Utils.formatCurrency(amount) + ' via ' + fd.get('paymentMethod') + ' on ' + new Date().toLocaleDateString('en-AU') + '.'
-        });
-
-        Utils.showToast('Payment of ' + Utils.formatCurrency(amount) + ' recorded. Balance: ' + Utils.formatCurrency(newBalance) + '.', 'success');
-        App.closeModal();
-        renderSubTab();
-        return true;
-      }
-    });
-
-    setTimeout(() => {
-      const input = document.getElementById('acct-milestone-amount');
-      const hint  = document.getElementById('acct-milestone-hint');
-      if (!input || !hint) return;
-      input.addEventListener('input', () => {
-        const amt = parseFloat(input.value) || 0;
-        if (amt < mBalance && amt > 0) {
-          hint.textContent = 'Partial payment. ' + Utils.formatCurrency(mBalance - amt) + ' will remain outstanding on this milestone.';
-          hint.style.color = '#a78bfa';
-        } else if (amt >= mBalance && amt > 0) {
-          hint.textContent = '\u2713 Clears this milestone fully.';
-          hint.style.color = '#10b981';
-        } else {
-          hint.textContent = 'Pre-filled with outstanding amount. Edit if partial payment received.';
-          hint.style.color = '';
-        }
-      });
-    }, 100);
-  }
-
-  function showReport(type) {
-    const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
-    const expenses = Store.getAll(Store.COLLECTIONS.EXPENSES) || [];
-    const paidInv   = invoices.filter(i => i.status === 'Paid');
-    const unpaidInv = invoices.filter(i => (i.total||0) > (parseFloat(i.amountPaid)||0));
-    let title = '', content = '';
-    if (type === 'revenue') {
-      title = 'Revenue Report';
-      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Date</th><th>Amount</th></tr></thead><tbody>' +
-        paidInv.sort((a,b)=>new Date(b.issueDate||0)-new Date(a.issueDate||0)).map(inv =>
-          '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(inv.invoiceNumber||'') + '</td>' +
-          '<td class="text-xs">' + Utils.sanitizeHTML(inv.clientName||'') + '</td>' +
-          '<td class="text-xs">' + Utils.formatDate(inv.issueDate) + '</td>' +
-          '<td class="font-mono text-xs font-bold">' + Utils.formatCurrency(inv.total) + '</td></tr>'
-        ).join('') + '</tbody></table></div>';
-    } else if (type === 'expenses') {
-      title = 'Expenses Report';
-      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th></tr></thead><tbody>' +
-        expenses.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).map(e =>
-          '<tr><td class="text-xs">' + Utils.formatDate(e.date) + '</td>' +
-          '<td><span class="badge badge-muted text-xs">' + Utils.sanitizeHTML(e.category||'') + '</span></td>' +
-          '<td class="text-xs">' + Utils.sanitizeHTML(e.description||'') + '</td>' +
-          '<td class="font-mono text-xs font-bold text-danger">' + Utils.formatCurrency(e.amount||0) + '</td></tr>'
-        ).join('') + '</tbody></table></div>';
-    } else if (type === 'profit') {
-      title = 'Net Profit Breakdown';
-      const rev = paidInv.reduce((s,i)=>s+(i.total||0),0);
-      const exp = expenses.reduce((s,e)=>s+(e.amount||0),0);
-      const profit = rev - exp;
-      content = '<div class="d-grid gap-3 mb-4" style="grid-template-columns:repeat(3,1fr)">' +
-        '<div class="card p-4 text-center"><div class="text-xs text-muted mb-1">Total Revenue</div><div class="font-mono font-bold text-success">' + Utils.formatCurrency(rev) + '</div></div>' +
-        '<div class="card p-4 text-center"><div class="text-xs text-muted mb-1">Total Expenses</div><div class="font-mono font-bold text-danger">' + Utils.formatCurrency(exp) + '</div></div>' +
-        '<div class="card p-4 text-center"><div class="text-xs text-muted mb-1">Net Position</div><div class="font-mono font-bold ' + (profit>=0?'text-success':'text-danger') + '">' + Utils.formatCurrency(profit) + '</div></div>' +
-        '</div>';
-    } else if (type === 'outstanding') {
-      title = 'Outstanding Invoices';
-      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Total</th><th>Paid</th><th>Balance</th></tr></thead><tbody>' +
-        unpaidInv.sort((a,b)=>((b.total||0)-(parseFloat(b.amountPaid)||0))-((a.total||0)-(parseFloat(a.amountPaid)||0))).map(inv => {
-          const paid = parseFloat(inv.amountPaid)||0;
-          const bal  = Math.round((inv.total-paid)*100)/100;
-          return '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(inv.invoiceNumber||'') + '</td>' +
-            '<td class="text-xs">' + Utils.sanitizeHTML(inv.clientName||'') + '</td>' +
-            '<td class="font-mono text-xs">' + Utils.formatCurrency(inv.total) + '</td>' +
-            '<td class="font-mono text-xs text-success">' + Utils.formatCurrency(paid) + '</td>' +
-            '<td class="font-mono text-xs font-bold text-danger">' + Utils.formatCurrency(bal) + '</td></tr>';
-        }).join('') + '</tbody></table></div>';
-    }
-    App.showModal({ title, content: '<div style="max-height:60vh;overflow-y:auto;">' + content + '</div>',
-      submitText: 'Close', hideCancel: true, onSubmit: () => true, modalSize: 'modal-lg' });
-  }
-
+  // Bind Globally Accessible Interventions
   return {
     init,
+    showExpenseModal,
+    deleteExpense,
     viewInvoicePreview,
     markInvoicePaid,
     deleteInvoice,
-    editExpense,
-    deleteExpense,
-    recordMilestonePayment,
-    showReport
+    showReport: (type) => {
+      activeTab = (type === 'outstanding' || type === 'revenue') ? 'invoices' : (type === 'expenses' ? 'expenses' : 'reports');
+      render();
+    }
   };
 })();
