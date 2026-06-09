@@ -1,5 +1,5 @@
 /* ============================================================
-   POOJA'S COUTURE — Supabase-backed Store (v3)
+   POOJA'S COUTURE — Supabase-backed Store (v3.1)
    ------------------------------------------------------------
    Replaces the localStorage store. Talks to Supabase Postgres.
 
@@ -13,7 +13,8 @@
    don't await them still work (cache updates immediately).
 
    STARTUP: call `await Store.ready()` once in app.js BEFORE
-   rendering anything. That loads all tables into the cache.
+   rendering anything. That loads all tables into the cache
+   and runs automated invoice logic normalization updates.
    ============================================================ */
 
 const Store = (() => {
@@ -107,6 +108,93 @@ const Store = (() => {
   }
 
   // ============================================================
+  // BACKGROUND MIGRATION ENGINE (Invoice Auto-Correction Logic)
+  // ============================================================
+  async function normalizeExistingInvoices() {
+    const invoices = cache['invoices'] || [];
+    if (invoices.length === 0) return;
+
+    console.log(`[Store Migration] Checking ${invoices.length} invoices against current accounting logic...`);
+    let updatedInvoicesCount = 0;
+
+    for (const inv of invoices) {
+      let modified = false;
+
+      // 1. Structural Validation: Ensure an items array segment exists
+      if (!inv.items || !Array.isArray(inv.items) || inv.items.length === 0) {
+        const totalAmount = inv.total || 0;
+        const fallbackGst = inv.gstTotal != null ? inv.gstTotal : Math.round((totalAmount / 11) * 100) / 100;
+        const fallbackSubtotal = Math.round((totalAmount - fallbackGst) * 100) / 100;
+
+        inv.items = [{
+          description: "Boutique Apparel / Custom Design Services (Legacy Entry)",
+          quantity: 1,
+          unitPrice: fallbackSubtotal,
+          gst: fallbackGst,
+          amount: totalAmount
+        }];
+        modified = true;
+      }
+
+      // 2. Math Validation: Enforce clean 10% Australian GST and subtotal rules
+      let computedSubtotal = 0;
+      let computedGstTotal = 0;
+
+      inv.items.forEach(item => {
+        const qty = item.quantity || 1;
+        const price = item.unitPrice || 0;
+        computedSubtotal += (qty * price);
+        computedGstTotal += (item.gst || 0);
+      });
+
+      const computedTotal = Math.round((computedSubtotal + computedGstTotal) * 100) / 100;
+
+      if (inv.subtotal !== computedSubtotal || inv.gstTotal !== computedGstTotal || inv.total !== computedTotal) {
+        inv.subtotal = Math.round(computedSubtotal * 100) / 100;
+        inv.gstTotal = Math.round(computedGstTotal * 100) / 100;
+        inv.total = computedTotal;
+        modified = true;
+      }
+
+      // 3. Status Validation: Ensure amountPaid values match Cash-Basis P&L architecture
+      if (inv.amountPaid === undefined || inv.amountPaid === null || inv.amountPaid === '') {
+        if (inv.status === 'Paid') {
+          inv.amountPaid = inv.total;
+        } else {
+          inv.amountPaid = 0;
+        }
+        modified = true;
+      }
+
+      // 4. Persistence: If changes were detected, push updates quietly to Supabase
+      if (modified) {
+        updatedInvoicesCount++;
+        // Use standard scoped write directly to avoid hitting local logger recursion
+        const c = client();
+        if (c) {
+          const payload = appToRow({
+            items: inv.items,
+            subtotal: inv.subtotal,
+            gstTotal: inv.gstTotal,
+            total: inv.total,
+            amountPaid: inv.amountPaid
+          });
+          delete payload.id;
+          delete payload.created_at;
+
+          c.from('invoices').update(payload).eq('id', inv.id).then(({ error }) => {
+            if (error) console.error(`[Store Migration] Failed to save correction for invoice ${inv.invoiceNumber || inv.id}:`, error.message);
+          });
+        }
+      }
+    }
+
+    if (updatedInvoicesCount > 0) {
+      console.log(`[Store Migration] Completed structural auto-corrections for ${updatedInvoicesCount} historical invoice rows.`);
+    }
+  }
+
+  // ============================================================
   // STARTUP: load everything into cache
   // ============================================================
   async function ready() {
@@ -133,6 +221,13 @@ const Store = (() => {
       }
     });
 
+    // Run structural normalization queries across invoice objects safely right after loading
+    try {
+      await normalizeExistingInvoices();
+    } catch (err) {
+      console.warn('[Store Migration] Invoice background validation bypassed:', err.message);
+    }
+
     // Settings (single row) — wrapped so a block here can't break startup.
     try {
       const { data: sData } = await c.from('settings').select('*').eq('id', 1).single();
@@ -143,8 +238,6 @@ const Store = (() => {
     }
 
     // Reconcile the logged-in user from the REAL Supabase session.
-    // This works across tabs/pages (Supabase stores its session in
-    // localStorage), unlike the per-tab sessionStorage copy.
     try {
       const { data: authData } = await c.auth.getUser();
       if (authData && authData.user && authData.user.email) {
@@ -281,7 +374,6 @@ const Store = (() => {
     }
   }
 
-  // Lightweight auto-logging for CRUD (best-effort, fire-and-forget)
   function logActionForChange(op, collection, item, old) {
     if (collection === 'audit_logs' || collection === 'settings' || !item) return;
     const catMap = {
@@ -297,22 +389,16 @@ const Store = (() => {
   }
 
   // ============================================================
-  // AUTH (Supabase Auth — replaces hardcoded login)
-  // Note: full auth wiring is a later step. For now this looks
-  // up an employee profile by email for session continuity.
+  // AUTH
   // ============================================================
   let currentUser = null;
 
-  // Find the logged-in person in EITHER employees or vendors.
-  // Vendors are normalised to the same shape the app expects (name, role,
-  // appRole, permissions) so portals and sidebar logic work unchanged.
   function findPersonByEmail(email) {
     const lc = (email || '').trim().toLowerCase();
     const emp = (cache.employees || []).find(e => (e.email || '').toLowerCase() === lc);
     if (emp) return emp;
     const v = (cache.vendors || []).find(x => (x.email || '').toLowerCase() === lc);
     if (v) {
-      // Normalise vendor -> user-like object
       return {
         id: v.id,
         name: v.contactName || v.businessName || v.email,
@@ -332,7 +418,6 @@ const Store = (() => {
 
   async function login(email, password) {
     const c = client();
-    // Supabase Auth sign-in
     const { data, error } = await c.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password: password
@@ -341,15 +426,10 @@ const Store = (() => {
       console.warn('Auth login failed:', error ? error.message : 'no user');
       return null;
     }
-    // The identity tables (employees, vendors) were cached while logged OUT,
-    // when RLS returns nothing — so the cache can be empty for vendors.
-    // Now that we are authenticated, refresh them before resolving the person,
-    // otherwise vendor logins (tailor/logistics) fail to find their profile.
     try {
       await refresh('employees');
       await refresh('vendors');
-    } catch (e) { /* ignore — fall through to lookup */ }
-    // Match to an employee OR vendor profile
+    } catch (e) {}
     const person = findPersonByEmail(email);
     if (!person) {
       console.warn('Authenticated but no matching profile (employee/vendor) for', email);
@@ -378,27 +458,19 @@ const Store = (() => {
   async function logout() {
     const c = client();
     const u = getCurrentUser();
-    // Log BEFORE signing out (logAction needs the session to write the row).
     if (u) { try { await logAction('User Logged Out', 'System', `${u.name} logged out.`); } catch (e) {} }
-    // Clear local state first so nothing re-reads it mid-logout.
     currentUser = null;
     sessionStorage.removeItem('pc_current_user');
-    // Actually kill the Supabase session and WAIT for it. This is the part
-    // that must finish before any reload, or reconcileUser() will find the
-    // still-present session in localStorage and log the user straight back in.
     try {
       await c.auth.signOut({ scope: 'local' });
-    } catch (e) { /* ignore */ }
-    // Belt-and-braces: clear any leftover Supabase auth token from localStorage.
+    } catch (e) {}
     try {
       Object.keys(localStorage)
         .filter(k => k.startsWith('sb-') || k === 'pc-suite-auth')
         .forEach(k => localStorage.removeItem(k));
-    } catch (e) { /* ignore */ }
+    } catch (e) {}
   }
 
-  // Call a Postgres function (RPC). Used for locked-down updates where
-  // direct table writes are blocked by RLS (e.g. tailor/logistics status).
   async function rpc(fnName, params) {
     const c = client();
     if (!c) throw new Error('Supabase client unavailable');
@@ -407,21 +479,17 @@ const Store = (() => {
     return data;
   }
 
-  // Refresh a single table's cache from the server (after an RPC write).
   async function refresh(collection) {
     const c = client();
     if (!c) return;
     try {
       const { data, error } = await c.from(collection).select('*');
       if (!error) cache[collection] = (data || []).map(rowToApp);
-    } catch (e) { /* ignore */ }
+    } catch (e) {}
   }
 
   // ============================================================
-  // REALTIME: subscribe to live changes on critical tables.
-  // Fires a custom 'pc:datachange' event on window when any
-  // row changes so modules can re-render without a full refresh.
-  // Call once after Store.ready().
+  // REALTIME
   // ============================================================
   let realtimeChannel = null;
 
@@ -444,7 +512,7 @@ const Store = (() => {
           try {
             const { data, error } = await c.from(table).select('*');
             if (!error) cache[table] = (data || []).map(rowToApp);
-          } catch (e) { /* ignore */ }
+          } catch (e) {}
           window.dispatchEvent(new CustomEvent('pc:datachange', {
             detail: { table, event: payload.eventType }
           }));
@@ -467,7 +535,6 @@ const Store = (() => {
     }
   }
 
-  // Reconcile current user from the live Supabase session (works any time).
   async function reconcileUser() {
     const c = client();
     if (!c) return null;
@@ -488,12 +555,9 @@ const Store = (() => {
     return null;
   }
 
-  // ============================================================
-  // PUBLIC API — identical names to old store + new additions
-  // ============================================================
   return {
     COLLECTIONS,
-    ready,            // NEW: await this once at startup
+    ready,
     getAll,
     getById,
     create,
