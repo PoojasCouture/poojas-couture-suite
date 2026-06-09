@@ -141,6 +141,95 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  // ---------- Order Detail Modal ----------
+  window.viewOrderDetail = function(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+
+    const m = (field) => o[field] ? '<span class="font-mono">' + Utils.sanitizeHTML(o[field]) + '</span>' : '<span class="text-muted">—</span>';
+    const row = (label, val) => val ? '<div class="d-flex justify-between items-start py-1" style="border-bottom:1px solid var(--pc-border)">' +
+      '<span class="text-xs text-muted" style="min-width:130px">' + label + '</span>' +
+      '<span class="text-xs text-right font-semibold">' + val + '</span>' +
+    '</div>' : '';
+
+    const content =
+      '<div class="d-flex flex-col gap-4">' +
+
+      // Status + codes
+      '<div class="d-flex gap-2 items-center flex-wrap">' +
+        '<span class="badge badge-gold">' + Utils.sanitizeHTML(o.status) + '</span>' +
+        (o.orderCode ? '<span class="font-mono text-xs text-gold">' + Utils.sanitizeHTML(o.orderCode) + '</span>' : '') +
+      '</div>' +
+
+      // Client + occasion
+      '<div class="card p-3">' +
+        '<div class="text-xs font-semibold text-gold mb-2">CLIENT & OCCASION</div>' +
+        row('Client', Utils.sanitizeHTML(o.clientName)) +
+        row('Garment', Utils.sanitizeHTML(o.title)) +
+        row('Event', Utils.sanitizeHTML(o.eventName || '')) +
+        row('Event Date', o.eventDate ? Utils.formatDate(o.eventDate) : '') +
+        row('Look / For', Utils.sanitizeHTML(o.lookNumber || '')) +
+        row('Deadline', '<span class="text-danger">' + Utils.formatDate(o.deadline) + '</span>') +
+      '</div>' +
+
+      // Fabric
+      '<div class="card p-3">' +
+        '<div class="text-xs font-semibold text-gold mb-2">FABRIC & COLOUR</div>' +
+        row('Fabric Type', Utils.sanitizeHTML(o.fabricType || '')) +
+        row('Colour Ref', Utils.sanitizeHTML(o.colourRef || '')) +
+        row('Dupatta', Utils.sanitizeHTML(o.dupattaDetails || '')) +
+        row('Lining', Utils.sanitizeHTML(o.liningDetails || '')) +
+      '</div>' +
+
+      // Measurements Top
+      '<div class="card p-3">' +
+        '<div class="text-xs font-semibold text-gold mb-2">MEASUREMENTS — TOP BODY (inches)</div>' +
+        row('Bust', m('mBust')) +
+        row('Under Bust', m('mUnderBust')) +
+        row('Chest', m('mChest')) +
+        row('Shoulder', m('mShoulder')) +
+        row('Armhole', m('mArmhole')) +
+        row('Blouse Length', m('mBlouseLength')) +
+        row('Back Neck', m('mBackNeck')) +
+        row('Front Neck', m('mFrontNeck')) +
+        row('Sleeve Length', m('mSleeveLength')) +
+        row('Morrie', m('mMorrie')) +
+        row('Waist', m('mWaist')) +
+        row('Wrist', m('mWrist')) +
+      '</div>' +
+
+      // Measurements Bottom
+      '<div class="card p-3">' +
+        '<div class="text-xs font-semibold text-gold mb-2">MEASUREMENTS — BOTTOM BODY (inches)</div>' +
+        row('Lehenga Waist', m('mLehengaWaist')) +
+        row('Lehenga Length', m('mLehengaLength')) +
+        row('Hips', m('mHips')) +
+        row('Knee Split', m('mKneeSplit')) +
+      '</div>' +
+
+      // Design notes
+      '<div class="card p-3">' +
+        '<div class="text-xs font-semibold text-gold mb-2">DESIGN INSTRUCTIONS</div>' +
+        (o.designNotes ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Design Notes</div>' + Utils.sanitizeHTML(o.designNotes) + '</div>' : '') +
+        (o.embroideryDetails ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Embroidery</div>' + Utils.sanitizeHTML(o.embroideryDetails) + '</div>' : '') +
+        (o.silhouetteNotes ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Silhouette</div>' + Utils.sanitizeHTML(o.silhouetteNotes) + '</div>' : '') +
+        (o.blouseAccessories ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Blouse Accessories</div>' + Utils.sanitizeHTML(o.blouseAccessories) + '</div>' : '') +
+        (o.latkans ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Latkans</div>' + Utils.sanitizeHTML(o.latkans) + '</div>' : '') +
+        (o.optionalAddOns ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Add-ons</div>' + Utils.sanitizeHTML(o.optionalAddOns) + '</div>' : '') +
+        (o.notes ? '<div class="text-xs"><div class="text-muted text-xs mb-1">Internal Notes</div>' + Utils.sanitizeHTML(o.notes) + '</div>' : '') +
+        (!o.designNotes && !o.embroideryDetails && !o.silhouetteNotes && !o.notes ? '<div class="text-xs text-muted">No design instructions recorded.</div>' : '') +
+      '</div>' +
+
+      '</div>';
+
+    showModal({
+      title: (o.orderCode || 'Order') + ' — ' + Utils.sanitizeHTML(o.title),
+      content,
+      submitText: 'Close',
+      onSubmit: () => true
+    });
+  };
+
   // ---------- Load Tasks ----------
   function loadTasks() {
     tasksList.innerHTML = '';
@@ -160,7 +249,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     filtered.forEach(order => {
-      const card = Utils.createElement('div', { className: 'task-card' });
+      const card = Utils.createElement('div', { className: 'task-card', style: 'cursor:pointer' });
+      card.addEventListener('click', (e) => { if (!e.target.closest('button')) viewOrderDetail(order.id); });
 
       let actionButton = '';
       if (activeFilter === 'pending') {
