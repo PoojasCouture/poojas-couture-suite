@@ -92,23 +92,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ── styles ────────────────────────────────────────────────
-  function fieldStyle() { return `width:100%; box-sizing:border-box; padding:8px 10px; background:#0f0f1e; border:1px solid #444; border-radius:6px; color:#e0e0e0; font-size:13px; font-family:sans-serif;`; }
-  function labelStyle() { return `display:block; font-size:11px; color:#aaa; text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px;`; }
-  function rowStyle()  { return `display:flex; gap:14px; margin-bottom:14px;`; }
-  function halfStyle() { return `flex:1; min-width:0;`; }
-  function fullStyle() { return `margin-bottom:14px;`; }
-  function sectionHeadStyle() { return `font-size:11px; font-weight:700; color:#d4af37; text-transform:uppercase; letter-spacing:.6px; border-bottom:1px solid #333; padding-bottom:6px; margin:16px 0 12px;`; }
-  function metricBoxStyle(bg) { return `background:${bg}; color:#fff; border-radius:10px; padding:16px 24px; min-width:140px; text-align:center;`; }
-  function sectionCardStyle() { return `background:#12122a; border:1px solid #2a2a4a; border-radius:12px; overflow:hidden; margin-bottom:24px;`; }
-  function cardHeaderStyle() { return `display:flex; justify-content:space-between; align-items:center; padding:14px 20px; background:#1a1a3e; font-weight:700; font-size:14px; color:#d4af37; border-bottom:1px solid #2a2a4a;`; }
-  function tableStyle() { return `width:100%; border-collapse:collapse; font-size:13px;`; }
-  function thStyle() { return `text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#888; background:#111128; border-bottom:1px solid #2a2a4a;`; }
-  function tdStyle(idx) { const bg = idx%2===0?'#12122a':'#0f0f22'; return `padding:10px 14px; border-bottom:1px solid #1e1e38; background:${bg}; vertical-align:top;`; }
-  function btnStyle(bg, color='#1a1a2e') { return `padding:6px 14px; border-radius:6px; border:none; background:${bg}; color:${color}; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;`; }
-  function badgeStyle(bg) { return `display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; background:${bg}; color:#fff;`; }
+  function fieldStyle() { return ''; }
+  function labelStyle() { return 'display:block;font-size:11px;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;font-weight:600;'; }
+  function rowStyle()   { return 'display:flex;gap:14px;margin-bottom:14px;'; }
+  function halfStyle()  { return 'flex:1;min-width:0;'; }
+  function fullStyle()  { return 'margin-bottom:14px;'; }
+  function sectionHeadStyle() { return 'font-size:11px;font-weight:700;color:var(--pc-gold,#d4af37);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--pc-border);padding-bottom:6px;margin:16px 0 12px;'; }
+  function metricBoxStyle(bg) { return 'background:' + bg + ';color:#fff;border-radius:10px;padding:16px 24px;min-width:140px;text-align:center;'; }
+  function sectionCardStyle() { return 'background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:var(--radius-lg,12px);overflow:hidden;margin-bottom:24px;'; }
+  function cardHeaderStyle() { return 'display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:var(--pc-bg-sidebar);font-weight:700;font-size:14px;color:var(--pc-gold,#d4af37);border-bottom:1px solid var(--pc-border);'; }
+  function tableStyle() { return 'width:100%;border-collapse:collapse;font-size:13px;'; }
+  function thStyle()   { return 'text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--pc-text-muted);background:var(--pc-bg-dark);border-bottom:1px solid var(--pc-border);'; }
+  function tdStyle(idx) { return 'padding:10px 14px;border-bottom:1px solid var(--pc-border);background:' + (idx%2===0 ? 'var(--pc-bg-card)' : 'var(--pc-bg-dark)') + ';vertical-align:top;'; }
+  function btnStyle(bg, color) { return 'padding:6px 14px;border-radius:6px;border:none;background:' + bg + ';color:' + (color||'#1a1a2e') + ';font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;'; }
+  function badgeStyle(bg) { return 'display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:' + bg + ';color:#fff;'; }
   function tabStyle(active) {
     return 'font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;cursor:pointer;border:none;' +
-      (active ? 'background:#d4af37;color:#12122a;' : 'background:rgba(255,255,255,0.06);color:#aaa;');
+      (active ? 'background:var(--pc-gold,#d4af37);color:#12122a;' : 'background:rgba(255,255,255,0.06);color:var(--pc-text-muted,#aaa);');
   }
 
   // ── session bootstrap ─────────────────────────────────────
@@ -268,8 +268,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     strip.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px;">' +
       kpis.map(function(k, i) {
         return '<div class="kpi-tile" style="' +
-          'background:#12122a;' +
-          'border:1px solid ' + (k.urgent ? k.color : '#2a2a4a') + ';' +
+          'background:var(--pc-bg-card);' +
+          'border:1px solid ' + (k.urgent ? k.color : 'var(--pc-border)') + ';' +
           'border-radius:10px;padding:10px 8px;text-align:center;' +
           'opacity:0;' +
           'animation:kpiIn 0.35s ease both;animation-delay:' + (i * 0.06).toFixed(2) + 's;' +
@@ -294,24 +294,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     panelOrders.innerHTML = `
 
-      <section style="${sectionCardStyle()}">
-        <div style="${cardHeaderStyle()}"><span>📬 Incoming from Tailors</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: Shipped to Shashank</span></div>
+      <section class="card p-0 mb-4">
+        <div class="card-header"><span>📬 Incoming from Tailors</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: Shipped to Shashank</span></div>
         <div id="incoming-wrap" style="padding:0 4px 4px;"></div>
       </section>
-      <section style="${sectionCardStyle()}">
-        <div style="${cardHeaderStyle()}"><span>📦 Ready to Dispatch</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: At Shashank</span></div>
+      <section class="card p-0 mb-4">
+        <div class="card-header"><span>📦 Ready to Dispatch</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: At Shashank</span></div>
         <div id="ready-wrap" style="padding:0 4px 4px;"></div>
       </section>
-      <section style="${sectionCardStyle()}">
-        <div style="${cardHeaderStyle()}"><span>✈️ In Transit</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: In Transit</span></div>
+      <section class="card p-0 mb-4">
+        <div class="card-header"><span>✈️ In Transit</span><span style="font-size:11px; font-weight:400; opacity:.7;">Status: In Transit</span></div>
         <div id="transit-wrap" style="padding:0 4px 4px;"></div>
       </section>
-      <section style="${sectionCardStyle()}">
-        <div style="${cardHeaderStyle()}"><span>🔴 Awaiting Payment</span><span style="font-size:11px; font-weight:400; opacity:.7;">Held — payment required before delivery</span></div>
+      <section class="card p-0 mb-4">
+        <div class="card-header"><span>🔴 Awaiting Payment</span><span style="font-size:11px; font-weight:400; opacity:.7;">Held — payment required before delivery</span></div>
         <div id="awaiting-wrap" style="padding:0 4px 4px;"></div>
       </section>
-      <section style="${sectionCardStyle()}">
-        <div style="${cardHeaderStyle()}"><span>✅ Cleared for Delivery</span><span style="font-size:11px; font-weight:400; opacity:.7;">Payment confirmed — ready to deliver</span></div>
+      <section class="card p-0 mb-4">
+        <div class="card-header"><span>✅ Cleared for Delivery</span><span style="font-size:11px; font-weight:400; opacity:.7;">Payment confirmed — ready to deliver</span></div>
         <div id="cleared-wrap" style="padding:0 4px 4px;"></div>
       </section>
     `;
@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No pieces currently in transit to you.</p>`;
       return;
     }
-    let html = `<table style="${tableStyle()}"><thead><tr>
+    let html = `<table class="data-table"><thead><tr>
       <th style="${thStyle()}">Order</th><th style="${thStyle()}">Client</th>
       <th style="${thStyle()}">Courier / Tracking</th><th style="${thStyle()}">Shipped</th>
       <th style="${thStyle()}">Action</th></tr></thead><tbody>`;
@@ -373,7 +373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No orders received and ready to dispatch.</p>`;
       return;
     }
-    let html = `<table style="${tableStyle()}"><thead><tr>
+    let html = `<table class="data-table"><thead><tr>
       <th style="${thStyle()}">Order</th><th style="${thStyle()}">Client</th>
       <th style="${thStyle()}">Garment</th><th style="${thStyle()}">Destination</th>
       <th style="${thStyle()}">Received</th><th style="${thStyle()}">Action</th>
@@ -411,8 +411,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         <br><span style="font-size:11px;">Recorded destination: <strong style="color:#d4af37;">${esc(storedDest)}</strong></span>
       </p>
       <div style="${fullStyle()}">
-        <label style="${labelStyle()}">Where is this parcel going? <span style="color:#e06;">*</span></label>
-        <select id="dest-select" style="${fieldStyle()}">
+        <label class="form-label">Where is this parcel going? <span style="color:#e06;">*</span></label>
+        <select id="dest-select" class="form-input">
           <option value="Australia" ${storedDest === 'Australia' ? 'selected' : ''}>🇦🇺 Australia</option>
           <option value="India"     ${storedDest === 'India'     ? 'selected' : ''}>🇮🇳 India (local delivery)</option>
           <option value="Overseas"  ${storedDest === 'Overseas'  ? 'selected' : ''}>🌏 Overseas (other country)</option>
@@ -455,34 +455,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         Shipping to: <strong style="color:#d4af37;">${esc(destination)}</strong> —
         ${esc(o.clientName || '')} · ${esc(o.orderCode || o.id)}
       </p>
-      <div style="${rowStyle()}">
+      <div class="form-row">
         <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Carrier</label>
-          <select id="f-carrier" style="${fieldStyle()}">${carrierOptions}</select>
+          <label class="form-label">Carrier</label>
+          <select id="f-carrier" class="form-input">${carrierOptions}</select>
         </div>
         <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Tracking Number <span style="color:#e06;">*</span></label>
-          <input id="f-tracking" type="text" style="${fieldStyle()}" placeholder="e.g. DHL-12345678">
-        </div>
-      </div>
-      <div style="${rowStyle()}">
-        <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Shipping Cost ex-GST (AUD) <span style="color:#e06;">*</span></label>
-          <input id="f-cost" type="number" step="0.01" min="0" style="${fieldStyle()}" placeholder="0.00">
-        </div>
-        <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Gross Weight (kg)</label>
-          <input id="f-weight" type="number" step="0.1" min="0.1" value="2.5" style="${fieldStyle()}">
+          <label class="form-label">Tracking Number <span style="color:#e06;">*</span></label>
+          <input id="f-tracking" type="text" class="form-input" placeholder="e.g. DHL-12345678">
         </div>
       </div>
-      <div style="${rowStyle()}">
+      <div class="form-row">
         <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Box Dimensions (L × W × H cm)</label>
-          <input id="f-dims" type="text" style="${fieldStyle()}" value="40 x 30 x 15">
+          <label class="form-label">Shipping Cost ex-GST (AUD) <span style="color:#e06;">*</span></label>
+          <input id="f-cost" type="number" step="0.01" min="0" class="form-input" placeholder="0.00">
         </div>
         <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Incoterms</label>
-          <select id="f-incoterms" style="${fieldStyle()}">
+          <label class="form-label">Gross Weight (kg)</label>
+          <input id="f-weight" type="number" step="0.1" min="0.1" value="2.5" class="form-input">
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="${halfStyle()}">
+          <label class="form-label">Box Dimensions (L × W × H cm)</label>
+          <input id="f-dims" type="text" class="form-input" value="40 x 30 x 15">
+        </div>
+        <div style="${halfStyle()}">
+          <label class="form-label">Incoterms</label>
+          <select id="f-incoterms" class="form-input">
             <option value="DAP">DAP — Delivered At Place</option>
             <option value="FOB">FOB — Free On Board</option>
             <option value="CIF">CIF — Cost, Insurance, Freight</option>
@@ -491,21 +491,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
       <div style="${sectionHeadStyle()}">Customs Declaration</div>
       <div style="${fullStyle()}">
-        <label style="${labelStyle()}">HS Code</label>
-        <input id="f-hscode" type="text" style="${fieldStyle()}" value="5007.20">
+        <label class="form-label">HS Code</label>
+        <input id="f-hscode" type="text" class="form-input" value="5007.20">
       </div>
       <div style="${fullStyle()}">
-        <label style="${labelStyle()}">Goods Description (for customs)</label>
-        <input id="f-goods-desc" type="text" style="${fieldStyle()}" value="100% Handloom Silk Embroideries — Bridal Garments">
+        <label class="form-label">Goods Description (for customs)</label>
+        <input id="f-goods-desc" type="text" class="form-input" value="100% Handloom Silk Embroideries — Bridal Garments">
       </div>
-      <div style="${rowStyle()}">
+      <div class="form-row">
         <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Country of Origin</label>
-          <input id="f-origin" type="text" style="${fieldStyle()}" value="India">
+          <label class="form-label">Country of Origin</label>
+          <input id="f-origin" type="text" class="form-input" value="India">
         </div>
         <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Dispatch Date</label>
-          <input id="f-dispatch-date" type="date" style="${fieldStyle()}" value="${new Date().toISOString().split('T')[0]}">
+          <label class="form-label">Dispatch Date</label>
+          <input id="f-dispatch-date" type="date" class="form-input" value="${new Date().toISOString().split('T')[0]}">
         </div>
       </div>
     `;
@@ -560,10 +560,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         Local delivery in India —
         ${esc(o.clientName || '')} · ${esc(o.orderCode || o.id)}
       </p>
-      <div style="${rowStyle()}">
+      <div class="form-row">
         <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Courier / Delivery Service <span style="color:#e06;">*</span></label>
-          <select id="f-carrier" style="${fieldStyle()}">
+          <label class="form-label">Courier / Delivery Service <span style="color:#e06;">*</span></label>
+          <select id="f-carrier" class="form-input">
             <option value="Blue Dart">Blue Dart</option>
             <option value="DTDC">DTDC</option>
             <option value="Delhivery">Delhivery</option>
@@ -573,23 +573,23 @@ document.addEventListener('DOMContentLoaded', async () => {
           </select>
         </div>
         <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Tracking Number</label>
-          <input id="f-tracking" type="text" style="${fieldStyle()}" placeholder="Optional for local delivery">
+          <label class="form-label">Tracking Number</label>
+          <input id="f-tracking" type="text" class="form-input" placeholder="Optional for local delivery">
         </div>
       </div>
-      <div style="${rowStyle()}">
+      <div class="form-row">
         <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Delivery Cost (AUD) <span style="color:#e06;">*</span></label>
-          <input id="f-cost" type="number" step="0.01" min="0" style="${fieldStyle()}" placeholder="0.00">
+          <label class="form-label">Delivery Cost (AUD) <span style="color:#e06;">*</span></label>
+          <input id="f-cost" type="number" step="0.01" min="0" class="form-input" placeholder="0.00">
         </div>
         <div style="${halfStyle()}">
-          <label style="${labelStyle()}">Dispatch Date</label>
-          <input id="f-dispatch-date" type="date" style="${fieldStyle()}" value="${new Date().toISOString().split('T')[0]}">
+          <label class="form-label">Dispatch Date</label>
+          <input id="f-dispatch-date" type="date" class="form-input" value="${new Date().toISOString().split('T')[0]}">
         </div>
       </div>
       <div style="${fullStyle()}">
-        <label style="${labelStyle()}">Delivery Address / Notes</label>
-        <input id="f-notes" type="text" style="${fieldStyle()}" placeholder="Customer address or delivery instructions">
+        <label class="form-label">Delivery Address / Notes</label>
+        <input id="f-notes" type="text" class="form-input" placeholder="Customer address or delivery instructions">
       </div>
     `;
 
@@ -628,7 +628,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No active shipments in transit.</p>`;
       return;
     }
-    let html = `<table style="${tableStyle()}"><thead><tr>
+    let html = `<table class="data-table"><thead><tr>
       <th style="${thStyle()}">Tracking</th><th style="${thStyle()}">Carrier</th>
       <th style="${thStyle()}">Client / Order</th><th style="${thStyle()}">Destination</th>
       <th style="${thStyle()}">Shipping Cost</th>
@@ -750,7 +750,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No orders awaiting payment.</p>`;
       return;
     }
-    let html = `<table style="${tableStyle()}"><thead><tr>
+    let html = `<table class="data-table"><thead><tr>
       <th style="${thStyle()}">Order</th><th style="${thStyle()}">Client</th>
       <th style="${thStyle()}">Destination</th><th style="${thStyle()}">Held Since</th>
     </tr></thead><tbody>`;
@@ -773,7 +773,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       wrap.innerHTML = `<p style="text-align:center; color:#555; padding:20px; font-size:12px;">No orders cleared for delivery yet.</p>`;
       return;
     }
-    let html = `<table style="${tableStyle()}"><thead><tr>
+    let html = `<table class="data-table"><thead><tr>
       <th style="${thStyle()}">Order</th><th style="${thStyle()}">Client</th>
       <th style="${thStyle()}">Destination</th><th style="${thStyle()}">Cleared</th>
       <th style="${thStyle()}">Action</th>
@@ -811,8 +811,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           <button style="${btnStyle('#d4af37')}" onclick="window._pcNewParcel()">+ New Stock Parcel</button>
         </div>
       </section>
-      <section style="${sectionCardStyle()}">
-        <div style="${cardHeaderStyle()}"><span>🛍️ Stock Replenishment Parcels</span><span style="font-size:11px; font-weight:400; opacity:.7;">Bulk goods from India</span></div>
+      <section class="card p-0 mb-4">
+        <div class="card-header"><span>🛍️ Stock Replenishment Parcels</span><span style="font-size:11px; font-weight:400; opacity:.7;">Bulk goods from India</span></div>
         <div id="parcels-wrap" style="padding:0 4px 4px;"></div>
       </section>
     `;
@@ -826,7 +826,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     const sorted = parcels.slice().sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0));
-    let html = `<table style="${tableStyle()}"><thead><tr>
+    let html = `<table class="data-table"><thead><tr>
       <th style="${thStyle()}">Parcel</th><th style="${thStyle()}">Source</th>
       <th style="${thStyle()}">Courier / Tracking</th><th style="${thStyle()}">Items</th>
       <th style="${thStyle()}">Status</th><th style="${thStyle()}">Actions</th>
@@ -870,25 +870,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cityOptions = SOURCE_CITIES.map(c => `<option value="${c}">${c}</option>`).join('');
 
     const bodyHTML = `
-      <div style="${rowStyle()}">
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Source City <span style="color:#e06;">*</span></label><select id="sp-city" style="${fieldStyle()}">${cityOptions}</select></div>
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Courier</label><input id="sp-courier" type="text" style="${fieldStyle()}" placeholder="e.g. DHL, Blue Dart"></div>
+      <div class="form-row">
+        <div style="${halfStyle()}"><label class="form-label">Source City <span style="color:#e06;">*</span></label><select id="sp-city" class="form-input">${cityOptions}</select></div>
+        <div style="${halfStyle()}"><label class="form-label">Courier</label><input id="sp-courier" type="text" class="form-input" placeholder="e.g. DHL, Blue Dart"></div>
       </div>
-      <div style="${rowStyle()}">
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Tracking Number</label><input id="sp-tracking" type="text" style="${fieldStyle()}" placeholder="e.g. DHL-12345678"></div>
-        <div style="${halfStyle()}"><label style="${labelStyle()}">Total Shipping Cost (AUD) <span style="color:#e06;">*</span></label><input id="sp-shipping" type="number" step="0.01" min="0" style="${fieldStyle()}" placeholder="0.00"></div>
+      <div class="form-row">
+        <div style="${halfStyle()}"><label class="form-label">Tracking Number</label><input id="sp-tracking" type="text" class="form-input" placeholder="e.g. DHL-12345678"></div>
+        <div style="${halfStyle()}"><label class="form-label">Total Shipping Cost (AUD) <span style="color:#e06;">*</span></label><input id="sp-shipping" type="number" step="0.01" min="0" class="form-input" placeholder="0.00"></div>
       </div>
-      <div style="${fullStyle()}"><label style="${labelStyle()}">Dispatch Date</label><input id="sp-date" type="date" style="${fieldStyle()}" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div style="${fullStyle()}"><label class="form-label">Dispatch Date</label><input id="sp-date" type="date" class="form-input" value="${new Date().toISOString().split('T')[0]}"></div>
       <div style="${sectionHeadStyle()}">Items in this parcel</div>
       <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:12px; flex-wrap:wrap;">
-        <div style="flex:2; min-width:160px;"><label style="${labelStyle()}">Product</label><select id="sp-prod" style="${fieldStyle()}">${productOptions}</select></div>
-        <div style="width:70px;"><label style="${labelStyle()}">Qty</label><input id="sp-qty" type="number" min="1" step="1" value="1" style="${fieldStyle()}"></div>
+        <div style="flex:2; min-width:160px;"><label class="form-label">Product</label><select id="sp-prod" class="form-input">${productOptions}</select></div>
+        <div style="width:70px;"><label class="form-label">Qty</label><input id="sp-qty" type="number" min="1" step="1" value="1" class="form-input"></div>
         <input id="sp-unitcost" type="hidden">
         <button id="sp-add" type="button" style="${btnStyle('#d4af37')}">+ Add</button>
       </div>
       <div id="sp-items"></div>
       <div id="sp-preview" style="margin-top:12px; font-size:12px; color:#aaa;"></div>
-      <div style="${fullStyle()}; margin-top:14px;"><label style="${labelStyle()}">Notes</label><input id="sp-notes" type="text" style="${fieldStyle()}" placeholder="Optional"></div>
+      <div style="${fullStyle()}; margin-top:14px;"><label class="form-label">Notes</label><input id="sp-notes" type="text" class="form-input" placeholder="Optional"></div>
     `;
 
     const items = [];
@@ -917,7 +917,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (!items.length) {
             wrap.innerHTML = `<p style="color:#555; font-size:12px; padding:8px 0;">No items added yet.</p>`;
           } else {
-            let h = `<table style="${tableStyle()}"><thead><tr>
+            let h = `<table class="data-table"><thead><tr>
               <th style="${thStyle()}">Product</th><th style="${thStyle()}">Qty</th>
               <th style="${thStyle()}"></th></tr></thead><tbody>`;
             items.forEach((it, idx) => {
@@ -1008,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!items.length) {
       bodyHTML = `<p style="color:#888; font-size:13px;">No items recorded for this parcel.</p>`;
     } else {
-      bodyHTML = `<table style="${tableStyle()}"><thead><tr>
+      bodyHTML = `<table class="data-table"><thead><tr>
         <th style="${thStyle()}">Item</th><th style="${thStyle()}">Qty</th>
       </tr></thead><tbody>`;
       items.forEach((it, i) => {
