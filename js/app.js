@@ -247,7 +247,7 @@ const App = (() => {
 
       <!-- Quick Metrics Grid -->
       <div class="widgets-grid animate-fade-in stagger-1">
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('brides')">
           <div class="stat-card-header">
             <span class="stat-card-icon gold">👑</span>
             <span class="badge badge-gold">${totalBrides} Registered</span>
@@ -256,7 +256,7 @@ const App = (() => {
           <div class="stat-card-label">Active Brides</div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('orders')">
           <div class="stat-card-header">
             <span class="stat-card-icon blue">🧵</span>
             <span class="badge badge-info">${activeOrders.length} In Production</span>
@@ -265,7 +265,7 @@ const App = (() => {
           <div class="stat-card-label">Active Custom Orders</div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('outstanding')">
           <div class="stat-card-header">
             <span class="stat-card-icon green">💰</span>
             <span class="badge badge-success">${pendingInvoices.length} Unpaid</span>
@@ -274,7 +274,7 @@ const App = (() => {
           <div class="stat-card-label">Outstanding Invoices</div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('appointments')">
           <div class="stat-card-header">
             <span class="stat-card-icon purple">📅</span>
             <span class="badge badge-purple">${upcomingAppts.length} Scheduled</span>
@@ -890,9 +890,79 @@ if (roleEl) {
     }
   });
 
+  function showDashReport(type) {
+    const allClients  = Store.getAll(Store.COLLECTIONS.CLIENTS);
+    const allOrders   = Store.getAll(Store.COLLECTIONS.ORDERS);
+    const invoices    = Store.getAll(Store.COLLECTIONS.INVOICES);
+    const appts       = Store.getAll(Store.COLLECTIONS.APPOINTMENTS);
+    const now         = new Date();
+    let title = '', content = '';
+
+    if (type === 'brides') {
+      title = '👑 Active Bridal Clients';
+      const brides = allClients.filter(c => c.type === 'Bride');
+      content = brides.length === 0
+        ? '<div class="text-center p-6 text-muted">No bridal clients registered yet.</div>'
+        : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Bride</th><th>Wedding Date</th><th>Orders</th><th>Contact</th></tr></thead><tbody>' +
+          brides.sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(c => {
+            const cnt = allOrders.filter(o=>o.clientId===c.id).length;
+            return '<tr><td class="font-semibold text-xs">' + Utils.sanitizeHTML(c.name) + '</td>' +
+              '<td class="text-xs">' + Utils.formatDate(c.weddingDate||c.eventDate||'') + '</td>' +
+              '<td class="font-mono text-xs">' + cnt + '</td>' +
+              '<td class="text-xs text-muted">' + Utils.sanitizeHTML(c.email||c.phone||'\u2014') + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+    } else if (type === 'orders') {
+      title = '🧵 Active Custom Orders';
+      const active = allOrders.filter(o => o.status !== 'Delivered');
+      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Garment</th><th>Stage</th><th>Deadline</th></tr></thead><tbody>' +
+        active.sort((a,b)=>new Date(a.deadline||0)-new Date(b.deadline||0)).map(o => {
+          const over = o.deadline && new Date(o.deadline) < now;
+          return '<tr>' +
+            '<td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(o.orderCode||'\u2014') + '</td>' +
+            '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
+            '<td class="text-xs">' + Utils.sanitizeHTML(o.title) + '</td>' +
+            '<td><span class="badge badge-gold text-xs">' + o.status + '</span></td>' +
+            '<td class="text-xs ' + (over?'text-danger font-bold':'text-muted') + '">' + Utils.formatDate(o.deadline) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    } else if (type === 'outstanding') {
+      title = '💰 Outstanding Invoices';
+      const unpaid = invoices.filter(i => (i.total||0) > (parseFloat(i.amountPaid)||0));
+      content = unpaid.length === 0
+        ? '<div class="text-center p-6 text-success font-semibold">All invoices are paid!</div>'
+        : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Total</th><th>Paid</th><th>Balance</th></tr></thead><tbody>' +
+          unpaid.sort((a,b)=>((b.total||0)-(parseFloat(b.amountPaid)||0))-((a.total||0)-(parseFloat(a.amountPaid)||0))).map(inv => {
+            const paid = parseFloat(inv.amountPaid)||0;
+            const bal  = Math.round((inv.total-paid)*100)/100;
+            return '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(inv.invoiceNumber||'\u2014') + '</td>' +
+              '<td class="text-xs">' + Utils.sanitizeHTML(inv.clientName||'\u2014') + '</td>' +
+              '<td class="font-mono text-xs">' + Utils.formatCurrency(inv.total) + '</td>' +
+              '<td class="font-mono text-xs text-success">' + Utils.formatCurrency(paid) + '</td>' +
+              '<td class="font-mono text-xs font-bold text-danger">' + Utils.formatCurrency(bal) + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+    } else if (type === 'appointments') {
+      title = '📅 Upcoming Consultations';
+      const upcoming = appts.filter(a => a.status === 'Scheduled')
+        .sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
+      content = upcoming.length === 0
+        ? '<div class="text-center p-6 text-muted">No upcoming appointments scheduled.</div>'
+        : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Client</th><th>Type</th><th>Date</th><th>Notes</th></tr></thead><tbody>' +
+          upcoming.map(a =>
+            '<tr><td class="font-semibold text-xs">' + Utils.sanitizeHTML(a.clientName||'\u2014') + '</td>' +
+            '<td class="text-xs">' + Utils.sanitizeHTML(a.type||'\u2014') + '</td>' +
+            '<td class="text-xs">' + Utils.formatDate(a.date) + '</td>' +
+            '<td class="text-xs text-muted">' + Utils.sanitizeHTML(a.notes||'\u2014') + '</td></tr>'
+          ).join('') + '</tbody></table></div>';
+    }
+    showModal({
+      title, content: '<div style="max-height:60vh;overflow-y:auto;">' + content + '</div>',
+      submitText: 'Close', hideCancel: true, onSubmit: () => true, modalSize: 'modal-lg'
+    });
+  }
+
   return {
     init,
     navigate,
+    showDashReport,
     quickRoute,
     showModal,
     closeModal,
