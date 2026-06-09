@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     userAvatar.style.backgroundColor = Utils.getAvatarColor(currentUser.name);
     userAvatar.style.color = 'var(--pc-text-inverse)';
     userDisplayName.textContent = currentUser.name;
-    userDisplayRole.textContent = `${currentUser.role} (Production)`;
+    userDisplayRole.textContent = currentUser.name === 'Pooja Shah' ? 'Managing Director' : (currentUser.role + ' (Production)');
     updatePunchCardStatus();
     loadTasks();
   }
