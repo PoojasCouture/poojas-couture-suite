@@ -1992,131 +1992,95 @@ poojascouture.com.au`
     const paidInvoices = invoices.filter(i => i.status === 'Paid');
     const deliveredOrders = allOrders.filter(o => o.status === 'Delivered');
     const now = new Date();
-
     let title = '', content = '';
 
     if (type === 'revenue') {
       title = '💰 Revenue Report';
-      const byMonth = {};
-      paidInvoices.forEach(inv => {
-        if (!inv.issueDate) return;
-        const key = new Date(inv.issueDate).toLocaleString('en-AU', { month: 'short', year: 'numeric' });
-        byMonth[key] = (byMonth[key] || 0) + (inv.total || 0);
-      });
-      content = '<div class="text-xs text-muted mb-3">All paid invoices contributing to total revenue</div>' +
-        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Date</th><th class="text-right">Amount</th></tr></thead><tbody>' +
-        paidInvoices.sort((a,b) => new Date(b.issueDate||0)-new Date(a.issueDate||0)).map(inv =>
+      content = '<div class="text-xs text-muted mb-3">All paid invoices</div>' +
+        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Date</th><th>Amount</th></tr></thead><tbody>' +
+        paidInvoices.sort((a,b)=>new Date(b.issueDate||0)-new Date(a.issueDate||0)).map(inv =>
           '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(inv.invoiceNumber||'—') + '</td>' +
           '<td class="text-xs">' + Utils.sanitizeHTML(inv.clientName||'—') + '</td>' +
           '<td class="text-xs">' + Utils.formatDate(inv.issueDate) + '</td>' +
-          '<td class="text-right font-mono text-xs font-bold">' + Utils.formatCurrency(inv.total) + '</td></tr>'
-        ).join('') +
-        '</tbody></table></div>';
-    }
-    else if (type === 'outstanding') {
+          '<td class="font-mono text-xs font-bold">' + Utils.formatCurrency(inv.total) + '</td></tr>'
+        ).join('') + '</tbody></table></div>';
+    } else if (type === 'outstanding') {
       title = '⏳ Outstanding Balances';
-      const unpaid = invoices.filter(i => ['Partially Paid','Sent','Draft'].includes(i.status) || (i.total > (parseFloat(i.amountPaid)||0)));
-      content = '<div class="text-xs text-muted mb-3">Invoices with remaining balances</div>' +
-        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Total</th><th>Paid</th><th class="text-right">Balance</th></tr></thead><tbody>' +
-        unpaid.sort((a,b) => {
-          const balA = (a.total||0) - (parseFloat(a.amountPaid)||0);
-          const balB = (b.total||0) - (parseFloat(b.amountPaid)||0);
-          return balB - balA;
-        }).map(inv => {
+      const unpaid = invoices.filter(i => (i.total||0) > (parseFloat(i.amountPaid)||0));
+      content = '<div class="text-xs text-muted mb-3">' + unpaid.length + ' invoices with remaining balance</div>' +
+        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Total</th><th>Paid</th><th>Balance</th></tr></thead><tbody>' +
+        unpaid.sort((a,b)=>((b.total||0)-(parseFloat(b.amountPaid)||0))-((a.total||0)-(parseFloat(a.amountPaid)||0))).map(inv => {
           const paid = parseFloat(inv.amountPaid)||0;
-          const bal = Math.round((inv.total - paid)*100)/100;
-          if (bal <= 0) return '';
+          const bal = Math.round((inv.total-paid)*100)/100;
           return '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(inv.invoiceNumber||'—') + '</td>' +
             '<td class="text-xs">' + Utils.sanitizeHTML(inv.clientName||'—') + '</td>' +
             '<td class="font-mono text-xs">' + Utils.formatCurrency(inv.total) + '</td>' +
             '<td class="font-mono text-xs text-success">' + Utils.formatCurrency(paid) + '</td>' +
-            '<td class="text-right font-mono text-xs font-bold text-danger">' + Utils.formatCurrency(bal) + '</td></tr>';
-        }).join('') +
-        '</tbody></table></div>';
-    }
-    else if (type === 'avgorder') {
-      title = '📊 Average Order Value';
-      content = '<div class="text-xs text-muted mb-3">Order values for all delivered orders</div>' +
-        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Type</th><th class="text-right">Value</th></tr></thead><tbody>' +
+            '<td class="font-mono text-xs font-bold text-danger">' + Utils.formatCurrency(bal) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    } else if (type === 'avgorder') {
+      title = '📊 Order Values';
+      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Type</th><th>Value</th></tr></thead><tbody>' +
         deliveredOrders.sort((a,b)=>(b.price||0)-(a.price||0)).map(o =>
           '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(o.orderCode||'—') + '</td>' +
           '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
           '<td class="text-xs">' + Utils.sanitizeHTML(o.productType||'GEN') + '</td>' +
-          '<td class="text-right font-mono text-xs">' + Utils.formatCurrency(o.price||0) + '</td></tr>'
+          '<td class="font-mono text-xs">' + Utils.formatCurrency(o.price||0) + '</td></tr>'
         ).join('') + '</tbody></table></div>';
-    }
-    else if (type === 'ltv') {
+    } else if (type === 'ltv') {
       title = '👑 Client Lifetime Value';
-      const clientSpend = {};
-      allOrders.forEach(o => {
-        if (!clientSpend[o.clientId]) clientSpend[o.clientId] = { name: o.clientName, spend: 0, orders: 0 };
-        clientSpend[o.clientId].spend += (o.price||0);
-        clientSpend[o.clientId].orders += 1;
-      });
-      content = '<div class="text-xs text-muted mb-3">Total spend per client across all orders</div>' +
-        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>#</th><th>Client</th><th>Orders</th><th class="text-right">Lifetime Value</th></tr></thead><tbody>' +
-        Object.entries(clientSpend).sort((a,b)=>b[1].spend-a[1].spend).map(([id,d],i) =>
-          '<tr><td class="text-muted text-xs">' + (i+1) + '</td>' +
-          '<td class="font-semibold text-xs">' + Utils.sanitizeHTML(d.name) + '</td>' +
-          '<td class="text-xs">' + d.orders + '</td>' +
-          '<td class="text-right font-mono text-xs font-bold text-gold">' + Utils.formatCurrency(d.spend) + '</td></tr>'
+      const cs = {};
+      allOrders.forEach(o => { if (!cs[o.clientId]) cs[o.clientId]={name:o.clientName,spend:0,orders:0}; cs[o.clientId].spend+=(o.price||0); cs[o.clientId].orders++; });
+      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>#</th><th>Client</th><th>Orders</th><th>LTV</th></tr></thead><tbody>' +
+        Object.entries(cs).sort((a,b)=>b[1].spend-a[1].spend).map(([id,d],i) =>
+          '<tr><td class="text-muted text-xs">' + (i+1) + '</td><td class="font-semibold text-xs">' + Utils.sanitizeHTML(d.name) + '</td>' +
+          '<td class="text-xs">' + d.orders + '</td><td class="font-mono text-xs font-bold text-gold">' + Utils.formatCurrency(d.spend) + '</td></tr>'
         ).join('') + '</tbody></table></div>';
-    }
-    else if (type === 'delivered') {
+    } else if (type === 'delivered') {
       title = '📦 Delivered Orders';
-      content = '<div class="text-xs text-muted mb-3">' + deliveredOrders.length + ' orders delivered out of ' + allOrders.length + ' total</div>' +
-        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Garment</th><th>Value</th><th>Delivered</th></tr></thead><tbody>' +
+      content = '<div class="text-xs text-muted mb-3">' + deliveredOrders.length + ' of ' + allOrders.length + ' total orders delivered</div>' +
+        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Garment</th><th>Value</th></tr></thead><tbody>' +
         deliveredOrders.sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0)).map(o =>
           '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(o.orderCode||'—') + '</td>' +
           '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
           '<td class="text-xs">' + Utils.sanitizeHTML(o.title) + '</td>' +
-          '<td class="font-mono text-xs">' + Utils.formatCurrency(o.price||0) + '</td>' +
-          '<td class="text-xs text-muted">' + Utils.formatDate(o.updatedAt||o.deadline) + '</td></tr>'
+          '<td class="font-mono text-xs">' + Utils.formatCurrency(o.price||0) + '</td></tr>'
         ).join('') + '</tbody></table></div>';
-    }
-    else if (type === 'completion') {
-      title = '🎯 Order Completion Rate';
+    } else if (type === 'completion') {
+      title = '🎯 Pipeline Stages';
       const stages = {};
-      allOrders.forEach(o => { stages[o.status] = (stages[o.status]||0)+1; });
-      content = '<div class="text-xs text-muted mb-3">Orders by current pipeline stage</div>' +
-        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Stage</th><th class="text-right">Count</th></tr></thead><tbody>' +
-        Object.entries(stages).sort((a,b)=>b[1]-a[1]).map(([stage,count]) =>
-          '<tr><td><span class="badge badge-gold text-xs">' + Utils.sanitizeHTML(stage) + '</span></td>' +
-          '<td class="text-right font-mono font-bold text-xs">' + count + '</td></tr>'
+      allOrders.forEach(o => { stages[o.status]=(stages[o.status]||0)+1; });
+      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Stage</th><th>Count</th></tr></thead><tbody>' +
+        Object.entries(stages).sort((a,b)=>b[1]-a[1]).map(([s,c]) =>
+          '<tr><td><span class="badge badge-gold text-xs">' + Utils.sanitizeHTML(s) + '</span></td>' +
+          '<td class="font-mono font-bold text-xs">' + c + '</td></tr>'
         ).join('') + '</tbody></table></div>';
-    }
-    else if (type === 'fulfillment') {
-      title = '📅 Fulfillment Time Report';
-      const times = deliveredOrders.filter(o=>o.createdAt&&o.updatedAt).map(o => ({
-        name: o.title, client: o.clientName, code: o.orderCode||'—',
-        days: Math.round((new Date(o.updatedAt)-new Date(o.createdAt))/(1000*60*60*24))
+    } else if (type === 'fulfillment') {
+      title = '📅 Fulfillment Times';
+      const times = deliveredOrders.filter(o=>o.createdAt&&o.updatedAt).map(o=>({
+        code:o.orderCode||'—',client:o.clientName,name:o.title,
+        days:Math.round((new Date(o.updatedAt)-new Date(o.createdAt))/(1000*60*60*24))
       })).sort((a,b)=>b.days-a.days);
-      content = '<div class="text-xs text-muted mb-3">Days from creation to delivery per order</div>' +
-        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Garment</th><th class="text-right">Days</th></tr></thead><tbody>' +
-        times.map(t =>
-          '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(t.code) + '</td>' +
+      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Garment</th><th>Days</th></tr></thead><tbody>' +
+        times.map(t => '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(t.code) + '</td>' +
           '<td class="text-xs">' + Utils.sanitizeHTML(t.client) + '</td>' +
           '<td class="text-xs">' + Utils.sanitizeHTML(t.name) + '</td>' +
-          '<td class="text-right font-mono font-bold text-xs ' + (t.days > 84 ? 'text-danger' : t.days > 56 ? 'text-warning' : 'text-success') + '">' + t.days + 'd</td></tr>'
+          '<td class="font-mono font-bold text-xs ' + (t.days>84?'text-danger':t.days>56?'text-warning':'text-success') + '">' + t.days + 'd</td></tr>'
         ).join('') + '</tbody></table></div>';
-    }
-    else if (type === 'overdue') {
+    } else if (type === 'overdue') {
       title = '⚠️ Overdue Orders';
-      const overdueOrders = allOrders.filter(o => o.status !== 'Delivered' && o.deadline && new Date(o.deadline) < now)
-        .sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));
-      content = overdueOrders.length === 0
-        ? '<div class="text-center p-6 text-success font-semibold">No overdue orders. All on track!</div>'
-        : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Stage</th><th>Deadline</th><th class="text-right">Overdue By</th></tr></thead><tbody>' +
-          overdueOrders.map(o => {
-            const days = Math.round((now-new Date(o.deadline))/(1000*60*60*24));
-            return '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(o.orderCode||'—') + '</td>' +
-              '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
-              '<td><span class="badge badge-gold text-xs">' + o.status + '</span></td>' +
-              '<td class="text-xs text-danger">' + Utils.formatDate(o.deadline) + '</td>' +
-              '<td class="text-right font-mono font-bold text-danger text-xs">' + days + 'd</td></tr>';
-          }).join('') + '</tbody></table></div>';
-    }
-    else if (type === 'clients') {
+      const od = allOrders.filter(o=>o.status!=='Delivered'&&o.deadline&&new Date(o.deadline)<now).sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));
+      content = od.length===0 ? '<div class="text-center p-6 text-success font-semibold">No overdue orders!</div>' :
+        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Stage</th><th>Deadline</th><th>Days Over</th></tr></thead><tbody>' +
+        od.map(o => {
+          const days = Math.round((now-new Date(o.deadline))/(1000*60*60*24));
+          return '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(o.orderCode||'—') + '</td>' +
+            '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
+            '<td><span class="badge badge-gold text-xs">' + o.status + '</span></td>' +
+            '<td class="text-xs text-danger">' + Utils.formatDate(o.deadline) + '</td>' +
+            '<td class="font-mono font-bold text-danger text-xs">' + days + 'd</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    } else if (type === 'clients') {
       title = '👥 All Clients';
       content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Client</th><th>Type</th><th>Orders</th><th>Contact</th></tr></thead><tbody>' +
         allClients.sort((a,b)=>a.name.localeCompare(b.name)).map(c => {
@@ -2126,27 +2090,18 @@ poojascouture.com.au`
             '<td class="font-mono text-xs">' + cnt + '</td>' +
             '<td class="text-xs text-muted">' + Utils.sanitizeHTML(c.email||c.phone||'—') + '</td></tr>';
         }).join('') + '</tbody></table></div>';
-    }
-    else if (type === 'repeatrate') {
+    } else if (type === 'repeatrate') {
       title = '🔁 Repeat Clients';
-      const clientOrderCount = {};
-      allOrders.forEach(o => {
-        if (!clientOrderCount[o.clientId]) clientOrderCount[o.clientId] = { name: o.clientName, count: 0 };
-        clientOrderCount[o.clientId].count++;
-      });
-      const repeats = Object.values(clientOrderCount).filter(c=>c.count>1).sort((a,b)=>b.count-a.count);
-      content = '<div class="text-xs text-muted mb-3">' + repeats.length + ' clients have placed more than one order</div>' +
-        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Client</th><th class="text-right">Total Orders</th></tr></thead><tbody>' +
-        repeats.map(c =>
-          '<tr><td class="font-semibold text-xs">' + Utils.sanitizeHTML(c.name) + '</td>' +
-          '<td class="text-right font-mono font-bold text-xs text-gold">' + c.count + '</td></tr>'
-        ).join('') + '</tbody></table></div>';
-    }
-    else if (type === 'brides') {
+      const cc = {};
+      allOrders.forEach(o => { if (!cc[o.clientId]) cc[o.clientId]={name:o.clientName,count:0}; cc[o.clientId].count++; });
+      const repeats = Object.values(cc).filter(c=>c.count>1).sort((a,b)=>b.count-a.count);
+      content = '<div class="text-xs text-muted mb-3">' + repeats.length + ' repeat clients</div>' +
+        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Client</th><th>Orders</th></tr></thead><tbody>' +
+        repeats.map(c => '<tr><td class="font-semibold text-xs">' + Utils.sanitizeHTML(c.name) + '</td><td class="font-mono font-bold text-gold text-xs">' + c.count + '</td></tr>').join('') + '</tbody></table></div>';
+    } else if (type === 'brides') {
       title = '💍 Bridal Clients';
-      const brides = allClients.filter(c => c.type === 'Bride');
-      content = '<div class="text-xs text-muted mb-3">' + brides.length + ' bridal clients on record</div>' +
-        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Bride</th><th>Wedding Date</th><th>Orders</th><th>Contact</th></tr></thead><tbody>' +
+      const brides = allClients.filter(c=>c.type==='Bride');
+      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Bride</th><th>Wedding</th><th>Orders</th><th>Contact</th></tr></thead><tbody>' +
         brides.map(c => {
           const cnt = allOrders.filter(o=>o.clientId===c.id).length;
           return '<tr><td class="font-semibold text-xs">' + Utils.sanitizeHTML(c.name) + '</td>' +
@@ -2154,9 +2109,8 @@ poojascouture.com.au`
             '<td class="font-mono text-xs">' + cnt + '</td>' +
             '<td class="text-xs text-muted">' + Utils.sanitizeHTML(c.email||c.phone||'—') + '</td></tr>';
         }).join('') + '</tbody></table></div>';
-    }
-    else if (type === 'appointments') {
-      title = '📋 Appointments';
+    } else if (type === 'appointments') {
+      title = '📋 All Appointments';
       content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Client</th><th>Type</th><th>Date</th><th>Status</th></tr></thead><tbody>' +
         appointments.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).map(a =>
           '<tr><td class="font-semibold text-xs">' + Utils.sanitizeHTML(a.clientName||'—') + '</td>' +
@@ -2167,12 +2121,8 @@ poojascouture.com.au`
     }
 
     App.showModal({
-      title,
-      content: '<div style="max-height:60vh;overflow-y:auto;">' + content + '</div>',
-      submitText: 'Close',
-      hideCancel: true,
-      onSubmit: () => true,
-      modalSize: 'modal-lg'
+      title, content: '<div style="max-height:60vh;overflow-y:auto;">' + content + '</div>',
+      submitText: 'Close', hideCancel: true, onSubmit: () => true, modalSize: 'modal-lg'
     });
   }
 
@@ -2301,18 +2251,18 @@ poojascouture.com.au`
       </style>
       <div style="overflow-x:auto;margin-bottom:20px;">
         <div style="display:flex;gap:10px;padding-bottom:6px;min-width:max-content;">
-          <div class="kpi-card" style="animation-delay:0.00s;cursor:pointer;" onclick="showKPIReport('revenue')" title="Click for Revenue report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Revenue</div><div style="font-size:13px;">💰</div><div style="class="kpi-value"">${Utils.formatCurrency(totalRevenue)}</div></div>
-          <div class="kpi-card" style="animation-delay:0.05s;cursor:pointer;" onclick="showKPIReport('outstanding')" title="Click for Outstanding report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Outstanding</div><div style="font-size:13px;">⏳</div><div style="class="kpi-value"">${Utils.formatCurrency(outstandingAmt)}</div></div>
-          <div class="kpi-card" style="animation-delay:0.10s;cursor:pointer;" onclick="showKPIReport('avgorder')" title="Click for Avg Order Value report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Order Value</div><div style="font-size:13px;">📊</div><div style="class="kpi-value"">${Utils.formatCurrency(avgOrderValue)}</div></div>
-          <div class="kpi-card" style="animation-delay:0.15s;cursor:pointer;" onclick="showKPIReport('ltv')" title="Click for Avg LTV report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg LTV</div><div style="font-size:13px;">👑</div><div style="class="kpi-value"">${Utils.formatCurrency(avgCLTV)}</div></div>
-          <div class="kpi-card" style="animation-delay:0.20s;cursor:pointer;" onclick="showKPIReport('delivered')" title="Click for Delivered report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Delivered</div><div style="font-size:13px;">📦</div><div style="class="kpi-value"">${deliveredOrders.length} / ${allOrders.length}</div></div>
-          <div class="kpi-card" style="animation-delay:0.25s;cursor:pointer;" onclick="showKPIReport('completion')" title="Click for Completion report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Completion</div><div style="font-size:13px;">🎯</div><div style="class="kpi-value"">${conversionRate}%</div></div>
-          <div class="kpi-card" style="animation-delay:0.30s;cursor:pointer;" onclick="showKPIReport('fulfillment')" title="Click for Avg Fulfillment report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Fulfillment</div><div style="font-size:13px;">📅</div><div style="class="kpi-value"">${avgFulfillDays > 0 ? avgFulfillDays + String.fromCharCode(100) : String.fromCharCode(8212)}</div></div>
-          <div class="kpi-card" style="animation-delay:0.35s;cursor:pointer;" onclick="showKPIReport('overdue')" title="Click for Overdue report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Overdue</div><div style="font-size:13px;">⚠️</div><div style="class="kpi-value"">${overdue.length}</div></div>
-          <div class="kpi-card" style="animation-delay:0.40s;cursor:pointer;" onclick="showKPIReport('clients')" title="Click for Total Clients report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Total Clients</div><div style="font-size:13px;">👥</div><div style="class="kpi-value"">${allClients.length}</div></div>
-          <div class="kpi-card" style="animation-delay:0.45s;cursor:pointer;" onclick="showKPIReport('repeatrate')" title="Click for Repeat Rate report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Repeat Rate</div><div style="font-size:13px;">🔁</div><div style="class="kpi-value"">${repeatRate}%</div></div>
-          <div class="kpi-card" style="animation-delay:0.50s;cursor:pointer;" onclick="showKPIReport('brides')" title="Click for Brides report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Brides</div><div style="font-size:13px;">💍</div><div style="class="kpi-value"">${allClients.filter(function(c){return c.type===String.fromCharCode(66,114,105,100,101);}).length}</div></div>
-          <div class="kpi-card" style="animation-delay:0.55s;cursor:pointer;" onclick="showKPIReport('appointments')" title="Click for Appointments report"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Appointments</div><div style="font-size:13px;">📋</div><div style="class="kpi-value"">${appointments.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.00s;cursor:pointer;" onclick="CRM.showKPIReport('revenue')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Revenue</div><div style="font-size:13px;">💰</div><div style="class="kpi-value"">${Utils.formatCurrency(totalRevenue)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.05s;cursor:pointer;" onclick="CRM.showKPIReport('outstanding')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Outstanding</div><div style="font-size:13px;">⏳</div><div style="class="kpi-value"">${Utils.formatCurrency(outstandingAmt)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.10s;cursor:pointer;" onclick="CRM.showKPIReport('avgorder')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Order Value</div><div style="font-size:13px;">📊</div><div style="class="kpi-value"">${Utils.formatCurrency(avgOrderValue)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.15s;cursor:pointer;" onclick="CRM.showKPIReport('ltv')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg LTV</div><div style="font-size:13px;">👑</div><div style="class="kpi-value"">${Utils.formatCurrency(avgCLTV)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.20s;cursor:pointer;" onclick="CRM.showKPIReport('delivered')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Delivered</div><div style="font-size:13px;">📦</div><div style="class="kpi-value"">${deliveredOrders.length} / ${allOrders.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.25s;cursor:pointer;" onclick="CRM.showKPIReport('completion')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Completion</div><div style="font-size:13px;">🎯</div><div style="class="kpi-value"">${conversionRate}%</div></div>
+          <div class="kpi-card" style="animation-delay:0.30s;cursor:pointer;" onclick="CRM.showKPIReport('fulfillment')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Fulfillment</div><div style="font-size:13px;">📅</div><div style="class="kpi-value"">${avgFulfillDays > 0 ? avgFulfillDays + String.fromCharCode(100) : String.fromCharCode(8212)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.35s;cursor:pointer;" onclick="CRM.showKPIReport('overdue')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Overdue</div><div style="font-size:13px;">⚠️</div><div style="class="kpi-value"">${overdue.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.40s;cursor:pointer;" onclick="CRM.showKPIReport('clients')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Total Clients</div><div style="font-size:13px;">👥</div><div style="class="kpi-value"">${allClients.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.45s;cursor:pointer;" onclick="CRM.showKPIReport('repeatrate')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Repeat Rate</div><div style="font-size:13px;">🔁</div><div style="class="kpi-value"">${repeatRate}%</div></div>
+          <div class="kpi-card" style="animation-delay:0.50s;cursor:pointer;" onclick="CRM.showKPIReport('brides')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Brides</div><div style="font-size:13px;">💍</div><div style="class="kpi-value"">${allClients.filter(function(c){return c.type===String.fromCharCode(66,114,105,100,101);}).length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.55s;cursor:pointer;" onclick="CRM.showKPIReport('appointments')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Appointments</div><div style="font-size:13px;">📋</div><div style="class="kpi-value"">${appointments.length}</div></div>
         </div>
       </div>
 
@@ -3548,6 +3498,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     viewProject,
     showProjectModal,
     createProjectInvoice,
+    showKPIReport,
     updateProjectInvoice,
     recordMilestonePayment
   };
