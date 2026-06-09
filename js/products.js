@@ -50,22 +50,22 @@ const Products = (() => {
 
       <!-- Summary stat cards -->
       <div class="d-grid gap-4 mb-5 animate-fade-in stagger-1" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="Products.showReport('all')">
           <div class="stat-card-header"><span class="stat-card-icon gold">📦</span></div>
           <div class="stat-card-value">${products.length}</div>
           <div class="stat-card-label">Total Products</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="Products.showReport('instock')">
           <div class="stat-card-header"><span class="stat-card-icon green">✅</span></div>
           <div class="stat-card-value">${inStock.length}</div>
           <div class="stat-card-label">In Stock</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="Products.showReport('reserved')">
           <div class="stat-card-header"><span class="stat-card-icon blue">🔖</span></div>
           <div class="stat-card-value">${reserved.length}</div>
           <div class="stat-card-label">Reserved</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="Products.showReport('value')">
           <div class="stat-card-header"><span class="stat-card-icon purple">💰</span></div>
           <div class="stat-card-value">${Utils.formatCurrency(stockValue)}</div>
           <div class="stat-card-label">Stock Value (retail)</div>
@@ -375,10 +375,34 @@ const Products = (() => {
     Utils.showToast('Inventory exported.');
   }
 
+  function showReport(type) {
+    const products = Store.getAll(Store.COLLECTIONS.PRODUCTS) || [];
+    const inStock  = products.filter(p => p.status === 'In Stock');
+    const reserved = products.filter(p => p.status === 'Reserved');
+    let title = '', rows = [];
+    if (type === 'all')      { title = '📦 All Products';       rows = products.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')); }
+    else if (type === 'instock')  { title = '✅ In Stock';           rows = inStock.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')); }
+    else if (type === 'reserved') { title = '🔖 Reserved';           rows = reserved.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')); }
+    else if (type === 'value')    { title = '💰 Stock Value Breakdown'; rows = inStock.slice().sort((a,b)=>(b.price||0)-(a.price||0)); }
+    const content = rows.length === 0
+      ? '<div class="text-center p-6 text-muted">No products in this category.</div>'
+      : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Status</th><th>Retail Price</th></tr></thead><tbody>' +
+        rows.map(p =>
+          '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(p.sku||'\u2014') + '</td>' +
+          '<td class="font-semibold text-xs">' + Utils.sanitizeHTML(p.name||'\u2014') + '</td>' +
+          '<td class="text-xs">' + Utils.sanitizeHTML(p.category||'\u2014') + '</td>' +
+          '<td><span class="badge badge-' + (p.status==='In Stock'?'success':p.status==='Reserved'?'warning':'muted') + ' text-xs">' + Utils.sanitizeHTML(p.status||'\u2014') + '</span></td>' +
+          '<td class="font-mono text-xs">' + Utils.formatCurrency(p.price||0) + '</td></tr>'
+        ).join('') + '</tbody></table></div>';
+    App.showModal({ title, content: '<div style="max-height:60vh;overflow-y:auto;">' + content + '</div>',
+      submitText: 'Close', hideCancel: true, onSubmit: () => true, modalSize: 'modal-lg' });
+  }
+
   return {
     init,
     editProduct,
     deleteProduct,
-    showProductModal
+    showProductModal,
+    showReport
   };
 })();
