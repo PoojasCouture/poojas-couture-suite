@@ -93,7 +93,7 @@ const Accounting = (() => {
 
     container.innerHTML = `
       <div class="widgets-grid animate-fade-in stagger-1">
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="Accounting.showReport('revenue')">
           <div class="stat-card-header">
             <span class="stat-card-icon green">💰</span>
             <span class="stat-card-trend up">+$${Utils.formatCompact(totalRevenue)}</span>
@@ -101,7 +101,7 @@ const Accounting = (() => {
           <div class="stat-card-value">${Utils.formatCurrency(totalRevenue)}</div>
           <div class="stat-card-label">Total Revenue (Cash-basis)</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="Accounting.showReport('expenses')">
           <div class="stat-card-header">
             <span class="stat-card-icon red">💸</span>
             <span class="stat-card-trend down">-$${Utils.formatCompact(totalExpenses)}</span>
@@ -109,7 +109,7 @@ const Accounting = (() => {
           <div class="stat-card-value">${Utils.formatCurrency(totalExpenses)}</div>
           <div class="stat-card-label">Total Expenses Logged</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="Accounting.showReport('profit')">
           <div class="stat-card-header">
             <span class="stat-card-icon gold">⚖️</span>
             <span class="stat-card-trend ${netProfit >= 0 ? 'up' : 'down'}">${netProfit >= 0 ? 'Profit' : 'Loss'}</span>
@@ -117,7 +117,7 @@ const Accounting = (() => {
           <div class="stat-card-value ${netProfit >= 0 ? 'text-success' : 'text-danger'}">${Utils.formatCurrency(netProfit)}</div>
           <div class="stat-card-label">Net Profit / Loss Position</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="Accounting.showReport('outstanding')">
           <div class="stat-card-header">
             <span class="stat-card-icon amber">🔔</span>
             <span class="badge badge-warning">${outstandingInvoices.length} Pending</span>
@@ -1095,6 +1095,57 @@ const Accounting = (() => {
     }, 100);
   }
 
+  function showReport(type) {
+    const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
+    const expenses = Store.getAll(Store.COLLECTIONS.EXPENSES) || [];
+    const paidInv   = invoices.filter(i => i.status === 'Paid');
+    const unpaidInv = invoices.filter(i => (i.total||0) > (parseFloat(i.amountPaid)||0));
+    let title = '', content = '';
+    if (type === 'revenue') {
+      title = 'Revenue Report';
+      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Date</th><th>Amount</th></tr></thead><tbody>' +
+        paidInv.sort((a,b)=>new Date(b.issueDate||0)-new Date(a.issueDate||0)).map(inv =>
+          '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(inv.invoiceNumber||'') + '</td>' +
+          '<td class="text-xs">' + Utils.sanitizeHTML(inv.clientName||'') + '</td>' +
+          '<td class="text-xs">' + Utils.formatDate(inv.issueDate) + '</td>' +
+          '<td class="font-mono text-xs font-bold">' + Utils.formatCurrency(inv.total) + '</td></tr>'
+        ).join('') + '</tbody></table></div>';
+    } else if (type === 'expenses') {
+      title = 'Expenses Report';
+      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th></tr></thead><tbody>' +
+        expenses.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).map(e =>
+          '<tr><td class="text-xs">' + Utils.formatDate(e.date) + '</td>' +
+          '<td><span class="badge badge-muted text-xs">' + Utils.sanitizeHTML(e.category||'') + '</span></td>' +
+          '<td class="text-xs">' + Utils.sanitizeHTML(e.description||'') + '</td>' +
+          '<td class="font-mono text-xs font-bold text-danger">' + Utils.formatCurrency(e.amount||0) + '</td></tr>'
+        ).join('') + '</tbody></table></div>';
+    } else if (type === 'profit') {
+      title = 'Net Profit Breakdown';
+      const rev = paidInv.reduce((s,i)=>s+(i.total||0),0);
+      const exp = expenses.reduce((s,e)=>s+(e.amount||0),0);
+      const profit = rev - exp;
+      content = '<div class="d-grid gap-3 mb-4" style="grid-template-columns:repeat(3,1fr)">' +
+        '<div class="card p-4 text-center"><div class="text-xs text-muted mb-1">Total Revenue</div><div class="font-mono font-bold text-success">' + Utils.formatCurrency(rev) + '</div></div>' +
+        '<div class="card p-4 text-center"><div class="text-xs text-muted mb-1">Total Expenses</div><div class="font-mono font-bold text-danger">' + Utils.formatCurrency(exp) + '</div></div>' +
+        '<div class="card p-4 text-center"><div class="text-xs text-muted mb-1">Net Position</div><div class="font-mono font-bold ' + (profit>=0?'text-success':'text-danger') + '">' + Utils.formatCurrency(profit) + '</div></div>' +
+        '</div>';
+    } else if (type === 'outstanding') {
+      title = 'Outstanding Invoices';
+      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Total</th><th>Paid</th><th>Balance</th></tr></thead><tbody>' +
+        unpaidInv.sort((a,b)=>((b.total||0)-(parseFloat(b.amountPaid)||0))-((a.total||0)-(parseFloat(a.amountPaid)||0))).map(inv => {
+          const paid = parseFloat(inv.amountPaid)||0;
+          const bal  = Math.round((inv.total-paid)*100)/100;
+          return '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(inv.invoiceNumber||'') + '</td>' +
+            '<td class="text-xs">' + Utils.sanitizeHTML(inv.clientName||'') + '</td>' +
+            '<td class="font-mono text-xs">' + Utils.formatCurrency(inv.total) + '</td>' +
+            '<td class="font-mono text-xs text-success">' + Utils.formatCurrency(paid) + '</td>' +
+            '<td class="font-mono text-xs font-bold text-danger">' + Utils.formatCurrency(bal) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+    App.showModal({ title, content: '<div style="max-height:60vh;overflow-y:auto;">' + content + '</div>',
+      submitText: 'Close', hideCancel: true, onSubmit: () => true, modalSize: 'modal-lg' });
+  }
+
   return {
     init,
     viewInvoicePreview,
@@ -1102,6 +1153,7 @@ const Accounting = (() => {
     deleteInvoice,
     editExpense,
     deleteExpense,
-    recordMilestonePayment
+    recordMilestonePayment,
+    showReport
   };
 })();
