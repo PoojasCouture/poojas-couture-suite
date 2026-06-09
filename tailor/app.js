@@ -175,23 +175,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         actionButton = `<span class="badge badge-info text-xs mt-2 p-2">Shipped to Shashank — ${Utils.sanitizeHTML(order.domesticTracking || 'tracking pending')}</span>`;
       }
 
-      card.innerHTML = `
-      <div class="task-header">
-          <div>
-            <span class="badge badge-gold text-xs">${order.status}</span>
-            <h4 class="task-title mt-1">${Utils.sanitizeHTML(order.title)}</h4>
-            <div class="text-xs text-muted mt-1">Client: ${Utils.sanitizeHTML(order.clientName)}</div>
-          </div>
-        </div>
-        <div class="measurement-badge mt-2">
-          <strong>Stitching specs:</strong>
-          ${Utils.sanitizeHTML(order.notes || 'No specific measurement instructions logged.')}
-        </div>
-        <div class="d-flex justify-between items-center mt-2">
-          <span class="text-xs text-danger">Target: ${Utils.formatDate(order.deadline)}</span>
-          ${actionButton}
-        </div>
-      `;
+      card.innerHTML =
+        '<div class="d-flex justify-between items-start mb-3">' +
+          '<div>' +
+            '<span class="badge badge-gold text-xs">' + order.status + '</span>' +
+            (order.orderCode ? '<span class="font-mono text-xs text-gold ml-2">' + Utils.sanitizeHTML(order.orderCode) + '</span>' : '') +
+            '<div class="font-semibold text-sm mt-1">' + Utils.sanitizeHTML(order.title) + '</div>' +
+            '<div class="text-xs text-muted mt-1">Client: ' + Utils.sanitizeHTML(order.clientName) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="measurement-badge mb-3">' +
+          '<div class="text-xs font-semibold text-gold mb-1">Stitching Specs</div>' +
+          '<div class="text-xs">' + Utils.sanitizeHTML(order.notes || 'No specific instructions logged.') + '</div>' +
+        '</div>' +
+        '<div class="d-flex justify-between items-center">' +
+          '<span class="text-xs text-danger font-semibold">&#128197; ' + Utils.formatDate(order.deadline) + '</span>' +
+          actionButton +
+        '</div>';
       tasksList.appendChild(card);
     });
   }
@@ -273,47 +273,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
-  // ---------- Reusable Modal (self-contained inline styles) ----------
-  // Inline styles so it displays regardless of the portal stylesheet.
+  // ---------- Modal using main app CSS classes ----------
   function showModal({ title, content, submitText = 'Submit', onSubmit }) {
     const exist = document.querySelector('.pc-modal-overlay');
     if (exist) exist.remove();
 
     const overlay = document.createElement('div');
     overlay.className = 'pc-modal-overlay';
-    overlay.style.cssText = [
-      'position:fixed', 'inset:0', 'z-index:9999',
-      'background:rgba(0,0,0,0.6)',
-      'display:flex', 'align-items:center', 'justify-content:center',
-      'padding:20px'
-    ].join(';');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:16px;';
 
-    overlay.innerHTML = `
-      <div style="background:var(--pc-surface,#1f1f29); color:var(--pc-text,#f5f5f5);
-                  width:100%; max-width:460px; border-radius:12px;
-                  box-shadow:0 20px 60px rgba(0,0,0,0.5); overflow:hidden;
-                  border:1px solid rgba(255,255,255,0.08);">
-        <div style="display:flex; justify-content:space-between; align-items:center;
-                    padding:16px 20px; border-bottom:1px solid rgba(255,255,255,0.08);">
-          <div style="font-weight:600; font-size:15px;">${Utils.sanitizeHTML(title)}</div>
-          <button id="pc-modal-x" style="background:none; border:none; color:inherit;
-                  font-size:22px; line-height:1; cursor:pointer; opacity:0.7;">×</button>
-        </div>
-        <div style="padding:20px;">${content}</div>
-        <div style="display:flex; justify-content:flex-end; gap:10px;
-                    padding:16px 20px; border-top:1px solid rgba(255,255,255,0.08);">
-          <button class="btn btn-secondary" id="pc-modal-cancel">Cancel</button>
-          <button class="btn btn-primary" id="pc-modal-submit">${submitText}</button>
-        </div>
-      </div>
-    `;
+    overlay.innerHTML =
+      '<div class="card p-0 animate-fade-in-scale" style="width:100%;max-width:460px;overflow:hidden;">' +
+        '<div class="card-header">' +
+          '<div class="card-title">' + Utils.sanitizeHTML(title) + '</div>' +
+          '<button id="pc-modal-x" class="btn btn-secondary btn-sm" style="padding:4px 10px;font-size:16px;">&#215;</button>' +
+        '</div>' +
+        '<div class="p-5">' + content + '</div>' +
+        '<div class="d-flex justify-end gap-2 p-4" style="border-top:1px solid var(--pc-border)">' +
+          '<button class="btn btn-secondary" id="pc-modal-cancel">Cancel</button>' +
+          '<button class="btn btn-primary" id="pc-modal-submit">' + submitText + '</button>' +
+        '</div>' +
+      '</div>';
+
     document.body.appendChild(overlay);
-
     const close = () => overlay.remove();
     overlay.querySelector('#pc-modal-x').addEventListener('click', close);
     overlay.querySelector('#pc-modal-cancel').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-
     overlay.querySelector('#pc-modal-submit').addEventListener('click', async () => {
       const result = await onSubmit(overlay);
       if (result !== false) close();
