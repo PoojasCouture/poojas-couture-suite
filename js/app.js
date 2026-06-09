@@ -94,6 +94,28 @@ const App = (() => {
     });
   }
 
+  // ── Sidebar collapse toggle ──────────────────────────
+  (function wireSidebarCollapse() {
+    const sidebar = document.getElementById('sidebar');
+    const brand   = sidebar ? sidebar.querySelector('.sidebar-brand') : null;
+    if (!sidebar || !brand) return;
+
+    // Add data-tooltip to each nav link for collapsed state
+    sidebar.querySelectorAll('.sidebar-link').forEach(btn => {
+      const text = btn.querySelector('.sidebar-link-text');
+      if (text) btn.setAttribute('data-tooltip', text.textContent.trim());
+    });
+
+    // Check saved state
+    const saved = localStorage.getItem('pc-sidebar-collapsed');
+    if (saved === 'true') sidebar.classList.add('collapsed');
+
+    brand.addEventListener('click', () => {
+      const isCollapsed = sidebar.classList.toggle('collapsed');
+      localStorage.setItem('pc-sidebar-collapsed', isCollapsed);
+    });
+  })();
+
   function navigate(route) {
     currentRoute = route;
 
