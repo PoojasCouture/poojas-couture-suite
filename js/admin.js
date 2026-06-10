@@ -7,7 +7,7 @@ const Admin = (() => {
   let activeTab = 'users';
 
   function init() {
-    activeTab = 'users';
+    try { activeTab = localStorage.getItem('pc_tab_admin') || 'users'; } catch(e) { activeTab = 'users'; }
     render();
   }
 
@@ -40,6 +40,7 @@ const Admin = (() => {
     Utils.$$('.tab-btn', container).forEach(btn => {
       btn.addEventListener('click', (e) => {
         activeTab = e.target.dataset.tab;
+          try { localStorage.setItem('pc_tab_admin', activeTab); } catch(e) {}
         Utils.$$('.tab-btn', container).forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         renderSubTab();
