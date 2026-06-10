@@ -7,7 +7,7 @@ const Accounting = (() => {
   let activeTab = 'dashboard';
 
   function init() {
-    activeTab = 'dashboard';
+    try { activeTab = localStorage.getItem('pc_tab_accounting') || 'dashboard'; } catch(e) { activeTab = 'dashboard'; }
     render();
   }
 
@@ -40,6 +40,7 @@ const Accounting = (() => {
     Utils.$$('.tab-btn', container).forEach(btn => {
       btn.addEventListener('click', (e) => {
         activeTab = e.target.dataset.tab;
+          try { localStorage.setItem('pc_tab_accounting', activeTab); } catch(e) {}
         Utils.$$('.tab-btn', container).forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         renderSubTab();
