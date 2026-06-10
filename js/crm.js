@@ -749,17 +749,24 @@ poojascouture.com.au`
         return;
       }
 
+      // Statuses where deadline is no longer actionable
+      const DONE_STATUSES = ['Ready','Shipped to Shashank','At Shashank','In Transit',
+        'Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery','Delivered'];
+
       list.forEach(o => {
         const days = Utils.daysFromNow(o.deadline);
-        const isDelivered = o.status === 'Delivered';
-        const deadlineClass = isDelivered ? 'text-muted'
-          : days < 0 ? 'text-danger font-semibold'
-          : days < 7 ? 'text-warning font-semibold'
+        const isDone = DONE_STATUSES.includes(o.status);
+        const isOverdue = !isDone && o.deadline && days < 0;
+        const isWarning = !isDone && o.deadline && days >= 0 && days <= 7;
+        const deadlineClass = isDone ? 'text-muted'
+          : isOverdue ? 'text-danger font-semibold'
+          : isWarning ? 'text-warning font-semibold'
           : 'text-muted';
-        const deadlineText = isDelivered ? 'Completed'
+        const deadlineText = isDone ? 'Done'
+          : !o.deadline ? 'No deadline'
           : days === 0 ? 'Due today'
-          : days < 0 ? `${Math.abs(days)} days overdue`
-          : `${days} days left`;
+          : isOverdue ? Math.abs(days) + ' days overdue'
+          : days + ' days left';
         const stageColor =
           o.status === 'Delivered' ? 'badge-success'
           : o.status === 'Cleared for Delivery' ? 'badge-success'
@@ -774,12 +781,14 @@ poojascouture.com.au`
           `<option value="${s.id}" ${s.id===o.status?'selected':''}>${s.title}</option>`
         ).join('');
 
+        const cardBorder = isOverdue ? '2px solid #f59e0b' : isWarning ? '1px solid #f59e0b' : '';
+        const cardBg = isOverdue ? 'rgba(245,158,11,0.06)' : '';
         const card = Utils.createElement('div', {
           className: 'card p-0 cursor-pointer',
-          style: 'overflow:hidden;transition:transform .15s ease, border-color .15s ease',
+          style: 'overflow:hidden;transition:transform .15s ease, border-color .15s ease' + (cardBorder ? ';border:' + cardBorder : '') + (cardBg ? ';background:' + cardBg : ''),
           onclick: (e) => { if (e.target.closest('select')) return; showOrderDetails(o.id); },
           onmouseenter: function() { this.style.transform = 'translateY(-2px)'; this.style.borderColor = 'var(--pc-gold)'; },
-          onmouseleave: function() { this.style.transform = 'none'; this.style.borderColor = ''; }
+          onmouseleave: function() { this.style.transform = 'none'; this.style.borderColor = isOverdue ? '#f59e0b' : isWarning ? '#f59e0b' : ''; }
         });
 
         card.innerHTML = `
@@ -1369,6 +1378,21 @@ poojascouture.com.au`
             ${!o.mBust&&!o.designNotes&&!o.fabricType&&!o.notes?'<div class="text-xs text-muted">No specs recorded yet.</div>':''}
           </div>
           <div class="d-flex gap-2 justify-end" style="border-top:1px solid var(--pc-border);padding-top:var(--sp-4)">
+            ${(()=>{
+              const DONE = ['Ready','Shipped to Shashank','At Shashank','In Transit','Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery','Delivered'];
+              if (!DONE.includes(o.status) && o.deadline) {
+                const d = Utils.daysFromNow(o.deadline);
+                const isOv = d < 0;
+                const isWarn = d >= 0 && d <= 7;
+                if (isOv || isWarn) {
+                  return '<div class="p-3 rounded-md mb-2 w-full" style="background:' + (isOv?'rgba(245,158,11,0.12)':'rgba(245,158,11,0.08)') + ';border:1px solid #f59e0b">' +
+                    '<div class="text-xs font-semibold" style="color:#f59e0b">' + (isOv ? '⚠️ ' + Math.abs(d) + ' days overdue' : '⏰ ' + d + ' days left') + '</div>' +
+                    '<button class="btn btn-sm mt-2" style="background:#f59e0b;color:#000;font-weight:600" onclick="CRM.extendDeadline(\'' + o.id + '\')">📅 Extend Deadline</button>' +
+                  '</div>';
+                }
+              }
+              return '<button class="btn btn-secondary btn-sm" onclick="CRM.extendDeadline(\'' + o.id + '\')">📅 Extend Deadline</button>';
+            })()}
             <button class="btn btn-secondary" onclick="CRM.editOrder('${o.id}')">✏️ Edit</button>
             <button class="btn btn-danger" onclick="CRM.deleteOrder('${o.id}')">🗑️ Delete</button>
           </div>
@@ -1550,6 +1574,48 @@ poojascouture.com.au`
   }
 
   function editOrder(id) { App.closeModal(); setTimeout(() => showOrderModal(id), 200); }
+
+  async function extendDeadline(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+    const oldDeadline = o.deadline || '';
+
+    App.showModal({
+      title: 'Extend Production Deadline',
+      content: '<div class="d-flex flex-col gap-4">' +
+        '<div class="text-xs text-muted">Current deadline: <span class="font-mono font-semibold text-warning">' + Utils.formatDate(oldDeadline) + '</span></div>' +
+        '<div class="form-group">' +
+          '<label class="form-label">New Deadline <span class="required">*</span></label>' +
+          '<input type="date" id="extend-deadline-input" class="form-input" value="' + oldDeadline + '">' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label class="form-label">Reason for Extension</label>' +
+          '<input type="text" id="extend-deadline-reason" class="form-input" placeholder="e.g. Fabric delayed, client requested changes">' +
+        '</div>' +
+      '</div>',
+      submitText: 'Save New Deadline',
+      onSubmit: async () => {
+        const newDeadline = (document.getElementById('extend-deadline-input') || {}).value;
+        const reason = ((document.getElementById('extend-deadline-reason') || {}).value || '').trim();
+        if (!newDeadline) { Utils.showToast('Select a new deadline.', 'error'); return false; }
+        if (newDeadline === oldDeadline) { Utils.showToast('New deadline is the same as current.', 'error'); return false; }
+        try {
+          await Store.update(Store.COLLECTIONS.ORDERS, orderId, { deadline: newDeadline });
+          await Store.logAction(
+            'Deadline extended: ' + Utils.formatDate(oldDeadline) + ' → ' + Utils.formatDate(newDeadline) + (reason ? ' | Reason: ' + reason : ''),
+            'CRM',
+            'Order ' + (o.orderCode || orderId) + ' — ' + Utils.sanitizeHTML(o.title),
+            null
+          );
+          Utils.showToast('Deadline updated to ' + Utils.formatDate(newDeadline));
+          return true;
+        } catch (e) {
+          Utils.showToast('Could not update deadline: ' + e.message, 'error');
+          return false;
+        }
+      }
+    });
+  }
 
   function deleteOrder(id) {
     App.showConfirm({
@@ -3487,6 +3553,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     sendFittingReminder,
     moveOrderStage,
     addShippingToInvoice,
+    extendDeadline,
     editOrder,
     deleteOrder,
     showComposeModal,
