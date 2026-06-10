@@ -1,976 +1,433 @@
 /* ============================================================
-   POOJA'S COUTURE — Main Application Controller
-   Routing, navigation, modal manager, settings & overview dashboard
+   POOJA'S COUTURE — Tailor Workstation Controller (v2)
+   Inherits the session from the main app (shared Supabase auth).
+   No separate login — if not signed in, redirect to main login.
    ============================================================ */
-// Global error handler to catch uncaught errors and show toast
-window.addEventListener('error', (event) => {
-  console.error('Uncaught error:', event.error);
-  if (window.Utils && typeof Utils.showToast === 'function') {
-    Utils.showToast('An unexpected error occurred. Please check console.', 'error');
+
+document.addEventListener('DOMContentLoaded', async () => {
+  let currentUser = null;
+  let activeFilter = 'pending';
+
+  const gateScreen = Utils.$('#gate-screen');
+  const gateMessage = Utils.$('#gate-message');
+  const gateActions = Utils.$('#gate-actions');
+  const tailorWorkspace = Utils.$('#tailor-workspace');
+  const userAvatar = Utils.$('#user-avatar');
+  const userDisplayName = Utils.$('#user-display-name');
+  const userDisplayRole = Utils.$('#user-display-role');
+  const btnLogout = Utils.$('#btn-logout');
+
+  const btnPunch = Utils.$('#btn-punch');
+  const punchStatusText = Utils.$('#punch-status-text');
+  const taskCounter = Utils.$('#task-counter');
+  const tasksList = Utils.$('#tasks-list');
+
+  function validateRole(user) {
+    const role = (user.role || '').toLowerCase();
+    const appRole = (user.appRole || user.app_role || '').toLowerCase();
+    return role === 'tailor' || role === 'embroiderer'
+        || appRole === 'tailor' || appRole === 'admin' || appRole === 'operations';
   }
-});
 
-const App = (() => {
-  let currentRoute = 'dashboard';
+  function showGate(message, allowLogin) {
+    gateScreen.classList.add('active');
+    tailorWorkspace.classList.add('d-none');
+    gateMessage.textContent = message;
+    gateActions.classList.toggle('d-none', !allowLogin);
+  }
 
-  async function init() {
-    // 0. Show a loading state while we fetch data from Supabase
-    const area = Utils.$('#main-content-area');
-    if (area) area.innerHTML = '<div style="padding:60px;text-align:center;color:var(--pc-text-muted)">Loading your studio data...</div>';
+  function showWorkspace() {
+    gateScreen.classList.remove('active');
+    tailorWorkspace.classList.remove('d-none');
+    userAvatar.textContent = Utils.getInitials(currentUser.name);
+    userAvatar.style.backgroundColor = Utils.getAvatarColor(currentUser.name);
+    userAvatar.style.color = 'var(--pc-text-inverse)';
+    userDisplayName.textContent = currentUser.name;
+    userDisplayRole.textContent = currentUser.name === 'Pooja Shah' ? 'Managing Director' : (currentUser.role + ' (Production)');
+    updatePunchCardStatus();
+    loadTasks();
+  }
 
-    // 1. Initialize data layer — load all data from Supabase into cache.
-    try {
-      await Store.ready();
-    // Start realtime sync — updates cache when any other user/portal changes data
+  // ---------- Session bootstrap (inherits main-app login) ----------
+  try {
+    await Store.ready();
     Store.subscribeRealtime();
-    } catch (err) {
-      console.error('Failed to load data from Supabase:', err);
-      if (area) area.innerHTML = '<div style="padding:60px;text-align:center;color:#F87171">Could not connect to the database. Check config.js (your publishable key) and your internet connection, then refresh.</div>';
+  } catch (e) {
+    console.error('Could not connect to database:', e);
+    showGate('Could not connect to the database. Check your connection and try again.', true);
+    return;
+  }
+
+  currentUser = Store.getCurrentUser();
+  if (!currentUser) {
+    showGate('You are not signed in. Please log in through the main app first.', true);
+    return;
+  }
+  if (!validateRole(currentUser)) {
+    showGate('This workstation is for tailors only. Your account does not have workshop access.', true);
+    return;
+  }
+  showWorkspace();
+
+  // ---------- Logout ----------
+  btnLogout.addEventListener('click', async () => {
+    await Store.logout();
+    currentUser = null;
+    window.location.href = '../index.html';
+  });
+
+  // ---------- Attendance Punch In/Out ----------
+  function updatePunchCardStatus() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const attendance = Store.getAll(Store.COLLECTIONS.ATTENDANCE);
+    const todayRecord = attendance.find(a => a.employeeId === currentUser.id && a.date === todayStr);
+    if (todayRecord) {
+      if (todayRecord.checkOut && todayRecord.checkOut !== '—') {
+        punchStatusText.textContent = `Completed shift: ${todayRecord.checkIn} - ${todayRecord.checkOut}`;
+        btnPunch.textContent = 'Shift Ended';
+        btnPunch.disabled = true;
+        btnPunch.className = 'btn btn-secondary btn-sm';
+      } else {
+        punchStatusText.textContent = `Clocked in at ${todayRecord.checkIn}`;
+        btnPunch.textContent = 'Clock Out';
+        btnPunch.disabled = false;
+        btnPunch.className = 'btn btn-danger btn-sm';
+      }
+    } else {
+      punchStatusText.textContent = 'Not clocked in today';
+      btnPunch.textContent = 'Clock In';
+      btnPunch.disabled = false;
+      btnPunch.className = 'btn btn-primary btn-sm';
+    }
+  }
+
+  btnPunch.addEventListener('click', async () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const attendance = Store.getAll(Store.COLLECTIONS.ATTENDANCE);
+    const existing = attendance.find(a => a.employeeId === currentUser.id && a.date === todayStr);
+    const timePad = (d) => {
+      const hours = d.getHours();
+      const mins = d.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const h = hours % 12 || 12;
+      return `${h}:${mins} ${ampm}`;
+    };
+    if (existing) {
+      await Store.update(Store.COLLECTIONS.ATTENDANCE, existing.id, {
+        checkOut: timePad(new Date()), status: 'Present'
+      });
+      Utils.showToast('Clocked out successfully. Dhanyavaad!');
+    } else {
+      await Store.create(Store.COLLECTIONS.ATTENDANCE, {
+        employeeId: currentUser.id,
+        employeeName: currentUser.name,
+        date: todayStr,
+        checkIn: timePad(new Date()),
+        checkOut: '—',
+        status: 'Present'
+      });
+      Utils.showToast('Clocked in successfully. Shubh Kaam!');
+    }
+    updatePunchCardStatus();
+  });
+
+  // ---------- Filters ----------
+  Utils.$$('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      Utils.$$('.filter-tab').forEach(t => t.classList.remove('active'));
+      e.target.classList.add('active');
+      activeFilter = e.target.dataset.filter;
+      loadTasks();
+    });
+  });
+
+  // ---------- Order Detail Modal ----------
+  window.viewOrderDetail = function(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+
+    const m = (field) => o[field] ? '<span class="font-mono">' + Utils.sanitizeHTML(o[field]) + '</span>' : '<span class="text-muted">—</span>';
+    const row = (label, val) => val ? '<div class="d-flex justify-between items-start py-1" style="border-bottom:1px solid var(--pc-border)">' +
+      '<span class="text-xs text-muted" style="min-width:130px">' + label + '</span>' +
+      '<span class="text-xs text-right font-semibold">' + val + '</span>' +
+    '</div>' : '';
+
+    const content =
+      '<div class="d-flex flex-col gap-4">' +
+
+      // Status + codes
+      '<div class="d-flex gap-2 items-center flex-wrap">' +
+        '<span class="badge badge-gold">' + Utils.sanitizeHTML(o.status) + '</span>' +
+        (o.orderCode ? '<span class="font-mono text-xs text-gold">' + Utils.sanitizeHTML(o.orderCode) + '</span>' : '') +
+      '</div>' +
+
+      // Client + occasion
+      '<div class="card p-3">' +
+        '<div class="text-xs font-semibold text-gold mb-2">CLIENT & OCCASION</div>' +
+        row('Client', Utils.sanitizeHTML(o.clientName)) +
+        row('Garment', Utils.sanitizeHTML(o.title)) +
+        row('Event', Utils.sanitizeHTML(o.eventName || '')) +
+        row('Event Date', o.eventDate ? Utils.formatDate(o.eventDate) : '') +
+        row('Look / For', Utils.sanitizeHTML(o.lookNumber || '')) +
+        row('Deadline', '<span class="text-danger">' + Utils.formatDate(o.deadline) + '</span>') +
+      '</div>' +
+
+      // Fabric
+      '<div class="card p-3">' +
+        '<div class="text-xs font-semibold text-gold mb-2">FABRIC & COLOUR</div>' +
+        row('Fabric Type', Utils.sanitizeHTML(o.fabricType || '')) +
+        row('Colour Ref', Utils.sanitizeHTML(o.colourRef || '')) +
+        row('Dupatta', Utils.sanitizeHTML(o.dupattaDetails || '')) +
+        row('Lining', Utils.sanitizeHTML(o.liningDetails || '')) +
+      '</div>' +
+
+      // Measurements Top
+      '<div class="card p-3">' +
+        '<div class="text-xs font-semibold text-gold mb-2">MEASUREMENTS — TOP BODY (inches)</div>' +
+        row('Bust', m('mBust')) +
+        row('Under Bust', m('mUnderBust')) +
+        row('Chest', m('mChest')) +
+        row('Shoulder', m('mShoulder')) +
+        row('Armhole', m('mArmhole')) +
+        row('Blouse Length', m('mBlouseLength')) +
+        row('Back Neck', m('mBackNeck')) +
+        row('Front Neck', m('mFrontNeck')) +
+        row('Sleeve Length', m('mSleeveLength')) +
+        row('Morrie', m('mMorrie')) +
+        row('Waist', m('mWaist')) +
+        row('Wrist', m('mWrist')) +
+      '</div>' +
+
+      // Measurements Bottom
+      '<div class="card p-3">' +
+        '<div class="text-xs font-semibold text-gold mb-2">MEASUREMENTS — BOTTOM BODY (inches)</div>' +
+        row('Lehenga Waist', m('mLehengaWaist')) +
+        row('Lehenga Length', m('mLehengaLength')) +
+        row('Hips', m('mHips')) +
+        row('Knee Split', m('mKneeSplit')) +
+      '</div>' +
+
+      // Design notes
+      '<div class="card p-3">' +
+        '<div class="text-xs font-semibold text-gold mb-2">DESIGN INSTRUCTIONS</div>' +
+        (o.designNotes ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Design Notes</div>' + Utils.sanitizeHTML(o.designNotes) + '</div>' : '') +
+        (o.embroideryDetails ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Embroidery</div>' + Utils.sanitizeHTML(o.embroideryDetails) + '</div>' : '') +
+        (o.silhouetteNotes ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Silhouette</div>' + Utils.sanitizeHTML(o.silhouetteNotes) + '</div>' : '') +
+        (o.blouseAccessories ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Blouse Accessories</div>' + Utils.sanitizeHTML(o.blouseAccessories) + '</div>' : '') +
+        (o.latkans ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Latkans</div>' + Utils.sanitizeHTML(o.latkans) + '</div>' : '') +
+        (o.optionalAddOns ? '<div class="text-xs mb-2"><div class="text-muted text-xs mb-1">Add-ons</div>' + Utils.sanitizeHTML(o.optionalAddOns) + '</div>' : '') +
+        (o.notes ? '<div class="text-xs"><div class="text-muted text-xs mb-1">Internal Notes</div>' + Utils.sanitizeHTML(o.notes) + '</div>' : '') +
+        (!o.designNotes && !o.embroideryDetails && !o.silhouetteNotes && !o.notes ? '<div class="text-xs text-muted">No design instructions recorded.</div>' : '') +
+      '</div>' +
+
+      '</div>';
+
+    showModal({
+      title: (o.orderCode || 'Order') + ' — ' + Utils.sanitizeHTML(o.title),
+      content,
+      submitText: 'Close',
+      onSubmit: () => true
+    });
+  };
+
+  // ---------- Load Tasks ----------
+  function loadTasks() {
+    tasksList.innerHTML = '';
+    const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
+
+    let filtered = [];
+    if (activeFilter === 'pending') {
+      filtered = orders.filter(o => o.status === 'Fabric Sourced' || o.status === 'In Production' || o.status === 'Ready');
+    } else {
+      filtered = orders.filter(o => o.status === 'Shipped to Shashank' || o.status === 'At Shashank' || o.status === 'In Transit' || o.status === 'Delivered');
+    }
+
+    taskCounter.textContent = `${filtered.length} Tasks`;
+    if (filtered.length === 0) {
+      tasksList.innerHTML = `<div class="text-center p-6 text-muted text-xs">No assignments logged in this category.</div>`;
       return;
     }
 
-    // 2. Setup Clock
-    startClock();
+    filtered.forEach(order => {
+      const card = Utils.createElement('div', { className: 'task-card', style: 'cursor:pointer' });
 
-    // 3. Setup Navigation & Layout Events
-    setupNavigation();
-    setupMobileSidebar();
+      // Deadline urgency logic
+      const DONE_STATUSES = ['Ready','Shipped to Shashank','At Shashank','In Transit',
+        'Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery','Delivered'];
+      const isDone = DONE_STATUSES.includes(order.status);
+      const days = order.deadline ? Utils.daysFromNow(order.deadline) : null;
+      const isOverdue = !isDone && days !== null && days < 0;
+      const isWarning = !isDone && days !== null && days >= 0 && days <= 7;
 
-    // 4. Setup Notifications Alert Bell click
-    Utils.$('#btn-notifications').addEventListener('click', showNotificationsSummary);
+      if (isOverdue) {
+        card.style.border = '2px solid #f59e0b';
+        card.style.background = 'rgba(245,158,11,0.06)';
+      } else if (isWarning) {
+        card.style.border = '1px solid #f59e0b';
+      }
 
-    // 5. Setup Authentication & Session Check
-    setupAuthListeners();
-    await checkAuthSession();
-  }
+      card.addEventListener('click', (e) => { if (!e.target.closest('button')) viewOrderDetail(order.id); });
 
-  // ---------- Live Clock ----------
-  function startClock() {
-    const clockEl = Utils.$('#topbar-clock');
-    if (!clockEl) return;
-    const updateTime = () => {
-      clockEl.textContent = Utils.formatDateTime(new Date());
-    };
-    updateTime();
-    setInterval(updateTime, 1000);
-  }
-
-  // ---------- Navigation Routing ----------
-  function setupNavigation() {
-    Utils.$$('.sidebar-link').forEach(link => {
-      link.addEventListener('click', (e) => {
-        const route = e.currentTarget.dataset.route;
-        if (route) {
-          navigate(route);
-          // Auto close mobile sidebar
-          Utils.$('#sidebar').classList.remove('open');
-          Utils.$('#sidebar-overlay').classList.remove('active');
+      let actionButton = '';
+      if (activeFilter === 'pending') {
+        if (order.status === 'Fabric Sourced') {
+          actionButton = `<button class="btn btn-primary btn-sm mt-2" onclick="startWork('${order.id}')">Start Production</button>`;
+        } else if (order.status === 'In Production') {
+          actionButton = `<button class="btn btn-success btn-sm mt-2" onclick="finishWork('${order.id}')">✓ Finish Production</button>`;
+        } else if (order.status === 'Ready') {
+          actionButton = `<button class="btn btn-gold btn-sm mt-2" onclick="openShipToShashank('${order.id}')">🚚 Ship to Shashank</button>`;
         }
-      });
+      } else if (order.status === 'Shipped to Shashank') {
+        actionButton = `<span class="badge badge-info text-xs mt-2 p-2">Shipped to Shashank — ${Utils.sanitizeHTML(order.domesticTracking || 'tracking pending')}</span>`;
+      }
+
+      card.innerHTML =
+        '<div class="d-flex justify-between items-start mb-3">' +
+          '<div>' +
+            '<span class="badge badge-gold text-xs">' + order.status + '</span>' +
+            (order.orderCode ? '<span class="font-mono text-xs text-gold ml-2">' + Utils.sanitizeHTML(order.orderCode) + '</span>' : '') +
+            '<div class="font-semibold text-sm mt-1">' + Utils.sanitizeHTML(order.title) + '</div>' +
+            '<div class="text-xs text-muted mt-1">Client: ' + Utils.sanitizeHTML(order.clientName) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="measurement-badge mb-3">' +
+          '<div class="text-xs font-semibold text-gold mb-1">Stitching Specs</div>' +
+          '<div class="text-xs">' + Utils.sanitizeHTML(order.notes || 'No specific instructions logged.') + '</div>' +
+        '</div>' +
+        '<div class="d-flex justify-between items-center">' +
+          '<span class="text-xs font-semibold ' + (isOverdue ? 'text-danger' : isWarning ? 'text-warning' : 'text-muted') + '">&#128197; ' + Utils.formatDate(order.deadline) +
+            (isOverdue ? ' (' + Math.abs(days) + 'd overdue)' : isWarning ? ' (' + days + 'd left)' : days !== null ? ' (' + days + 'd left)' : '') +
+          '</span>' +
+          actionButton +
+        '</div>';
+      tasksList.appendChild(card);
     });
   }
 
-  function setupMobileSidebar() {
-    // Robust binding via event delegation on document — works regardless of
-    // when elements render or re-render, and can't silently fail to bind.
-    document.addEventListener('click', (e) => {
-      const sidebar = Utils.$('#sidebar');
-      const overlay = Utils.$('#sidebar-overlay');
-      if (!sidebar) return;
-
-      // Toggle button (or anything inside it)
-      if (e.target.closest('#sidebar-toggle')) {
-        e.preventDefault();
-        sidebar.classList.toggle('open');
-        if (overlay) overlay.classList.toggle('active');
-        return;
-      }
-
-      // Click on the dark overlay closes the sidebar
-      if (e.target.closest('#sidebar-overlay')) {
-        sidebar.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
-      }
-    });
-  }
-
-  // ── Sidebar collapse toggle ──────────────────────────
-  (function wireSidebarCollapse() {
-    const sidebar = document.getElementById('sidebar');
-    const brand   = sidebar ? sidebar.querySelector('.sidebar-brand') : null;
-    if (!sidebar || !brand) return;
-
-    // Add data-tooltip to each nav link for collapsed state
-    sidebar.querySelectorAll('.sidebar-link').forEach(btn => {
-      const text = btn.querySelector('.sidebar-link-text');
-      if (text) btn.setAttribute('data-tooltip', text.textContent.trim());
-    });
-
-    // Check saved state
-    const saved = localStorage.getItem('pc-sidebar-collapsed');
-    if (saved === 'true') sidebar.classList.add('collapsed');
-
-    brand.addEventListener('click', () => {
-      const isCollapsed = sidebar.classList.toggle('collapsed');
-      localStorage.setItem('pc-sidebar-collapsed', isCollapsed);
-    });
-  })();
-
-  function navigate(route) {
-    currentRoute = route;
-
-    // Check routing permissions against the role ACCESS map
-    const user = Store.getCurrentUser();
-    if (user) {
-      const role = user.appRole || user.app_role || 'admin';
-      const ACCESS = {
-        admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true },
-        operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false },
-        social_crm: { dashboard:true,  products:true,  crm:true,  hrm:false, accounting:false, admin:false, settings:false },
-        tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false },
-        logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false }
-      };
-      const access = ACCESS[role] || ACCESS.admin;
-      // Module routes that can be access-denied
-      if (['dashboard','products','crm','hrm','accounting','admin','settings'].includes(route) && access[route] !== true) {
-        showAccessDenied();
-        return;
-      }
+  window.startWork = async function(orderId) {
+    try {
+      await Store.rpc('tailor_update_order_status', { p_order_id: orderId, p_status: 'In Production' });
+      await Store.refresh('orders');
+      Utils.showToast('Production started. Fabric locked.');
+      loadTasks();
+    } catch (e) {
+      Utils.showToast('Could not update: ' + e.message, 'error');
     }
+  };
 
-    // Update active class in sidebar
-    Utils.$$('.sidebar-link').forEach(link => {
-      if (link.dataset.route === route) {
-        link.classList.add('active');
-      } else {
-        link.classList.remove('active');
-      }
-    });
-
-    // Update breadcrumb
-    const breadcrumbLabel = Utils.$('#topbar-breadcrumb-active');
-    const routesMap = {
-     dashboard:  'Overview Dashboard',
-     crm:        'Sales Dashboard',
-     products:   'Stock & Inventory',
-     accounting: 'Accounting & Finance',
-     hrm:        'Human Capital',
-     admin:      'Admin Center',
-     settings:   'Boutique Settings',
-    };
-    if (breadcrumbLabel) {
-      breadcrumbLabel.textContent = routesMap[route] || 'System Panel';
+  window.finishWork = async function(orderId) {
+    try {
+      await Store.rpc('tailor_update_order_status', { p_order_id: orderId, p_status: 'Ready' });
+      await Store.refresh('orders');
+      Utils.showToast('Production complete — order marked Ready to ship.');
+      loadTasks();
+    } catch (e) {
+      Utils.showToast('Could not update: ' + e.message, 'error');
     }
+  };
 
-    // Render screen content
-    if (route === 'dashboard') {
-      renderDashboard();
-    } else if (route === 'products') {
-      Products.init();
-    } else if (route === 'crm') {
-      CRM.init();
-    } else if (route === 'hrm') {
-      HRM.init();
-    } else if (route === 'accounting') {
-      Accounting.init();
-    } else if (route === 'settings') {
-      renderSettings();
-    } else if (route === 'admin') {
-      Admin.init();
-    } else if (route === 'workstation-tailor') {
-      renderWorkstationHolding('tailor');
-    } else if (route === 'workstation-logistics') {
-      renderWorkstationHolding('logistics');
-    }
-  }
+  // ---------- Ship to Shashank (domestic India leg) ----------
+  window.openShipToShashank = function(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
 
-// Welcome screen for tailor/logistics, then auto-redirect (same tab)
-  // into their dedicated workstation page.
-  function renderWorkstationHolding(kind) {
-    const container = Utils.$('#main-content-area');
-    if (!container) return;
-    const user = Store.getCurrentUser() || {};
-    const isTailor = kind === 'tailor';
-    const portalName = isTailor ? 'Karigar Workstation' : 'Logistics Workstation';
-    const portalHref = isTailor ? 'tailor/index.html' : 'shipping/index.html';
-    const icon = isTailor ? '🪡' : '✈️';
-    container.innerHTML = `
-      <div class="card p-8 text-center animate-fade-in" style="max-width:520px;margin:60px auto">
-        <div style="font-size:52px;margin-bottom:16px">${icon}</div>
-        <h2 class="font-display text-gold">Welcome, ${Utils.sanitizeHTML(user.name || 'there')}</h2>
-        <p class="text-muted mt-2">Opening your ${portalName}…</p>
-        <p class="text-xs text-muted mt-4">If it does not open automatically,
-          <a href="${portalHref}" style="color:var(--pc-gold,#d4af37);text-decoration:underline;">click here</a>.</p>
-      </div>
-    `;
-    // Update breadcrumb
-    const bc = Utils.$('#topbar-breadcrumb-active');
-    if (bc) bc.textContent = portalName;
-    // Auto-redirect into the workstation (same tab) after a short welcome pause.
-    setTimeout(() => { window.location.href = portalHref; }, 1500);
-  }
-  // ==========================================
-  // OVERVIEW DASHBOARD SCREEN
-  // ==========================================
-  
-  function renderDashboard() {
-    const container = Utils.$('#main-content-area');
-    if (!container) return;
-
-    // Time-based greeting using logged-in user's name
-    const _dashUser = Store.getCurrentUser();
-    const _firstName = _dashUser && _dashUser.name ? _dashUser.name.split(' ')[0] : 'there';
-    const _hour = new Date().getHours();
-    const _greeting = _hour < 12 ? 'Good morning' : _hour < 17 ? 'Good afternoon' : 'Good evening';
-
-    // Fetch metric values
-    const clients = Store.getAll(Store.COLLECTIONS.CLIENTS);
-    const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
-    const appts = Store.getAll(Store.COLLECTIONS.APPOINTMENTS);
-    const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
-    const employees = Store.getAll(Store.COLLECTIONS.EMPLOYEES);
-
-    const totalBrides = clients.filter(c => c.type === 'Bride').length;
-    const activeOrders = orders.filter(o => o.status !== 'Delivered');
-    const pendingInvoices = invoices.filter(i => i.status === 'Sent' || i.status === 'Overdue');
-    const upcomingAppts = appts.filter(a => a.status === 'Scheduled');
-
-    const totalOutstanding = pendingInvoices.reduce((sum, i) => sum + i.total, 0);
-
-    container.innerHTML = `
-      <div class="page-header animate-fade-in">
-        <div>
-          <h1 class="page-title">${_greeting}, ${_firstName} 👋</h1>
-          <p class="page-subtitle">Here is what is happening at Pooja's Couture today</p>
+    const formHTML = `
+      <form id="ship-shashank-form">
+        <p class="text-xs text-muted mb-3">
+          Dispatching <strong>${Utils.sanitizeHTML(o.title)}</strong> for client
+          <strong>${Utils.sanitizeHTML(o.clientName)}</strong> to Shashank (consolidation hub, India).
+        </p>
+        <div class="form-group">
+          <label class="form-label">Courier (domestic India)</label>
+          <select name="courier" class="form-select">
+            <option value="DTDC">DTDC</option>
+            <option value="Blue Dart">Blue Dart</option>
+            <option value="India Post">India Post</option>
+            <option value="Delhivery">Delhivery</option>
+            <option value="Professional Couriers">Professional Couriers</option>
+            <option value="Hand Delivery">Hand Delivery</option>
+          </select>
         </div>
-      </div>
-
-      <!-- Quick Metrics Grid -->
-      <div class="widgets-grid animate-fade-in stagger-1">
-        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('brides')">
-          <div class="stat-card-header">
-            <span class="stat-card-icon gold">👑</span>
-            <span class="badge badge-gold">${totalBrides} Registered</span>
-          </div>
-          <div class="stat-card-value">${totalBrides}</div>
-          <div class="stat-card-label">Active Brides</div>
+        <div class="form-group">
+          <label class="form-label">Tracking / Docket Number</label>
+          <input type="text" name="tracking" class="form-input font-mono" required placeholder="e.g. DTDC-123456789">
         </div>
-
-        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('orders')">
-          <div class="stat-card-header">
-            <span class="stat-card-icon blue">🧵</span>
-            <span class="badge badge-info">${activeOrders.length} In Production</span>
-          </div>
-          <div class="stat-card-value">${activeOrders.length}</div>
-          <div class="stat-card-label">Active Custom Orders</div>
-        </div>
-
-        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('outstanding')">
-          <div class="stat-card-header">
-            <span class="stat-card-icon green">💰</span>
-            <span class="badge badge-success">${pendingInvoices.length} Unpaid</span>
-          </div>
-          <div class="stat-card-value">${Utils.formatCurrency(totalOutstanding)}</div>
-          <div class="stat-card-label">Outstanding Invoices</div>
-        </div>
-
-        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('appointments')">
-          <div class="stat-card-header">
-            <span class="stat-card-icon purple">📅</span>
-            <span class="badge badge-purple">${upcomingAppts.length} Scheduled</span>
-          </div>
-          <div class="stat-card-value">${upcomingAppts.length}</div>
-          <div class="stat-card-label">Upcoming Consultations</div>
-        </div>
-      </div>
-
-      <!-- Primary Content Row -->
-      <div class="content-grid-3 animate-fade-in stagger-2">
-        
-        <!-- Upcoming Sessions & Fitting Lists -->
-        <div class="card p-6">
-          <div class="card-header p-0 pb-4 mb-4">
-            <div class="card-title">📅 Upcoming Consultations & Fittings (Next 7 Days)</div>
-            <button class="btn btn-secondary btn-sm" onclick="App.quickRoute('crm', 'appointments')">View All</button>
-          </div>
-          <div class="table-container" style="border: none;">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Client</th>
-                  <th>Session Date</th>
-                  <th>Session Type</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody id="dash-appt-tbody">
-                <!-- Populated by JS -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Recent Activities Feed -->
-        <div class="card p-6">
-          <div class="card-title mb-4">🔔 Live Operations Alerts</div>
-          <div class="d-flex flex-col gap-3" id="dash-alerts-feed">
-            <!-- Populated by JS -->
-          </div>
-        </div>
-
-      </div>
+      </form>
     `;
 
-    // Populate appointments
-    const tbody = Utils.$('#dash-appt-tbody');
-    tbody.innerHTML = '';
-    
-    // Sort upcoming chronologically
-    const next7DaysAppts = appts
-      .filter(a => a.status === 'Scheduled' && Utils.daysFromNow(a.date) >= 0 && Utils.daysFromNow(a.date) <= 7)
-      .sort((a,b) => new Date(a.date) - new Date(b.date));
-
-    if (next7DaysAppts.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" class="text-center p-6 text-muted text-xs">No appointments scheduled for the next 7 days.</td></tr>`;
-    } else {
-      next7DaysAppts.forEach(a => {
-        const tr = Utils.createElement('tr');
-        tr.innerHTML = `
-          <td class="font-medium">${Utils.sanitizeHTML(a.clientName)}</td>
-          <td class="font-mono text-xs">${Utils.formatDateTime(a.date)}</td>
-          <td><span class="badge ${a.type === 'Fitting' ? 'badge-purple' : 'badge-gold'}">${a.type}</span></td>
-          <td class="text-muted text-xs truncate" style="max-width: 180px;">${Utils.sanitizeHTML(a.notes || '—')}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Populate Operation Alerts
-    const feed = Utils.$('#dash-alerts-feed');
-    feed.innerHTML = '';
-    const alerts = [];
-
-    // Check 1: Overdue Invoices
-    invoices.forEach(i => {
-      if (i.status === 'Sent' && new Date(i.dueDate) < new Date()) {
-        alerts.push({
-          type: 'danger',
-          title: `Overdue Invoice: ${i.invoiceNumber}`,
-          desc: `Client: ${i.clientName} | Total: ${Utils.formatCurrency(i.total)}`,
-          actionLabel: 'Remind',
-          action: () => quickRoute('accounting', 'invoices')
-        });
-      }
-    });
-
-    // Check 2: Overdue Custom Orders deadlines
-    orders.forEach(o => {
-      if (o.status !== 'Delivered' && new Date(o.deadline) < new Date()) {
-        alerts.push({
-          type: 'warning',
-          title: `Overdue Order Deadline!`,
-          desc: `${o.title} (${o.clientName}) passed target date.`,
-          actionLabel: 'View pipeline',
-          action: () => quickRoute('crm', 'orders')
-        });
-      }
-    });
-
-    // Check 3: Upcoming Staff Leave pending review
-    const pendingLeaves = Store.getAll(Store.COLLECTIONS.LEAVES).filter(l => l.status === 'Pending');
-    pendingLeaves.forEach(pl => {
-      alerts.push({
-        type: 'info',
-        title: `Pending Leave Request`,
-        desc: `${pl.employeeName} requests ${pl.days} days starting ${Utils.formatDateShort(pl.startDate)}`,
-        actionLabel: 'Review',
-        action: () => quickRoute('hrm', 'leaves')
-      });
-    });
-
-    if (alerts.length === 0) {
-      feed.innerHTML = `
-        <div class="text-center p-6 text-muted text-xs">
-          ✅ All operational pipelines are on schedule. No alerts!
-        </div>
-      `;
-    } else {
-      alerts.slice(0, 5).forEach(alert => {
-        const item = Utils.createElement('div', {
-          className: 'p-3 rounded-md d-flex justify-between items-start gap-2',
-          style: `background: rgba(255,255,255,0.01); border-left: 3px solid var(--pc-${alert.type === 'danger' ? 'danger' : alert.type === 'warning' ? 'warning' : 'info'}); border-top: 1px solid var(--pc-border); border-right: 1px solid var(--pc-border); border-bottom: 1px solid var(--pc-border);`
-        });
-
-        item.innerHTML = `
-          <div>
-            <div class="text-xs font-semibold text-gold">${Utils.sanitizeHTML(alert.title)}</div>
-            <div class="text-xs text-muted mt-1 font-light">${Utils.sanitizeHTML(alert.desc)}</div>
-          </div>
-          <button class="btn btn-secondary btn-sm" style="font-size: 10px; padding: 2px 6px;">Manage</button>
-        `;
-
-        Utils.$('button', item).addEventListener('click', alert.action);
-        feed.appendChild(item);
-      });
-    }
-  }
-
-  // Helper to trigger route changes to subtabs directly from other modules
-  function quickRoute(route, subtab = null) {
-    navigate(route);
-    
-    // Trigger specific tab if loaded
-    if (subtab) {
-      setTimeout(() => {
-        const tabBtn = Utils.$(`.tab-btn[data-tab="${subtab}"]`);
-        if (tabBtn) tabBtn.click();
-      }, 50);
-    }
-  }
-
-  // ==========================================
-  // CONFIGURATION & SETTINGS SCREEN
-  // ==========================================
-  
-  function renderSettings() {
-    const container = Utils.$('#main-content-area');
-    if (!container) return;
-
-    const settings = Store.getSettings();
-
-    container.innerHTML = `
-      <div class="card max-w-xl mx-auto" style="max-width: 600px; margin: 0 auto;">
-        <div class="card-header">
-          <div class="card-title">Studio Business Details & Data Utility</div>
-        </div>
-        <div class="card-body">
-          <form id="settings-form" class="animate-fade-in">
-            <div class="form-group">
-              <label class="form-label">Showroom Business Name</label>
-              <input type="text" name="companyName" class="form-input font-medium" required value="${Utils.sanitizeHTML(settings.companyName)}">
-            </div>
-            
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Australian ABN</label>
-                <input type="text" name="abn" class="form-input font-mono" required value="${Utils.sanitizeHTML(settings.abn)}">
-              </div>
-              <div class="form-group">
-                <label class="form-label">GST Tax Percentage (%)</label>
-                <input type="number" name="gstRate" class="form-input font-mono" readonly value="10">
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Contact Email</label>
-                <input type="email" name="companyEmail" class="form-input" required value="${Utils.sanitizeHTML(settings.companyEmail)}">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Contact Phone</label>
-                <input type="text" name="companyPhone" class="form-input" required value="${Utils.sanitizeHTML(settings.companyPhone)}">
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Studio/Boutique Address</label>
-              <input type="text" name="companyAddress" class="form-input" required value="${Utils.sanitizeHTML(settings.companyAddress)}">
-            </div>
-
-            <div class="d-flex justify-end mb-6" style="border-bottom: 1px solid var(--pc-border); padding-bottom: var(--sp-5);">
-              <button type="submit" class="btn btn-primary">Save Boutique Settings</button>
-            </div>
-          </form>
-
-          <!-- Data Backups & Reset Utilities -->
-          <div>
-            <h4 class="text-sm font-semibold text-gold mb-3">Local Sandbox Administration</h4>
-            <div class="d-flex flex-wrap gap-2">
-              <button class="btn btn-secondary btn-sm" id="btn-export-data">📥 Export JSON Backup</button>
-              <button class="btn btn-secondary btn-sm" id="btn-import-trigger">📤 Import JSON Restore</button>
-              <input type="file" id="import-file-input" style="display: none;" accept=".json">
-              <button class="btn btn-danger btn-sm" id="btn-reset-db">🚨 Factory Reset Sandbox</button>
-            </div>
-            <p class="text-xs text-muted mt-2 font-light">Exporting downloads a local .json file containing all client, order, payroll and accounting transactions for storage.</p>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Hook forms submit
-    Utils.$('#settings-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const formData = new FormData(form);
-
-      Store.updateSettings({
-        companyName: formData.get('companyName'),
-        abn: formData.get('abn'),
-        companyEmail: formData.get('companyEmail'),
-        companyPhone: formData.get('companyPhone'),
-        companyAddress: formData.get('companyAddress')
-      });
-
-      Utils.showToast('Boutique details saved successfully.');
-    });
-
-    // Hook data utility buttons
-    Utils.$('#btn-export-data').addEventListener('click', exportSandboxData);
-    
-    const fileInput = Utils.$('#import-file-input');
-    Utils.$('#btn-import-trigger').addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => importSandboxData(e.target.files[0]));
-
-    Utils.$('#btn-reset-db').addEventListener('click', () => {
-      showConfirm({
-        title: 'Factory Reset Operations',
-        text: 'This will purge all local client data, orders, financial records, and payrolls, returning the boutique sandbox to default seed values. This cannot be undone!',
-        confirmText: 'Yes, Factory Reset',
-        onConfirm: () => {
-          Utils.showToast('Factory reset is disabled in the cloud database version. Manage data via Supabase.', 'info');
+    showModal({
+      title: `Ship to Shashank — ${o.id}`,
+      content: formHTML,
+      submitText: 'Confirm Dispatch',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#ship-shashank-form', modalEl);
+        const fd = new FormData(form);
+        const tracking = (fd.get('tracking') || '').trim();
+        const courier = fd.get('courier');
+        if (!tracking) { Utils.showToast('Enter a tracking number.', 'error'); return false; }
+        try {
+          await Store.rpc('tailor_ship_to_shashank', {
+            p_order_id: o.id, p_tracking: tracking, p_courier: courier
+          });
+          await Store.refresh('orders');
+          Utils.showToast(`Dispatched to Shashank. Tracking: ${tracking}`);
+          loadTasks();
+          return true;
+        } catch (e) {
+          Utils.showToast('Could not dispatch: ' + e.message, 'error');
+          return false;
         }
-      });
-    });
-  }
-
-  // ---------- Backup & Restore logic ----------
-  
-  function exportSandboxData() {
-    const backup = {};
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('pc_suite_')) {
-        backup[key] = localStorage.getItem(key);
       }
     });
+  };
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `poojas_couture_backup_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    Utils.showToast('Backup JSON file downloaded.');
-  }
+  // ---------- Modal using main app CSS classes ----------
+  function showModal({ title, content, submitText = 'Submit', onSubmit }) {
+    const exist = document.querySelector('.pc-modal-overlay');
+    if (exist) exist.remove();
 
-  function importSandboxData(file) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const backup = JSON.parse(e.target.result);
-        Object.entries(backup).forEach(([key, val]) => {
-          localStorage.setItem(key, val);
-        });
-        Utils.showToast('Database restored. Reloading operations dashboard.', 'success');
-        setTimeout(() => navigate('dashboard'), 1000);
-      } catch (err) {
-        console.error(err);
-        Utils.showToast('Invalid backup file formatting.', 'error');
-      }
-    };
-    reader.readAsText(file);
-  }
+    const overlay = document.createElement('div');
+    overlay.className = 'pc-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:16px;';
 
-  // ==========================================
-  // DYNAMIC MODALS MANAGER
-  // ==========================================
-  
-  function showModal({ title, content, submitText = 'Submit', cancelText = 'Cancel', hideCancel = false, modalSize = '', onSubmit }) {
-    // Clean existing modals
-    closeModal();
-
-    const overlay = Utils.createElement('div', {
-      className: `modal-overlay active`
-    });
-
-    overlay.innerHTML = `
-      <div class="modal ${modalSize}">
-        <div class="modal-header">
-          <div class="modal-title">${Utils.sanitizeHTML(title)}</div>
-          <button class="modal-close" id="modal-close-btn">×</button>
-        </div>
-        <div class="modal-body">
-          ${content}
-        </div>
-        <div class="modal-footer">
-          ${hideCancel ? '' : `<button class="btn btn-secondary" id="modal-cancel-btn">${cancelText}</button>`}
-          <button class="btn btn-primary" id="modal-submit-btn">${submitText}</button>
-        </div>
-      </div>
-    `;
+    overlay.innerHTML =
+      '<div class="card p-0 animate-fade-in-scale" style="width:100%;max-width:460px;overflow:hidden;">' +
+        '<div class="card-header">' +
+          '<div class="card-title">' + Utils.sanitizeHTML(title) + '</div>' +
+          '<button id="pc-modal-x" class="btn btn-secondary btn-sm" style="padding:4px 10px;font-size:16px;">&#215;</button>' +
+        '</div>' +
+        '<div class="p-5">' + content + '</div>' +
+        '<div class="d-flex justify-end gap-2 p-4" style="border-top:1px solid var(--pc-border)">' +
+          '<button class="btn btn-secondary" id="pc-modal-cancel">Cancel</button>' +
+          '<button class="btn btn-primary" id="pc-modal-submit">' + submitText + '</button>' +
+        '</div>' +
+      '</div>';
 
     document.body.appendChild(overlay);
-
-    // Event listeners
-    const close = () => closeModal();
-    Utils.$('#modal-close-btn', overlay).addEventListener('click', close);
-    if (!hideCancel) {
-      Utils.$('#modal-cancel-btn', overlay).addEventListener('click', close);
-    }
-
-    const submit = Utils.$('#modal-submit-btn', overlay);
-    submit.addEventListener('click', () => {
-      if (onSubmit) {
-        const success = onSubmit(overlay);
-        if (success !== false) {
-          close();
-        }
-      } else {
-        close();
-      }
-    });
-
-    // Close on clicking overlay outside modal container
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) {
-        close();
-      }
+    const close = () => overlay.remove();
+    overlay.querySelector('#pc-modal-x').addEventListener('click', close);
+    overlay.querySelector('#pc-modal-cancel').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('#pc-modal-submit').addEventListener('click', async () => {
+      const result = await onSubmit(overlay);
+      if (result !== false) close();
     });
   }
 
-  function closeModal() {
-    const overlays = Utils.$$('.modal-overlay');
-    overlays.forEach(overlay => {
-      overlay.classList.remove('active');
-      // Delay removal to allow zoom animations to complete
-      setTimeout(() => overlay.remove(), 250);
-    });
-  }
-
-  function showConfirm({ title, text, confirmText = 'Confirm', cancelText = 'Cancel', onConfirm }) {
-    const contentHTML = `
-      <div class="confirm-dialog animate-fade-in-scale">
-        <div class="confirm-dialog-icon">⚠</div>
-        <h3 class="confirm-dialog-title">${Utils.sanitizeHTML(title)}</h3>
-        <p class="confirm-dialog-text">${Utils.sanitizeHTML(text)}</p>
-      </div>
-    `;
-
-    showModal({
-      title: 'Action Confirmation Required',
-      content: contentHTML,
-      submitText: confirmText,
-      cancelText: cancelText,
-      modalSize: 'modal-sm',
-      onSubmit: () => {
-        if (onConfirm) onConfirm();
-        return true;
-      }
-    });
-  }
-
-  function showNotificationsSummary() {
-    const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
-    const overdue = invoices.filter(i => i.status === 'Sent' && new Date(i.dueDate) < new Date());
-
-    const contentHTML = `
-      <div class="d-flex flex-col gap-3">
-        <h4 class="text-sm font-semibold text-gold mb-1">Overdue Invoices (${overdue.length})</h4>
-        ${overdue.length === 0 ? `
-          <div class="text-xs text-muted p-4 text-center rounded-md" style="background: rgba(255,255,255,0.01); border: 1px dashed var(--pc-border)">
-            No overdue invoices at this time.
-          </div>
-        ` : `
-          <div class="d-flex flex-col gap-2">
-            ${overdue.map(i => `
-              <div class="p-3 rounded-md d-flex justify-between items-center text-xs" style="background: rgba(248,113,113,0.03); border: 1px solid var(--pc-border)">
-                <div>
-                  <div class="font-semibold text-gold">${i.invoiceNumber}</div>
-                  <div class="text-muted mt-1 font-light">${Utils.sanitizeHTML(i.clientName)} | Due: ${Utils.formatDate(i.dueDate)}</div>
-                </div>
-                <div class="font-mono font-bold text-danger">${Utils.formatCurrency(i.total)}</div>
-              </div>
-            `).join('')}
-          </div>
-        `}
-      </div>
-    `;
-
-    showModal({
-      title: 'Active Operations System Notifications',
-      content: contentHTML,
-      submitText: 'Close Notifications',
-      hideCancel: true,
-      onSubmit: () => true
-    });
-  }
-
-  // ---------- Employee Authentication ----------
-  function landingRouteFor(user) {
-    const role = user.appRole || user.app_role || 'admin';
-    // Tailor and logistics don't get the business dashboard — they land on a
-    // workstation holding screen (real portal pages are built as a later step).
-    if (role === 'tailor') return 'workstation-tailor';
-    if (role === 'logistics') return 'workstation-logistics';
-    return 'dashboard';
-  }
-
-  async function checkAuthSession() {
-    const loginOverlay = Utils.$('#login-overlay');
-    let user = Store.getCurrentUser();
-
-    // Fallback: if the cached user isn't set yet (timing), ask Store to
-    // reconcile from the live Supabase session before deciding.
-    if (!user && typeof Store.reconcileUser === 'function') {
-      try { user = await Store.reconcileUser(); } catch (e) { user = null; }
-    }
-
-if (user) {
-      const role = (user.appRole || user.app_role || '').toLowerCase();
-      // Logistics & tailor have no use for the business dashboard — send them
-      // straight into their workstation page. replace() keeps this launchpad
-      // out of back-history so the back button can't bounce them here.
-      if (role === 'tailor')    { window.location.replace('tailor/index.html');   return; }
-      if (role === 'logistics') { window.location.replace('shipping/index.html'); return; }
-      loginOverlay.classList.remove('active');
-      applySidebarPermissions(user);
-      navigate(landingRouteFor(user));
-    } else {
-      loginOverlay.classList.add('active');
-    }
-  }
-
-  function setupAuthListeners() {
-    // Login form submission
-    const loginForm = Utils.$('#login-form');
-    if (loginForm) {
-      loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      try {
-        const email = Utils.$('#login-email').value;
-        const password = Utils.$('#login-password').value;
-        const user = await Store.login(email, password);
-        if (user) {
-          console.log('Login successful:', user);
-          await checkAuthSession();
-          Utils.showToast(`Welcome back, ${user.name}!`);
-        } else {
-          console.log('Login failed for', email);
-          Utils.showToast('Invalid email or password.', 'error');
-        }
-      } catch (err) {
-        console.error('Login error:', err);
-        Utils.showToast('An unexpected error occurred during login.', 'error');
-      }
-    });
-    }
-
-    // Logout click trigger on sidebar footer profile
-    const userTrigger = Utils.$('#sidebar-user-trigger');
-    if (userTrigger) {
-      userTrigger.addEventListener('click', () => {
-        showConfirm({
-          title: 'Sign Out Operations',
-          text: 'Are you sure you want to end your current dashboard session?',
-          confirmText: 'Sign Out',
-          onConfirm: async () => {
-            await Store.logout();
-            location.reload();
-          }
-        });
-      });
-    }
-  }
-
-  function applySidebarPermissions(user) {
-    const perms = user.permissions || {};
-    const appRole = user.appRole || user.app_role || 'admin';
-
-    // Master access map per role. This is the single source of truth for
-    // what each role sees in the sidebar.
-    //   dashboard  - business overview (NOT for tailor/logistics)
-    //   crm,hrm,accounting,admin,settings - module sections
-    //   tailorPortal, logisticsPortal - India workstation links
-    const ACCESS = {
-      admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  tailorPortal:true,  logisticsPortal:true },
-      operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:true },
-      social_crm: { dashboard:true,  products:true,  crm:true,  hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true },
-      tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:false },
-      logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true }
-    };
-    const access = ACCESS[appRole] || ACCESS.admin;
-
-    Utils.$$('.sidebar-section').forEach(section => {
-      const buttons = Utils.$$('.sidebar-link[data-route]', section);
-      const anchors = Utils.$$('a.sidebar-link', section);
-
-      // Module sections (data-route buttons)
-      if (buttons.length > 0) {
-        const route = buttons[0].dataset.route;
-        const key = route === 'dashboard' ? 'dashboard' : route;
-        const allowed = access[key] === true;
-        section.style.display = allowed ? 'block' : 'none';
-        return;
-      }
-
-      // India Workstations section (anchor links)
-      if (anchors.length > 0) {
-        let anyVisible = false;
-        anchors.forEach(a => {
-          const href = a.getAttribute('href') || '';
-          let show = true;
-          if (href.includes('tailor'))   show = access.tailorPortal;
-          if (href.includes('shipping')) show = access.logisticsPortal;
-          a.style.display = show ? '' : 'none';
-          if (show) anyVisible = true;
-        });
-        section.style.display = anyVisible ? 'block' : 'none';
-      }
-    });
-
-    // Populate sidebar user avatar details
-    const initials = Utils.getInitials(user.name);
-    const avatar = Utils.$('.sidebar-user-avatar');
-    if (avatar) {
-      avatar.textContent = initials;
-      avatar.style.backgroundColor = Utils.getAvatarColor(user.name);
-      avatar.style.color = 'var(--pc-text-inverse)';
-    }
-
-    const nameEl = Utils.$('.sidebar-user-name');
-    if (nameEl) nameEl.textContent = user.name;
-
-const roleEl = Utils.$('.sidebar-user-role');
-if (roleEl) {
-  const roleTitles = {
-    admin:      'Operations Director',
-    operations: 'Operations Manager',
-    social_crm: 'CRM & Social',
-    tailor:     'Master Tailor',
-    logistics:  'Logistics Manager'
-  };
-  const appRoleKey = (user.appRole || user.app_role || user.role || '').toLowerCase();
-  const displayName = (user.name || '').toLowerCase();
-  if (displayName.includes('pooja')) {
-    roleEl.textContent = 'Managing Director';
-  } else {
-    roleEl.textContent = roleTitles[appRoleKey] || user.role;
-  }
-}
-  }
-
-  function showAccessDenied() {
-    const container = Utils.$('#main-content-area');
-    if (!container) return;
-    container.innerHTML = `
-      <div class="card p-8 text-center animate-fade-in" style="max-width: 480px; margin: 40px auto;">
-        <div style="font-size: 48px; margin-bottom: 20px;">🔒</div>
-        <h2 class="font-display text-gold">Access Denied</h2>
-        <p class="text-muted mt-2">You do not have administrative clearance to access this module.</p>
-        <button class="btn btn-primary mt-4" onclick="App.navigate('dashboard')">Return to Dashboard</button>
-      </div>
-    `;
-  }
-
-  // ── Realtime: re-render current module when data changes ──
-  window.addEventListener('pc:datachange', Utils.debounce(() => {
-    const route = window.location.hash.replace('#','') || 'dashboard';
-    // Only re-render if we're on a data-sensitive module
-    const dataModules = ['crm','accounting','hrm','admin','products'];
-    if (dataModules.includes(route)) {
-      navigate(route);
-    }
-  }, 500));
-
-  // ── Tab focus: refresh cache when user returns to this tab ──
-  document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible') {
-      try {
-        await Promise.all([
-          Store.refresh('orders'),
-          Store.refresh('invoices'),
-          Store.refresh('order_projects'),
-          Store.refresh('clients'),
-          Store.refresh('appointments')
-        ]);
-        const route = window.location.hash.replace('#','') || 'dashboard';
-        navigate(route);
-      } catch (e) { /* ignore */ }
+  // Realtime: re-render when orders change in another portal
+  window.addEventListener('pc:datachange', (e) => {
+    if (e.detail && e.detail.table === 'orders') {
+      Store.refresh('orders').then(() => loadTasks());
     }
   });
 
-  function showDashReport(type) {
-    const allClients  = Store.getAll(Store.COLLECTIONS.CLIENTS);
-    const allOrders   = Store.getAll(Store.COLLECTIONS.ORDERS);
-    const invoices    = Store.getAll(Store.COLLECTIONS.INVOICES);
-    const appts       = Store.getAll(Store.COLLECTIONS.APPOINTMENTS);
-    const now         = new Date();
-    let title = '', content = '';
-
-    if (type === 'brides') {
-      title = '👑 Active Bridal Clients';
-      const brides = allClients.filter(c => c.type === 'Bride');
-      content = brides.length === 0
-        ? '<div class="text-center p-6 text-muted">No bridal clients registered yet.</div>'
-        : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Bride</th><th>Wedding Date</th><th>Orders</th><th>Contact</th></tr></thead><tbody>' +
-          brides.sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(c => {
-            const cnt = allOrders.filter(o=>o.clientId===c.id).length;
-            return '<tr><td class="font-semibold text-xs">' + Utils.sanitizeHTML(c.name) + '</td>' +
-              '<td class="text-xs">' + Utils.formatDate(c.weddingDate||c.eventDate||'') + '</td>' +
-              '<td class="font-mono text-xs">' + cnt + '</td>' +
-              '<td class="text-xs text-muted">' + Utils.sanitizeHTML(c.email||c.phone||'\u2014') + '</td></tr>';
-          }).join('') + '</tbody></table></div>';
-    } else if (type === 'orders') {
-      title = '🧵 Active Custom Orders';
-      const active = allOrders.filter(o => o.status !== 'Delivered');
-      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Garment</th><th>Stage</th><th>Deadline</th></tr></thead><tbody>' +
-        active.sort((a,b)=>new Date(a.deadline||0)-new Date(b.deadline||0)).map(o => {
-          const over = o.deadline && new Date(o.deadline) < now;
-          return '<tr>' +
-            '<td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(o.orderCode||'\u2014') + '</td>' +
-            '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
-            '<td class="text-xs">' + Utils.sanitizeHTML(o.title) + '</td>' +
-            '<td><span class="badge badge-gold text-xs">' + o.status + '</span></td>' +
-            '<td class="text-xs ' + (over?'text-danger font-bold':'text-muted') + '">' + Utils.formatDate(o.deadline) + '</td></tr>';
-        }).join('') + '</tbody></table></div>';
-    } else if (type === 'outstanding') {
-      title = '💰 Outstanding Invoices';
-      const unpaid = invoices.filter(i => (i.total||0) > (parseFloat(i.amountPaid)||0));
-      content = unpaid.length === 0
-        ? '<div class="text-center p-6 text-success font-semibold">All invoices are paid!</div>'
-        : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Total</th><th>Paid</th><th>Balance</th></tr></thead><tbody>' +
-          unpaid.sort((a,b)=>((b.total||0)-(parseFloat(b.amountPaid)||0))-((a.total||0)-(parseFloat(a.amountPaid)||0))).map(inv => {
-            const paid = parseFloat(inv.amountPaid)||0;
-            const bal  = Math.round((inv.total-paid)*100)/100;
-            return '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(inv.invoiceNumber||'\u2014') + '</td>' +
-              '<td class="text-xs">' + Utils.sanitizeHTML(inv.clientName||'\u2014') + '</td>' +
-              '<td class="font-mono text-xs">' + Utils.formatCurrency(inv.total) + '</td>' +
-              '<td class="font-mono text-xs text-success">' + Utils.formatCurrency(paid) + '</td>' +
-              '<td class="font-mono text-xs font-bold text-danger">' + Utils.formatCurrency(bal) + '</td></tr>';
-          }).join('') + '</tbody></table></div>';
-    } else if (type === 'appointments') {
-      title = '📅 Upcoming Consultations';
-      const upcoming = appts.filter(a => a.status === 'Scheduled')
-        .sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
-      content = upcoming.length === 0
-        ? '<div class="text-center p-6 text-muted">No upcoming appointments scheduled.</div>'
-        : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Client</th><th>Type</th><th>Date</th><th>Notes</th></tr></thead><tbody>' +
-          upcoming.map(a =>
-            '<tr><td class="font-semibold text-xs">' + Utils.sanitizeHTML(a.clientName||'\u2014') + '</td>' +
-            '<td class="text-xs">' + Utils.sanitizeHTML(a.type||'\u2014') + '</td>' +
-            '<td class="text-xs">' + Utils.formatDate(a.date) + '</td>' +
-            '<td class="text-xs text-muted">' + Utils.sanitizeHTML(a.notes||'\u2014') + '</td></tr>'
-          ).join('') + '</tbody></table></div>';
+  // Tab focus: refresh when user switches back to this tab
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+      try {
+        await Store.refresh('orders');
+        loadTasks();
+      } catch (e) { /* ignore */ }
     }
-    showModal({
-      title, content: '<div style="max-height:60vh;overflow-y:auto;">' + content + '</div>',
-      submitText: 'Close', hideCancel: true, onSubmit: () => true, modalSize: 'modal-lg'
-    });
-  }
-
-  return {
-    init,
-    navigate,
-    showDashReport,
-    quickRoute,
-    showModal,
-    closeModal,
-    showConfirm
-  };
-})();
-
-// Execute application initialization when DOM loaded
-document.addEventListener('DOMContentLoaded', () => {
-  App.init();
+  });
 });
