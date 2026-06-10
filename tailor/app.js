@@ -8,19 +8,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentUser = null;
   let activeFilter = 'pending';
 
-  const gateScreen = Utils.$('#gate-screen');
-  const gateMessage = Utils.$('#gate-message');
-  const gateActions = Utils.$('#gate-actions');
-  const tailorWorkspace = Utils.$('#tailor-workspace');
-  const userAvatar = Utils.$('#user-avatar');
-  const userDisplayName = Utils.$('#user-display-name');
-  const userDisplayRole = Utils.$('#user-display-role');
-  const btnLogout = Utils.$('#btn-logout');
-
-  const btnPunch = Utils.$('#btn-punch');
-  const punchStatusText = Utils.$('#punch-status-text');
-  const taskCounter = Utils.$('#task-counter');
-  const tasksList = Utils.$('#tasks-list');
+  // Use lazy getters so elements are always fetched fresh (guards against timing issues)
+  function el(id) { return document.getElementById(id); }
 
   function validateRole(user) {
     const role = (user.role || '').toLowerCase();
@@ -30,20 +19,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function showGate(message, allowLogin) {
-    gateScreen.classList.add('active');
-    tailorWorkspace.classList.add('d-none');
-    gateMessage.textContent = message;
-    gateActions.classList.toggle('d-none', !allowLogin);
+    var gs = el('gate-screen');
+    var tw = el('tailor-workspace');
+    var gm = el('gate-message');
+    var ga = el('gate-actions');
+    if (gs) gs.classList.add('active');
+    if (tw) tw.classList.add('d-none');
+    if (gm) gm.textContent = message;
+    if (ga) ga.classList.toggle('d-none', !allowLogin);
   }
 
   function showWorkspace() {
-    gateScreen.classList.remove('active');
-    tailorWorkspace.classList.remove('d-none');
-    userAvatar.textContent = Utils.getInitials(currentUser.name);
-    userAvatar.style.backgroundColor = Utils.getAvatarColor(currentUser.name);
-    userAvatar.style.color = 'var(--pc-text-inverse)';
-    userDisplayName.textContent = currentUser.name;
-    userDisplayRole.textContent = currentUser.name === 'Pooja Shah' ? 'Managing Director' : (currentUser.role + ' (Production)');
+    var gs = el('gate-screen');
+    var tw = el('tailor-workspace');
+    if (gs) gs.classList.remove('active');
+    if (tw) tw.classList.remove('d-none');
+    var userAvatar = el('user-avatar');
+    var userDisplayName = el('user-display-name');
+    var userDisplayRole = el('user-display-role');
+    if (userAvatar) {
+      userAvatar.textContent = Utils.getInitials(currentUser.name);
+      userAvatar.style.backgroundColor = Utils.getAvatarColor(currentUser.name);
+      userAvatar.style.color = 'var(--pc-text-inverse)';
+    }
+    if (userDisplayName) userDisplayName.textContent = currentUser.name;
+    if (userDisplayRole) userDisplayRole.textContent = currentUser.name === 'Pooja Shah' ? 'Managing Director' : (currentUser.role + ' (Production)');
     updatePunchCardStatus();
     loadTasks();
   }
@@ -70,7 +70,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   showWorkspace();
 
   // ---------- Logout ----------
-  btnLogout.addEventListener('click', async () => {
+  // Element references (fetched here to ensure DOM is ready)
+  var btnLogout = el('btn-logout');
+  var btnPunch = el('btn-punch');
+  var punchStatusText = el('punch-status-text');
+  var taskCounter = el('task-counter');
+  var tasksList = el('tasks-list');
+
+  if (btnLogout) btnLogout.addEventListener('click', async () => {
     await Store.logout();
     currentUser = null;
     window.location.href = '../index.html';
@@ -101,7 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  btnPunch.addEventListener('click', async () => {
+  if (btnPunch) btnPunch.addEventListener('click', async () => {
     const todayStr = new Date().toISOString().split('T')[0];
     const attendance = Store.getAll(Store.COLLECTIONS.ATTENDANCE);
     const existing = attendance.find(a => a.employeeId === currentUser.id && a.date === todayStr);
@@ -250,6 +257,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     filtered.forEach(order => {
       const card = Utils.createElement('div', { className: 'task-card', style: 'cursor:pointer' });
+
+      // Deadline urgency logic
+      const DONE_STATUSES = ['Ready','Shipped to Shashank','At Shashank','In Transit',
+        'Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery','Delivered'];
+      const isDone = DONE_STATUSES.includes(order.status);
+      const days = order.deadline ? Utils.daysFromNow(order.deadline) : null;
+      const isOverdue = !isDone && days !== null && days < 0;
+      const isWarning = !isDone && days !== null && days >= 0 && days <= 7;
+
+      if (isOverdue) {
+        card.style.border = '2px solid #f59e0b';
+        card.style.background = 'rgba(245,158,11,0.06)';
+      } else if (isWarning) {
+        card.style.border = '1px solid #f59e0b';
+      }
+
       card.addEventListener('click', (e) => { if (!e.target.closest('button')) viewOrderDetail(order.id); });
 
       let actionButton = '';
@@ -279,7 +302,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           '<div class="text-xs">' + Utils.sanitizeHTML(order.notes || 'No specific instructions logged.') + '</div>' +
         '</div>' +
         '<div class="d-flex justify-between items-center">' +
-          '<span class="text-xs text-danger font-semibold">&#128197; ' + Utils.formatDate(order.deadline) + '</span>' +
+          '<span class="text-xs font-semibold ' + (isOverdue ? 'text-danger' : isWarning ? 'text-warning' : 'text-muted') + '">&#128197; ' + Utils.formatDate(order.deadline) +
+            (isOverdue ? ' (' + Math.abs(days) + 'd overdue)' : isWarning ? ' (' + days + 'd left)' : days !== null ? ' (' + days + 'd left)' : '') +
+          '</span>' +
           actionButton +
         '</div>';
       tasksList.appendChild(card);
