@@ -928,154 +928,188 @@ const HRM = (() => {
   // ==========================================
   
   function renderPerformance(container, actions) {
+    actions.innerHTML = '';
+
     const staff = Store.getAll(Store.COLLECTIONS.EMPLOYEES).filter(s => s.status === 'Active');
 
-    container.innerHTML = `
-      <div class="d-grid gap-6" style="grid-template-columns: 1fr 2fr;">
-        <!-- Staff List Selection -->
-        <div class="card p-4">
-          <div class="card-title mb-4">Select Staff Member</div>
-          <div class="d-flex flex-col gap-2" id="perf-staff-list">
-            ${staff.map(s => `
-              <div class="list-item" data-id="${s.id}">
-                <div class="avatar avatar-sm" style="background: ${Utils.getAvatarColor(s.name)}; color: var(--pc-text-inverse)">
-                  ${Utils.getInitials(s.name)}
-                </div>
-                <div class="list-item-content">
-                  <div class="list-item-title">${Utils.sanitizeHTML(s.name)}</div>
-                  <div class="list-item-subtitle">${getDisplayRole(s)}</div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
+    container.innerHTML =
+      '<div class="d-grid gap-6" style="grid-template-columns:1fr 2fr">' +
+        '<div class="card p-4">' +
+          '<div class="card-title mb-4">Staff Members</div>' +
+          '<div class="d-flex flex-col gap-2" id="perf-staff-list">' +
+            staff.map(function(s) {
+              return '<div class="list-item" data-id="' + s.id + '">' +
+                '<div class="avatar avatar-sm" style="background:' + Utils.getAvatarColor(s.name) + ';color:var(--pc-text-inverse)">' + Utils.getInitials(s.name) + '</div>' +
+                '<div class="list-item-content">' +
+                  '<div class="list-item-title">' + Utils.sanitizeHTML(s.name) + '</div>' +
+                  '<div class="list-item-subtitle">' + getDisplayRole(s) + '</div>' +
+                '</div>' +
+              '</div>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+        '<div id="perf-review-details">' +
+          '<div class="card p-6 d-flex flex-col items-center justify-center text-center text-muted" style="min-height:300px">' +
+            '<div class="empty-state">' +
+              '<div class="empty-state-icon">⭐</div>' +
+              '<div class="empty-state-title">Select a staff member</div>' +
+              '<div class="empty-state-text">Click a staff member on the left to view their performance history.</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
 
-        <!-- Review details -->
-        <div id="perf-review-details">
-          <div class="card p-6 d-flex flex-col items-center justify-center text-center text-muted" style="min-height: 300px;">
-            <div class="empty-state">
-              <div class="empty-state-icon">⭐</div>
-              <div class="empty-state-title">Select a staff member</div>
-              <div class="empty-state-text">Select staff member from the left panel to review reviews and performance metrics.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    Utils.$$('.list-item', container).forEach(item => {
-      item.addEventListener('click', (e) => {
-        const itemEl = e.currentTarget;
-        Utils.$$('.list-item', container).forEach(el => el.classList.remove('active'));
+    Utils.$$('.list-item', container).forEach(function(item) {
+      item.addEventListener('click', function(e) {
+        var itemEl = e.currentTarget;
+        Utils.$$('.list-item', container).forEach(function(el) { el.classList.remove('active'); });
         itemEl.classList.add('active');
         loadStaffPerformance(itemEl.dataset.id);
       });
     });
   }
 
+  function _getPerformanceReviews(empId) {
+    // Reviews stored in audit_logs: category='Performance', details contains JSON
+    var logs = Store.getAll(Store.COLLECTIONS.AUDIT_LOGS) || [];
+    return logs
+      .filter(function(l) { return l.category === 'Performance' && l.userId === empId; })
+      .sort(function(a, b) { return new Date(b.createdAt || 0) - new Date(a.createdAt || 0); });
+  }
+
   function loadStaffPerformance(empId) {
-    const detailsContainer = Utils.$('#perf-review-details');
+    var detailsContainer = Utils.$('#perf-review-details');
     if (!detailsContainer) return;
 
-    const emp = Store.getById(Store.COLLECTIONS.EMPLOYEES, empId);
+    var emp = Store.getById(Store.COLLECTIONS.EMPLOYEES, empId);
     if (!emp) return;
 
-    // Hardcode some mock performance reviews since it's client-side persistent
-    const reviews = {
-      'e-1': { rating: 5, feedback: "Pooja provides excellent leadership and brand direction. Operations run smoothly.", goals: ["Expand couture lineup by 15%", "Hire senior designer for bridal department"] },
-      'e-2': { rating: 4.5, feedback: "Vikram's bridal concept drawings have been praised by clients. Great aesthetic taste and design skill.", goals: ["Reduce fabric wastage in layouts by 5%", "Complete Aisha Rahman's high-density embroidery supervision on time"] },
-      'e-3': { rating: 4, feedback: "Haris does high-precision fitting stitches. Excellent draping on mock-ups.", goals: ["Stitch 5 custom outfits per week", "Train junior tailors in lining stitches"] },
-      'e-4': { rating: 4.8, feedback: "Anjali's zardozi handcraft is world-class. Customers love the detailing.", goals: ["Complete embroidery work 2 days ahead of fitting schedules", "Mentor new embroidery interns"] },
-      'e-5': { rating: 4.2, feedback: "Sarah has achieved excellent conversion rates for walk-in consultations.", goals: ["Increase bridal consult conversions to 80%", "Collect customer feedbacks for marketing case studies"] }
-    };
+    var reviews = _getPerformanceReviews(empId);
+    var latestReview = reviews.length > 0 ? reviews[0] : null;
+    var latestData = null;
+    if (latestReview) {
+      try { latestData = JSON.parse(latestReview.action); } catch(e) { latestData = null; }
+    }
 
-    const review = reviews[empId] || { rating: 4.0, feedback: "Consistent performance. Team-player.", goals: ["Complete work duties on time", "Participate in training modules"] };
+    var ratingHtml = '';
+    if (latestData && latestData.rating) {
+      var r = parseFloat(latestData.rating);
+      ratingHtml = '<div class="text-right">' +
+        '<span class="text-xs text-muted">Latest Rating</span>' +
+        '<div class="text-md font-bold text-gold" style="letter-spacing:2px">' + '⭐'.repeat(Math.floor(r)) + (r % 1 !== 0 ? '✨' : '') + ' (' + r + '/5)</div>' +
+      '</div>';
+    }
 
-    const ratingStars = '⭐'.repeat(Math.floor(review.rating)) + (review.rating % 1 !== 0 ? '✨' : '');
+    var goalsHtml = '';
+    if (latestData && latestData.goals && latestData.goals.length) {
+      goalsHtml = '<div>' +
+        '<h4 class="text-sm font-semibold text-gold mb-2">Active Goals</h4>' +
+        '<ul class="d-flex flex-col gap-2">' +
+          latestData.goals.map(function(g) {
+            return '<li class="d-flex items-center gap-2 text-xs font-light"><span class="text-gold">✔</span> ' + Utils.sanitizeHTML(g) + '</li>';
+          }).join('') +
+        '</ul>' +
+      '</div>';
+    }
 
-    detailsContainer.innerHTML = `
-      <div class="card p-6 animate-fade-in">
-        <div class="d-flex justify-between items-start gap-4 mb-6" style="border-bottom: 1px solid var(--pc-border); padding-bottom: 16px;">
-          <div>
-            <h3 class="font-display text-md">${Utils.sanitizeHTML(emp.name)}</h3>
-            <p class="text-xs text-gold">${getDisplayRole(emp)} — ${emp.department} Department</p>
-          </div>
-          <div class="text-right">
-            <span class="text-xs text-muted">Review Score</span>
-            <div class="text-md font-bold text-gold" style="letter-spacing: 2px;">${ratingStars} (${review.rating}/5)</div>
-          </div>
-        </div>
+    var feedbackHtml = '';
+    if (latestData && latestData.feedback) {
+      feedbackHtml = '<div>' +
+        '<h4 class="text-sm font-semibold text-gold mb-1">Latest Feedback</h4>' +
+        '<div class="p-3 rounded-md text-sm font-light" style="background:rgba(255,255,255,0.01);border:1px solid var(--pc-border)">' +
+          Utils.sanitizeHTML(latestData.feedback) +
+        '</div>' +
+      '</div>';
+    }
 
-        <div class="d-flex flex-col gap-4">
-          <div>
-            <h4 class="text-sm font-semibold text-gold mb-1">Manager Feedback</h4>
-            <div class="p-3 rounded-md text-sm font-light" style="background: rgba(255,255,255,0.01); border: 1px solid var(--pc-border)">
-              ${Utils.sanitizeHTML(review.feedback)}
-            </div>
-          </div>
+    var historyHtml = '';
+    if (reviews.length > 1) {
+      historyHtml = '<div>' +
+        '<h4 class="text-sm font-semibold text-gold mb-2">Review History (' + (reviews.length - 1) + ' previous)</h4>' +
+        '<div class="d-flex flex-col gap-2">' +
+          reviews.slice(1).map(function(rev) {
+            var d = null;
+            try { d = JSON.parse(rev.action); } catch(e) {}
+            if (!d) return '';
+            var dateStr = rev.createdAt ? Utils.formatDate(rev.createdAt) : 'Unknown date';
+            return '<div class="p-3 rounded-md" style="border:1px solid var(--pc-border);font-size:11px">' +
+              '<div class="d-flex justify-between items-center mb-1">' +
+                '<span class="font-semibold">' + dateStr + '</span>' +
+                '<span class="text-gold">' + '⭐'.repeat(Math.floor(parseFloat(d.rating || 0))) + ' (' + (d.rating || '?') + '/5)</span>' +
+              '</div>' +
+              '<div class="text-muted">' + Utils.sanitizeHTML(d.feedback || '') + '</div>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+    }
 
-          <div>
-            <h4 class="text-sm font-semibold text-gold mb-2">Performance Goals & Milestones</h4>
-            <ul class="d-flex flex-col gap-2">
-              ${review.goals.map(g => `
-                <li class="d-flex items-center gap-2 text-xs font-light">
-                  <span class="text-gold">✔</span> ${Utils.sanitizeHTML(g)}
-                </li>
-              `).join('')}
-            </ul>
-          </div>
-          
-          <button class="btn btn-secondary btn-sm ml-auto mt-4" onclick="HRM.editPerformanceReview('${emp.id}')">
-            Add New Review Note
-          </button>
-        </div>
-      </div>
-    `;
+    var emptyHtml = !latestData ?
+      '<div class="p-4 text-center text-muted text-xs">No reviews recorded yet. Add the first review below.</div>' : '';
+
+    detailsContainer.innerHTML =
+      '<div class="card p-6 animate-fade-in">' +
+        '<div class="d-flex justify-between items-start gap-4 mb-6" style="border-bottom:1px solid var(--pc-border);padding-bottom:16px">' +
+          '<div>' +
+            '<h3 class="font-display text-md">' + Utils.sanitizeHTML(emp.name) + '</h3>' +
+            '<p class="text-xs text-gold">' + getDisplayRole(emp) + ' — ' + (emp.department || '') + ' Department</p>' +
+          '</div>' +
+          ratingHtml +
+        '</div>' +
+        '<div class="d-flex flex-col gap-4">' +
+          emptyHtml +
+          feedbackHtml +
+          goalsHtml +
+          historyHtml +
+          '<button class="btn btn-primary btn-sm ml-auto mt-2" onclick="HRM.editPerformanceReview(\'' + emp.id + '\')">➕ Add Review</button>' +
+        '</div>' +
+      '</div>';
   }
 
   function editPerformanceReview(empId) {
-    const emp = Store.getById(Store.COLLECTIONS.EMPLOYEES, empId);
+    var emp = Store.getById(Store.COLLECTIONS.EMPLOYEES, empId);
     if (!emp) return;
 
-    const modalHTML = `
-      <form id="perf-form" class="animate-fade-in-scale">
-        <div class="form-group">
-          <label class="form-label">Reviewer Rating (1 to 5 Stars)</label>
-          <select name="rating" class="form-select">
-            <option value="5">⭐⭐⭐⭐⭐ (Excellent)</option>
-            <option value="4">⭐⭐⭐⭐ (Good)</option>
-            <option value="3">⭐⭐⭐ (Average)</option>
-            <option value="2">⭐⭐ (Needs Improvement)</option>
-            <option value="1">⭐ (Unsatisfactory)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Performance Review Feedback</label>
-          <textarea name="feedback" class="form-textarea" required placeholder="Log details of review meeting or general work evaluations..."></textarea>
-        </div>
-        <div class="form-group m-0">
-          <label class="form-label">Active Work Goals (one per line)</label>
-          <textarea name="goals" class="form-textarea" placeholder="Goal 1\nGoal 2..." style="min-height: 80px;"></textarea>
-        </div>
-      </form>
-    `;
-
     App.showModal({
-      title: `New Performance Entry — ${emp.name}`,
-      content: modalHTML,
-      submitText: 'Save Review Log',
-      onSubmit: (modalEl) => {
-        const form = Utils.$('#perf-form', modalEl);
-        if (!form.checkValidity()) {
-          form.reportValidity();
+      title: 'New Performance Review — ' + emp.name,
+      content: '<form id="perf-form" class="animate-fade-in-scale">' +
+        '<div class="form-group">' +
+          '<label class="form-label">Rating</label>' +
+          '<select name="rating" class="form-select">' +
+            '<option value="5">⭐⭐⭐⭐⭐ — Excellent</option>' +
+            '<option value="4">⭐⭐⭐⭐ — Good</option>' +
+            '<option value="3">⭐⭐⭐ — Average</option>' +
+            '<option value="2">⭐⭐ — Needs Improvement</option>' +
+            '<option value="1">⭐ — Unsatisfactory</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label class="form-label">Feedback / Review Notes <span class="required">*</span></label>' +
+          '<textarea name="feedback" class="form-textarea" required placeholder="Summarise performance, observations, and areas of excellence or concern..."></textarea>' +
+        '</div>' +
+        '<div class="form-group m-0">' +
+          '<label class="form-label">Goals (one per line)</label>' +
+          '<textarea name="goals" class="form-textarea" placeholder="Goal 1&#10;Goal 2" style="min-height:80px"></textarea>' +
+        '</div>' +
+      '</form>',
+      submitText: 'Save Review',
+      onSubmit: async function(modalEl) {
+        var form = Utils.$('#perf-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        var rating = form.querySelector('[name="rating"]').value;
+        var feedback = form.querySelector('[name="feedback"]').value.trim();
+        var goalsRaw = form.querySelector('[name="goals"]').value.trim();
+        var goals = goalsRaw ? goalsRaw.split('\n').map(function(g){ return g.trim(); }).filter(Boolean) : [];
+        var payload = JSON.stringify({ rating: parseFloat(rating), feedback: feedback, goals: goals });
+        try {
+          await Store.logAction(payload, 'Performance', emp.name + ' — ' + new Date().toLocaleDateString('en-AU'), empId);
+          Utils.showToast('Review saved for ' + emp.name, 'success');
+          loadStaffPerformance(empId);
+          return true;
+        } catch(e) {
+          Utils.showToast('Could not save review: ' + e.message, 'error');
           return false;
         }
-
-        Utils.showToast('Performance review details successfully logged.', 'success');
-        
-        // Reload performance tab
-        loadStaffPerformance(empId);
-        return true;
       }
     });
   }
