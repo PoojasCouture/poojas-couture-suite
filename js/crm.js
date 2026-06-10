@@ -1276,6 +1276,31 @@ poojascouture.com.au`
   function showOrderDetails(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
     if (!o) return;
+
+    // Pre-compute deadline banner (avoid IIFE with const inside template literal)
+    const DETAIL_DONE = ['Ready','Shipped to Shashank','At Shashank','In Transit','Awaiting Payment',
+      'Received in Australia','Final Fitting','Cleared for Delivery','Delivered'];
+    var deadlineBannerHTML = '';
+    if (!DETAIL_DONE.includes(o.status) && o.deadline) {
+      var dd = Utils.daysFromNow(o.deadline);
+      var isOv = dd < 0;
+      var isWn = dd >= 0 && dd <= 7;
+      if (isOv || isWn) {
+        deadlineBannerHTML = '<div class="p-3 rounded-md mb-2 w-full" style="background:' +
+          (isOv ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)') + ';border:1px solid #f59e0b">' +
+          '<div class="text-xs font-semibold" style="color:#f59e0b">' +
+          (isOv ? '\u26a0\ufe0f ' + Math.abs(dd) + ' days overdue' : '\u23f0 ' + dd + ' days left') +
+          '</div>' +
+          '<button class="btn btn-sm mt-2" style="background:#f59e0b;color:#000;font-weight:600"' +
+          ' onclick="CRM.extendDeadline(\'' + o.id + '\')">&#128197; Extend Deadline</button>' +
+          '</div>';
+      } else {
+        deadlineBannerHTML = '<button class="btn btn-secondary btn-sm" onclick="CRM.extendDeadline(\'' + o.id + '\')">&#128197; Extend Deadline</button>';
+      }
+    } else {
+      deadlineBannerHTML = '<button class="btn btn-secondary btn-sm" onclick="CRM.extendDeadline(\'' + o.id + '\')">&#128197; Extend Deadline</button>';
+    }
+
     App.showModal({
       title: 'Order Summary',
       content: `
@@ -1378,21 +1403,7 @@ poojascouture.com.au`
             ${!o.mBust&&!o.designNotes&&!o.fabricType&&!o.notes?'<div class="text-xs text-muted">No specs recorded yet.</div>':''}
           </div>
           <div class="d-flex gap-2 justify-end" style="border-top:1px solid var(--pc-border);padding-top:var(--sp-4)">
-            ${(()=>{
-              const DONE = ['Ready','Shipped to Shashank','At Shashank','In Transit','Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery','Delivered'];
-              if (!DONE.includes(o.status) && o.deadline) {
-                const d = Utils.daysFromNow(o.deadline);
-                const isOv = d < 0;
-                const isWarn = d >= 0 && d <= 7;
-                if (isOv || isWarn) {
-                  return '<div class="p-3 rounded-md mb-2 w-full" style="background:' + (isOv?'rgba(245,158,11,0.12)':'rgba(245,158,11,0.08)') + ';border:1px solid #f59e0b">' +
-                    '<div class="text-xs font-semibold" style="color:#f59e0b">' + (isOv ? '⚠️ ' + Math.abs(d) + ' days overdue' : '⏰ ' + d + ' days left') + '</div>' +
-                    '<button class="btn btn-sm mt-2" style="background:#f59e0b;color:#000;font-weight:600" onclick="CRM.extendDeadline(\'' + o.id + '\')">📅 Extend Deadline</button>' +
-                  '</div>';
-                }
-              }
-              return '<button class="btn btn-secondary btn-sm" onclick="CRM.extendDeadline(\'' + o.id + '\')">📅 Extend Deadline</button>';
-            })()}
+            ${deadlineBannerHTML}
             <button class="btn btn-secondary" onclick="CRM.editOrder('${o.id}')">✏️ Edit</button>
             <button class="btn btn-danger" onclick="CRM.deleteOrder('${o.id}')">🗑️ Delete</button>
           </div>
