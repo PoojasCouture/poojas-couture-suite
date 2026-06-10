@@ -17,8 +17,13 @@ const Products = (() => {
   const LOCATIONS = ['Showroom', 'Warehouse A', 'Warehouse B'];
 
   function init() {
-    activeCategory = 'all';
-    activeStatus = 'all';
+    try {
+      activeCategory = localStorage.getItem('pc_prod_cat') || 'all';
+      activeStatus   = localStorage.getItem('pc_prod_status') || 'all';
+    } catch(e) {
+      activeCategory = 'all';
+      activeStatus   = 'all';
+    }
     searchTerm = '';
     render();
   }
@@ -118,8 +123,8 @@ const Products = (() => {
 
     const searchEl = Utils.$('#product-search');
     searchEl.addEventListener('input', (e) => { searchTerm = e.target.value; renderRows(); });
-    Utils.$('#product-category-filter').addEventListener('change', (e) => { activeCategory = e.target.value; renderRows(); });
-    Utils.$('#product-status-filter').addEventListener('change', (e) => { activeStatus = e.target.value; renderRows(); });
+    Utils.$('#product-category-filter').addEventListener('change', (e) => { activeCategory = e.target.value; try { localStorage.setItem('pc_prod_cat', activeCategory); } catch(e2) {} renderRows(); });
+    Utils.$('#product-status-filter').addEventListener('change', (e) => { activeStatus = e.target.value; try { localStorage.setItem('pc_prod_status', activeStatus); } catch(e2) {} renderRows(); });
 
     renderRows();
   }
