@@ -118,6 +118,8 @@ const App = (() => {
 
   function navigate(route) {
     currentRoute = route;
+    // Persist so F5/reload restores the same section
+    try { localStorage.setItem('pc_last_route', route); } catch(e) {}
 
     // Check routing permissions against the role ACCESS map
     const user = Store.getCurrentUser();
@@ -725,7 +727,15 @@ if (user) {
       if (role === 'logistics') { window.location.replace('shipping/index.html'); return; }
       loginOverlay.classList.remove('active');
       applySidebarPermissions(user);
-      navigate(landingRouteFor(user));
+      // Restore last visited section, fall back to role default
+      var savedRoute = null;
+      try { savedRoute = localStorage.getItem('pc_last_route'); } catch(e) {}
+      var defaultRoute = landingRouteFor(user);
+      var routeToLoad = savedRoute || defaultRoute;
+      // Validate saved route is accessible for this role
+      var safeRoutes = ['dashboard','products','crm','hrm','accounting','admin','settings'];
+      if (!safeRoutes.includes(routeToLoad)) routeToLoad = defaultRoute;
+      navigate(routeToLoad);
     } else {
       loginOverlay.classList.add('active');
     }
@@ -865,11 +875,10 @@ if (roleEl) {
 
   // ── Realtime: re-render current module when data changes ──
   window.addEventListener('pc:datachange', Utils.debounce(() => {
-    const route = window.location.hash.replace('#','') || 'dashboard';
     // Only re-render if we're on a data-sensitive module
     const dataModules = ['crm','accounting','hrm','admin','products'];
-    if (dataModules.includes(route)) {
-      navigate(route);
+    if (dataModules.includes(currentRoute)) {
+      navigate(currentRoute);
     }
   }, 500));
 
@@ -884,8 +893,8 @@ if (roleEl) {
           Store.refresh('clients'),
           Store.refresh('appointments')
         ]);
-        const route = window.location.hash.replace('#','') || 'dashboard';
-        navigate(route);
+        // Re-render current section only — don't reset to dashboard
+        if (currentRoute) navigate(currentRoute);
       } catch (e) { /* ignore */ }
     }
   });
