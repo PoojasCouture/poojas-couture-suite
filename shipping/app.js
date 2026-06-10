@@ -456,23 +456,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${esc(o.clientName || '')} · ${esc(o.orderCode || o.id)}
       </p>
       <div class="form-row">
-        <div style="${halfStyle()}">
+        <div class="form-group" style="flex:1">
           <label class="form-label">Carrier</label>
           <select id="f-carrier" class="form-input">${carrierOptions}</select>
         </div>
-        <div style="${halfStyle()}">
+        <div class="form-group" style="flex:1">
           <label class="form-label">Tracking Number <span style="color:#e06;">*</span></label>
           <input id="f-tracking" type="text" class="form-input" placeholder="e.g. DHL-12345678">
         </div>
       </div>
       <div class="form-row">
-        <div style="${halfStyle()}">
-          <label class="form-label">Shipping Cost ex-GST (AUD) <span style="color:#e06;">*</span></label>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Base Shipping Cost (AUD) <span style="color:#e06;">*</span></label>
           <input id="f-cost" type="number" step="0.01" min="0" class="form-input" placeholder="0.00">
         </div>
-        <div style="${halfStyle()}">
-          <label class="form-label">Gross Weight (kg)</label>
-          <input id="f-weight" type="number" step="0.1" min="0.1" value="2.5" class="form-input">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">VAT / Customs Charges (AUD)</label>
+          <input id="f-vat" type="number" step="0.01" min="0" class="form-input" placeholder="0.00">
+          <div class="text-xs text-muted mt-1">Indian GST, customs duties included here</div>
         </div>
       </div>
       <div class="form-row">
@@ -499,16 +500,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         <input id="f-goods-desc" type="text" class="form-input" value="100% Handloom Silk Embroideries — Bridal Garments">
       </div>
       <div class="form-row">
-        <div style="${halfStyle()}">
+        <div class="form-group" style="flex:1">
           <label class="form-label">Country of Origin</label>
           <input id="f-origin" type="text" class="form-input" value="India">
         </div>
-        <div style="${halfStyle()}">
+        <div class="form-group" style="flex:1">
           <label class="form-label">Dispatch Date</label>
           <input id="f-dispatch-date" type="date" class="form-input" value="${new Date().toISOString().split('T')[0]}">
         </div>
       </div>
     `;
+    setTimeout(function() {
+      var c = document.getElementById('f-cost'), v = document.getElementById('f-vat'), t = document.getElementById('f-total-display');
+      function upd() { if(t) t.value = 'AUD ' + ((parseFloat(c&&c.value||0)||0)+(parseFloat(v&&v.value||0)||0)).toFixed(2); }
+      if(c) c.addEventListener('input', upd); if(v) v.addEventListener('input', upd);
+    }, 150);
 
     openModal({
       title: `Ship to ${destination} — ${o.orderCode || orderId}`,
@@ -517,7 +523,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       wide: true,
       onSubmit: async (box) => {
         const tracking = box.querySelector('#f-tracking').value.trim();
-        const cost     = parseFloat(box.querySelector('#f-cost').value) || 0;
+        const baseCost = parseFloat(box.querySelector('#f-cost').value) || 0;
+        const vatCost  = parseFloat(box.querySelector('#f-vat') ? box.querySelector('#f-vat').value : '0') || 0;
+        const cost     = Math.round((baseCost + vatCost) * 100) / 100;
         if (!tracking) { toast('Tracking number is required.', 'error'); return false; }
         if (!cost)     { toast('Shipping cost is required.', 'error'); return false; }
 
@@ -578,27 +586,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
       <div class="form-row">
-        <div style="${halfStyle()}">
-          <label class="form-label">Delivery Cost (AUD) <span style="color:#e06;">*</span></label>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Base Delivery Cost (AUD) <span style="color:#e06;">*</span></label>
           <input id="f-cost" type="number" step="0.01" min="0" class="form-input" placeholder="0.00">
         </div>
-        <div style="${halfStyle()}">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">VAT / Customs Charges (AUD)</label>
+          <input id="f-vat" type="number" step="0.01" min="0" class="form-input" placeholder="0.00">
+          <div class="text-xs text-muted mt-1">Indian GST, duties included here</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Total Shipping incl. VAT</label>
+          <input id="f-total-display" type="text" class="form-input" value="AUD 0.00" readonly style="color:var(--pc-gold);font-weight:700;">
+        </div>
+        <div class="form-group" style="flex:1">
           <label class="form-label">Dispatch Date</label>
           <input id="f-dispatch-date" type="date" class="form-input" value="${new Date().toISOString().split('T')[0]}">
         </div>
       </div>
-      <div style="${fullStyle()}">
+      <div class="form-group">
         <label class="form-label">Delivery Address / Notes</label>
         <input id="f-notes" type="text" class="form-input" placeholder="Customer address or delivery instructions">
       </div>
     `;
+    setTimeout(function() {
+      var c = document.getElementById('f-cost'), v = document.getElementById('f-vat'), t = document.getElementById('f-total-display');
+      function upd() { if(t) t.value = 'AUD ' + ((parseFloat(c&&c.value||0)||0)+(parseFloat(v&&v.value||0)||0)).toFixed(2); }
+      if(c) c.addEventListener('input', upd); if(v) v.addEventListener('input', upd);
+    }, 150);
 
     openModal({
       title: `Local Delivery — India · ${o.orderCode || orderId}`,
       bodyHTML,
       submitLabel: '🚚 Confirm Dispatch',
       onSubmit: async (box) => {
-        const cost = parseFloat(box.querySelector('#f-cost').value) || 0;
+        const baseCost = parseFloat(box.querySelector('#f-cost').value) || 0;
+        const vatCost  = parseFloat(box.querySelector('#f-vat') ? box.querySelector('#f-vat').value : '0') || 0;
+        const cost     = Math.round((baseCost + vatCost) * 100) / 100;
         if (!cost) { toast('Delivery cost is required.', 'error'); return false; }
 
         const res = await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
