@@ -547,7 +547,7 @@ const Accounting = (() => {
               <title>Print Invoice ${inv.invoiceNumber}</title>
               <style>
                 * { box-sizing: border-box; }
-                body { font-family: sans-serif; padding: 40px; color: #111; background: #fff; }
+                body { font-family: 'Segoe UI', sans-serif; padding: 40px; color: #111 !important; background: #fff !important; }
                 .d-flex { display: flex; }
                 .justify-between { justify-content: space-between; }
                 .justify-end { justify-content: flex-end; }
@@ -573,7 +573,17 @@ const Accounting = (() => {
                 .p-3 { padding: 12px; }
                 .gap-2 { gap: 8px; }
                 .rounded-md { border-radius: 6px; }
-                .invoice-preview { background: #fff; }
+                .invoice-preview { background: #fff !important; color: #111 !important; }
+                * { background: transparent; color: #111; }
+                .invoice-preview * { color: inherit; }
+                .text-gold { color: #B8860B !important; }
+                .text-success { color: #15803d !important; }
+                .text-danger { color: #dc2626 !important; }
+                .text-muted { color: #555 !important; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { padding: 8px 12px; border-bottom: 1px solid #ddd; text-align: left; }
+                th { background: #f5f5f5 !important; font-size: 11px; text-transform: uppercase; }
+                .font-mono { font-family: 'Courier New', monospace; }
                 @media print { body { padding: 20px; } button { display: none !important; } }
               </style>
             </head>
