@@ -8,19 +8,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentUser = null;
   let activeFilter = 'pending';
 
-  const gateScreen = Utils.$('#gate-screen');
-  const gateMessage = Utils.$('#gate-message');
-  const gateActions = Utils.$('#gate-actions');
-  const tailorWorkspace = Utils.$('#tailor-workspace');
-  const userAvatar = Utils.$('#user-avatar');
-  const userDisplayName = Utils.$('#user-display-name');
-  const userDisplayRole = Utils.$('#user-display-role');
-  const btnLogout = Utils.$('#btn-logout');
-
-  const btnPunch = Utils.$('#btn-punch');
-  const punchStatusText = Utils.$('#punch-status-text');
-  const taskCounter = Utils.$('#task-counter');
-  const tasksList = Utils.$('#tasks-list');
+  // Use lazy getters so elements are always fetched fresh (guards against timing issues)
+  function el(id) { return document.getElementById(id); }
 
   function validateRole(user) {
     const role = (user.role || '').toLowerCase();
@@ -30,20 +19,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function showGate(message, allowLogin) {
-    gateScreen.classList.add('active');
-    tailorWorkspace.classList.add('d-none');
-    gateMessage.textContent = message;
-    gateActions.classList.toggle('d-none', !allowLogin);
+    var gs = el('gate-screen');
+    var tw = el('tailor-workspace');
+    var gm = el('gate-message');
+    var ga = el('gate-actions');
+    if (gs) gs.classList.add('active');
+    if (tw) tw.classList.add('d-none');
+    if (gm) gm.textContent = message;
+    if (ga) ga.classList.toggle('d-none', !allowLogin);
   }
 
   function showWorkspace() {
-    gateScreen.classList.remove('active');
-    tailorWorkspace.classList.remove('d-none');
-    userAvatar.textContent = Utils.getInitials(currentUser.name);
-    userAvatar.style.backgroundColor = Utils.getAvatarColor(currentUser.name);
-    userAvatar.style.color = 'var(--pc-text-inverse)';
-    userDisplayName.textContent = currentUser.name;
-    userDisplayRole.textContent = currentUser.name === 'Pooja Shah' ? 'Managing Director' : (currentUser.role + ' (Production)');
+    var gs = el('gate-screen');
+    var tw = el('tailor-workspace');
+    if (gs) gs.classList.remove('active');
+    if (tw) tw.classList.remove('d-none');
+    var userAvatar = el('user-avatar');
+    var userDisplayName = el('user-display-name');
+    var userDisplayRole = el('user-display-role');
+    if (userAvatar) {
+      userAvatar.textContent = Utils.getInitials(currentUser.name);
+      userAvatar.style.backgroundColor = Utils.getAvatarColor(currentUser.name);
+      userAvatar.style.color = 'var(--pc-text-inverse)';
+    }
+    if (userDisplayName) userDisplayName.textContent = currentUser.name;
+    if (userDisplayRole) userDisplayRole.textContent = currentUser.name === 'Pooja Shah' ? 'Managing Director' : (currentUser.role + ' (Production)');
     updatePunchCardStatus();
     loadTasks();
   }
@@ -70,7 +70,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   showWorkspace();
 
   // ---------- Logout ----------
-  btnLogout.addEventListener('click', async () => {
+  // Element references (fetched here to ensure DOM is ready)
+  var btnLogout = el('btn-logout');
+  var btnPunch = el('btn-punch');
+  var punchStatusText = el('punch-status-text');
+  var taskCounter = el('task-counter');
+  var tasksList = el('tasks-list');
+
+  if (btnLogout) btnLogout.addEventListener('click', async () => {
     await Store.logout();
     currentUser = null;
     window.location.href = '../index.html';
@@ -101,7 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  btnPunch.addEventListener('click', async () => {
+  if (btnPunch) btnPunch.addEventListener('click', async () => {
     const todayStr = new Date().toISOString().split('T')[0];
     const attendance = Store.getAll(Store.COLLECTIONS.ATTENDANCE);
     const existing = attendance.find(a => a.employeeId === currentUser.id && a.date === todayStr);
