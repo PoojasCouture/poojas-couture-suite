@@ -245,7 +245,7 @@ const Store = (() => {
         const person = findPersonByEmail(email);
         if (person) {
           currentUser = person;
-          sessionStorage.setItem('pc_current_user', JSON.stringify(person));
+          localStorage.setItem('pc_current_user', JSON.stringify(person));
         }
       }
     } catch (e) {
@@ -436,7 +436,7 @@ const Store = (() => {
       return null;
     }
     currentUser = person;
-    sessionStorage.setItem('pc_current_user', JSON.stringify(person));
+    localStorage.setItem('pc_current_user', JSON.stringify(person));
     logAction('User Logged In', 'System', `${person.name} logged in.`);
     return person;
   }
@@ -444,7 +444,7 @@ const Store = (() => {
   function getCurrentUser() {
     if (currentUser) return currentUser;
     try {
-      const raw = sessionStorage.getItem('pc_current_user');
+      const raw = localStorage.getItem('pc_current_user');
       currentUser = raw ? JSON.parse(raw) : null;
     } catch (e) { currentUser = null; }
     return currentUser;
@@ -452,7 +452,7 @@ const Store = (() => {
 
   function setCurrentUser(user) {
     currentUser = user;
-    sessionStorage.setItem('pc_current_user', JSON.stringify(user));
+    localStorage.setItem('pc_current_user', JSON.stringify(user));
   }
 
   async function logout() {
@@ -460,7 +460,7 @@ const Store = (() => {
     const u = getCurrentUser();
     if (u) { try { await logAction('User Logged Out', 'System', `${u.name} logged out.`); } catch (e) {} }
     currentUser = null;
-    sessionStorage.removeItem('pc_current_user');
+    localStorage.removeItem('pc_current_user');
     try {
       await c.auth.signOut({ scope: 'local' });
     } catch (e) {}
@@ -545,7 +545,7 @@ const Store = (() => {
         const person = findPersonByEmail(email);
         if (person) {
           currentUser = person;
-          sessionStorage.setItem('pc_current_user', JSON.stringify(person));
+          localStorage.setItem('pc_current_user', JSON.stringify(person));
           return person;
         }
       }
