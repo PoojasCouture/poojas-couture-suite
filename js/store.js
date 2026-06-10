@@ -228,10 +228,10 @@ const Store = (() => {
       console.warn('[Store Migration] Invoice background validation bypassed:', err.message);
     }
 
-    // Settings (single row) — wrapped so a block here can't break startup.
+    // Settings — use array select to avoid .single() 406 errors.
     try {
-      const { data: sData } = await c.from('settings').select('*').eq('id', 1).single();
-      settingsCache = sData ? rowToApp(sData) : null;
+      const { data: sData } = await c.from('settings').select('*').eq('id', 1).limit(1);
+      settingsCache = (sData && sData.length > 0) ? rowToApp(sData[0]) : null;
     } catch (e) {
       console.warn('Settings not loaded (using defaults):', e.message);
       settingsCache = null;
