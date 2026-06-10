@@ -1499,6 +1499,7 @@ poojascouture.com.au`
 
     const shipCost = parseFloat(o.shippingCost) || 0;
     const alloc = o.shippingAllocation || 'None';
+    const isInternational = o.deliveryDestination === 'India' || o.deliveryDestination === 'Overseas';
     if (alloc === 'None' || shipCost <= 0) {
       Utils.showToast('No customer shipping contribution applies to this order.', 'info');
       return;
@@ -1528,12 +1529,12 @@ poojascouture.com.au`
           <p class="text-sm text-muted mb-3">
             Order shipped for <strong>${Utils.formatCurrency(shipCost)}</strong> (ex-GST).
             Allocation: <strong>${alloc==='Half'?'50/50 split':'Customer pays full'}</strong>.
-            The customer's share (+ 10% GST) is added to invoice <strong>${Utils.sanitizeHTML(invoice.invoiceNumber)}</strong>.
+            The customer's share (${isInternational ? '0% GST — international shipping' : '+ 10% GST'}) is added to invoice <strong>${Utils.sanitizeHTML(invoice.invoiceNumber)}</strong>.
           </p>
           <div class="form-group">
             <label class="form-label">Customer Shipping Charge (AUD, ex-GST) <span class="required">*</span></label>
             <input type="number" name="shareAmount" class="form-input" min="0" step="0.01" required value="${share}">
-            <div class="text-xs text-muted mt-1">Auto-calculated (ex-GST). 10% GST added on top. Edit if you agreed a different figure.</div>
+            <div class="text-xs text-muted mt-1">${isInternational ? 'International shipping — 0% Australian GST applies.' : 'Auto-calculated (ex-GST). 10% GST added on top.'} Edit if you agreed a different figure.</div>
           </div>
         </form>`,
       submitText: 'Add to Invoice',
@@ -1543,8 +1544,8 @@ poojascouture.com.au`
         const amount = parseFloat(new FormData(form).get('shareAmount')) || 0;
         if (amount <= 0) { Utils.showToast('Enter a charge greater than zero.', 'error'); return false; }
 
-        // Shipping is ex-GST. Add 10% on top.
-        const lineGst   = Math.round((amount * 0.10) * 100) / 100;
+        // International shipping = 0% Australian GST. Domestic = 10%.
+        const lineGst   = isInternational ? 0 : Math.round((amount * 0.10) * 100) / 100;
         const lineSub   = Math.round(amount * 100) / 100;
         const lineTotal = Math.round((amount + lineGst) * 100) / 100;
 
