@@ -85,7 +85,7 @@ poojascouture.com.au`
   ];
 
   function init() {
-    activeTab = 'sales';
+    try { activeTab = localStorage.getItem('pc_tab_crm') || 'clients'; } catch(e) { activeTab = 'clients'; }
     render();
   }
 
@@ -116,6 +116,7 @@ poojascouture.com.au`
     Utils.$$('.tab-btn', container).forEach(btn => {
       btn.addEventListener('click', (e) => {
         activeTab = e.target.dataset.tab;
+          try { localStorage.setItem('pc_tab_crm', activeTab); } catch(e) {}
         Utils.$$('.tab-btn', container).forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         renderSubTab();
