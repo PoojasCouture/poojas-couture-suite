@@ -589,7 +589,7 @@ const Accounting = (() => {
             </head>
             <body>
               ${modalHTML}
-              <script>window.onload = function() { window.print(); window.close(); }<\/script>
+              <script>window.onload = function() { window.focus(); window.print(); }<\/script>
             </body>
           </html>
         `);
