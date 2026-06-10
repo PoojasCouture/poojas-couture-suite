@@ -1454,9 +1454,10 @@ poojascouture.com.au`
                 <div class="text-sm font-semibold text-danger mb-1">⛔ Design & Production Payment Not Received</div>
                 <div class="text-xs text-muted">Milestone 2 (40% — Design Approval) of <strong>${Utils.formatCurrency(m2.amount)}</strong> must be paid before this order can move into production.</div>
               </div>
-              <div class="text-xs text-muted">Go to the project invoice to record the M2 payment, then move this order to In Design.</div>
+              <div class="text-xs text-muted">Record the M2 payment below to unlock this stage.</div>
+              <button class="btn btn-primary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.recordMilestonePayment('${invoice.projectId}',1),200)">💳 Record M2 Payment Now</button>
             </div>`,
-          submitText: 'OK',
+          submitText: 'Cancel',
           hideCancel: true,
           onSubmit: () => true
         });
