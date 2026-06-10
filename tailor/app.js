@@ -67,15 +67,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     showGate('This workstation is for tailors only. Your account does not have workshop access.', true);
     return;
   }
-  showWorkspace();
 
-  // ---------- Logout ----------
-  // Element references (fetched here to ensure DOM is ready)
+  // ---------- Element references ----------
+  // Declared here (after auth check) so DOM is guaranteed ready,
+  // but BEFORE showWorkspace() which calls loadTasks() which needs these.
   var btnLogout = el('btn-logout');
   var btnPunch = el('btn-punch');
   var punchStatusText = el('punch-status-text');
   var taskCounter = el('task-counter');
   var tasksList = el('tasks-list');
+
+  showWorkspace();
+
+  // ---------- Logout ----------
 
   if (btnLogout) btnLogout.addEventListener('click', async () => {
     await Store.logout();
