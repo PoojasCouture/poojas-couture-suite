@@ -448,11 +448,14 @@ const Accounting = (() => {
     const modalHTML = `
       <div class="invoice-preview animate-fade-in p-8" style="background: #fff; color: #111; font-family: sans-serif; border-radius: var(--radius-lg)">
         <div class="d-flex justify-between items-start" style="border-bottom: 2px solid #ECB676; padding-bottom: var(--sp-5); margin-bottom: var(--sp-6)">
-          <div>
-            <h2 style="margin: 0; color: #111; font-family: serif; font-size: 24px;">${settings.companyName}</h2>
-            <div style="font-size: 11px; color: #666; margin-top: 4px;">ABN: ${settings.abn}</div>
-            <div style="font-size: 11px; color: #666;">${settings.companyAddress}</div>
-            <div style="font-size: 11px; color: #666;">Email: ${settings.companyEmail} | Phone: ${settings.companyPhone}</div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <img src="${window.location.origin}/assets/logo-mark.png" alt="PC" style="height:56px;width:auto;object-fit:contain">
+            <div>
+              <img src="${window.location.origin}/assets/logo-wordmark.png" alt="${settings.companyName}" style="height:32px;width:auto;object-fit:contain;display:block;margin-bottom:4px">
+              <div style="font-size: 11px; color: #666;">ABN: ${settings.abn}</div>
+              <div style="font-size: 11px; color: #666;">${settings.companyAddress}</div>
+              <div style="font-size: 11px; color: #666;">Email: ${settings.companyEmail} | Phone: ${settings.companyPhone}</div>
+            </div>
           </div>
           <div class="text-right">
             <h3 style="margin: 0; color: #ECB676; text-transform: uppercase; font-size: 18px;">Tax Invoice</h3>
