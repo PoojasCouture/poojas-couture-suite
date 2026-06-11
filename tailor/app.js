@@ -5,6 +5,29 @@
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', async () => {
+
+  // ---- Theme (shared with main app via pc_theme localStorage key) ----
+  function initTheme() {
+    var saved = null;
+    try { saved = localStorage.getItem('pc_theme'); } catch(e) {}
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var theme = saved || (prefersDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+    var btn = document.getElementById('btn-theme-toggle');
+    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+  }
+  initTheme();
+  var themeBtn = document.getElementById('btn-theme-toggle');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme') || 'dark';
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('pc_theme', next); } catch(e) {}
+      themeBtn.textContent = next === 'dark' ? '☀️' : '🌙';
+    });
+  }
+
   let currentUser = null;
   let activeFilter = 'pending';
 
@@ -68,9 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // ---------- Element references ----------
-  // Declared here (after auth check) so DOM is guaranteed ready,
-  // but BEFORE showWorkspace() which calls loadTasks() which needs these.
+  // Element references — declared AFTER auth check, BEFORE showWorkspace()
   var btnLogout = el('btn-logout');
   var btnPunch = el('btn-punch');
   var punchStatusText = el('punch-status-text');
@@ -80,7 +101,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   showWorkspace();
 
   // ---------- Logout ----------
-
   if (btnLogout) btnLogout.addEventListener('click', async () => {
     await Store.logout();
     currentUser = null;
@@ -306,8 +326,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           '<div class="text-xs">' + Utils.sanitizeHTML(order.notes || 'No specific instructions logged.') + '</div>' +
         '</div>' +
         '<div class="d-flex justify-between items-center">' +
-          '<span class="text-xs font-semibold ' + (isOverdue ? 'text-danger' : isWarning ? 'text-warning' : 'text-muted') + '">&#128197; ' + Utils.formatDate(order.deadline) +
-            (isOverdue ? ' (' + Math.abs(days) + 'd overdue)' : isWarning ? ' (' + days + 'd left)' : days !== null ? ' (' + days + 'd left)' : '') +
+          '<span class="text-xs ' + (isOverdue ? 'text-danger' : isWarning ? 'text-warning' : 'text-muted') + ' font-semibold">&#128197; ' + Utils.formatDate(order.deadline) +
+            (isOverdue ? ' (' + Math.abs(days) + 'd overdue)' : days !== null ? ' (' + days + 'd left)' : '') +
           '</span>' +
           actionButton +
         '</div>';
