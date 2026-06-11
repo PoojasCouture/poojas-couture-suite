@@ -31,6 +31,7 @@ const App = (() => {
 
     // 2. Setup Clock
     startClock();
+    setupTheme();
 
     // 3. Setup Navigation & Layout Events
     setupNavigation();
@@ -45,6 +46,40 @@ const App = (() => {
   }
 
   // ---------- Live Clock ----------
+  function setupTheme() {
+    // Determine initial theme: localStorage > system preference
+    var saved = null;
+    try { saved = localStorage.getItem('pc_theme'); } catch(e) {}
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var theme = saved || (prefersDark ? 'dark' : 'light');
+    applyTheme(theme);
+
+    // Wire up the toggle button
+    var btn = document.getElementById('btn-theme-toggle');
+    if (btn) {
+      btn.addEventListener('click', function() {
+        var current = document.documentElement.getAttribute('data-theme') || 'dark';
+        applyTheme(current === 'dark' ? 'light' : 'dark');
+      });
+    }
+
+    // Listen for system preference changes
+    if (window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+        var stored = null;
+        try { stored = localStorage.getItem('pc_theme'); } catch(err) {}
+        if (!stored) applyTheme(e.matches ? 'dark' : 'light');
+      });
+    }
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('pc_theme', theme); } catch(e) {}
+    var btn = document.getElementById('btn-theme-toggle');
+    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+  }
+
   function startClock() {
     const clockEl = Utils.$('#topbar-clock');
     if (!clockEl) return;
@@ -971,6 +1006,7 @@ if (roleEl) {
   return {
     init,
     navigate,
+    applyTheme,
     showDashReport,
     quickRoute,
     showModal,
