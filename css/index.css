@@ -428,3 +428,81 @@ p {
 .stagger-6 { animation-delay: 300ms; }
 .stagger-7 { animation-delay: 350ms; }
 .stagger-8 { animation-delay: 400ms; }
+
+/* ============================================================
+   LIGHT THEME OVERRIDES
+   Applied when <html data-theme="light"> is set
+   ============================================================ */
+[data-theme="light"] {
+  /* Backgrounds */
+  --pc-bg-dark:    #F0EDE8;
+  --pc-bg-body:    #F7F4F0;
+  --pc-bg-card:    #FFFFFF;
+  --pc-bg-card-hover: #F9F6F2;
+  --pc-bg-sidebar: #FFFFFF;
+  --pc-bg-topbar:  rgba(255, 255, 255, 0.92);
+  --pc-bg-input:   #F3EFE9;
+  --pc-bg-modal:   #FFFFFF;
+  --pc-bg-overlay: rgba(0, 0, 0, 0.35);
+
+  /* Text */
+  --pc-text:           #2C2825;
+  --pc-text-secondary: #5C5652;
+  --pc-text-muted:     #9E9A96;
+  --pc-text-heading:   #1A1714;
+  --pc-text-gold:      #A4652F;
+  --pc-text-inverse:   #FFFFFF;
+
+  /* Borders */
+  --pc-border:             rgba(0, 0, 0, 0.08);
+  --pc-border-light:       rgba(0, 0, 0, 0.12);
+  --pc-border-gold:        rgba(164, 101, 47, 0.25);
+  --pc-border-gold-strong: rgba(164, 101, 47, 0.5);
+
+  /* Gold adjustments for light bg */
+  --pc-gold:        #A4652F;
+  --pc-gold-light:  #C4854F;
+  --pc-gold-lighter:#FFF4E6;
+  --pc-amber-glow:  rgba(164, 101, 47, 0.1);
+  --pc-amber-glow-strong: rgba(164, 101, 47, 0.2);
+
+  /* Gradients */
+  --pc-gradient-dark:    linear-gradient(180deg, #FFFFFF 0%, #F7F4F0 100%);
+  --pc-gradient-card:    linear-gradient(145deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0) 100%);
+  --pc-gradient-sidebar: linear-gradient(180deg, #FFFFFF 0%, #F9F6F2 100%);
+
+  /* Shadows — lighter for light theme */
+  --pc-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --pc-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --pc-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --pc-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.15);
+  --pc-shadow-gold: 0 4px 20px rgba(164, 101, 47, 0.15);
+  --pc-shadow-glow: 0 0 30px rgba(164, 101, 47, 0.1);
+
+  /* Scrollbar */
+  scrollbar-color: rgba(0,0,0,0.2) transparent;
+}
+
+/* Light theme scrollbar */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.25);
+}
+
+/* Light theme wordmark — use dark version */
+[data-theme="light"] .brand-wordmark,
+[data-theme="light"] .sidebar-logo img {
+  filter: none;
+}
+
+/* Light theme login card */
+[data-theme="light"] .auth-overlay {
+  background-color: var(--pc-bg-dark);
+}
+
+/* Smooth theme transition */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
