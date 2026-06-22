@@ -765,14 +765,10 @@ const App = (() => {
       if (role === 'logistics') { window.location.replace('shipping/index.html'); return; }
       loginOverlay.classList.remove('active');
       applySidebarPermissions(user);
-      // Restore last visited section, fall back to role default
-      var savedRoute = null;
-      try { savedRoute = localStorage.getItem('pc_last_route'); } catch(e) {}
+      // Always start on dashboard after login — ignore saved route.
+      // This prevents stale routes causing Access Denied on landing.
       var defaultRoute = landingRouteFor(user);
-      var routeToLoad = savedRoute || defaultRoute;
-      // Validate saved route is accessible for this role
-      var safeRoutes = ['dashboard','products','crm','hrm','accounting','admin','settings','ai-team'];
-      if (!safeRoutes.includes(routeToLoad)) routeToLoad = defaultRoute;
+      var routeToLoad = defaultRoute;
       navigate(routeToLoad);
     } else {
       loginOverlay.classList.add('active');
@@ -824,6 +820,7 @@ const App = (() => {
   function applySidebarPermissions(user) {
     const perms = user.permissions || {};
     const appRole = user.appRole || user.app_role || 'admin';
+    console.log('[PC Permissions] appRole:', appRole, '| permissions:', JSON.stringify(perms));
 
     // Master access map per role. This is the single source of truth for
     // what each role sees in the sidebar.
