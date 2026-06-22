@@ -34,13 +34,12 @@
 
   <!-- Main Workspace -->
   <div id="ai-team-workspace" class="d-none">
-    <a href="../index.html" class="back-link">← Back to Main App</a>
 
     <!-- SIDEBAR -->
     <div id="sidebar">
       <div class="brand">
-        <div class="brand-name">Pooja's Couture</div>
-        <div class="brand-sub">AI Studio Team</div>
+        <img src="../assets/logo-wordmark-light.png" alt="Pooja's Couture" class="sidebar-wordmark" onerror="this.style.display='none'">
+        <div class="brand-sub">AI STUDIO TEAM</div>
       </div>
 
       <div class="team-label">Your Team</div>
@@ -99,7 +98,11 @@
         </div>
       </button>
 
-      <div class="sidebar-footer">POWERED BY CLAUDE AI</div>
+      <div class="sidebar-footer">
+        <!-- Back link in sidebar footer — resets route before returning -->
+        <a href="#" class="back-link" onclick="goBackToApp(event)">← Back to Main App</a>
+        <div class="powered-label">POWERED BY CLAUDE AI</div>
+      </div>
     </div>
 
     <!-- MAIN -->
@@ -132,6 +135,15 @@
 
 </div>
 
+<script>
+  // Reset the saved route to dashboard before navigating back,
+  // so the main app doesn't loop straight back here.
+  function goBackToApp(e) {
+    e.preventDefault();
+    try { localStorage.setItem('pc_last_route', 'dashboard'); } catch(err) {}
+    window.location.href = '../index.html';
+  }
+</script>
 <script src="app.js"></script>
 </body>
 </html>
