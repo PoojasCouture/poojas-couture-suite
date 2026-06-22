@@ -87,6 +87,7 @@ const Admin = (() => {
                 <th style="text-align: center;">HRM Access</th>
                 <th style="text-align: center;">Accounting Access</th>
                 <th style="text-align: center;">Admin Panel</th>
+                <th style="text-align: center;">Social CRM Studio</th>
                 <th style="width: 100px; text-align: right;">Save</th>
               </tr>
             </thead>
@@ -108,7 +109,7 @@ const Admin = (() => {
       const avatarBg = Utils.getAvatarColor(emp.name);
 
       // Default permissions if missing
-      const perms = emp.permissions || { crm: false, hrm: false, accounting: false, admin: false };
+      const perms = emp.permissions || { crm: false, hrm: false, accounting: false, admin: false, socialCrm: false };
 
       tr.innerHTML = `
         <td>
@@ -137,6 +138,9 @@ const Admin = (() => {
         </td>
         <td style="text-align: center;">
           <input type="checkbox" class="perm-chk" data-emp="${emp.id}" data-perm="admin" ${perms.admin ? 'checked' : ''} ${emp.id === 'e-1' ? 'disabled' : ''}>
+        </td>
+        <td style="text-align: center;">
+          <input type="checkbox" class="perm-chk" data-emp="${emp.id}" data-perm="socialCrm" ${perms.socialCrm ? 'checked' : ''} ${emp.id === 'e-1' ? 'disabled' : ''}>
         </td>
         <td>
           <div class="table-actions justify-end">
