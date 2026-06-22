@@ -155,10 +155,10 @@ const Admin = (() => {
     });
   }
 
-  function savePermissions(empId) {
+  async function savePermissions(empId) {
     const checkBoxes = Utils.$$(`.perm-chk[data-emp="${empId}"]`);
     const newPerms = {};
-    
+
     checkBoxes.forEach(chk => {
       newPerms[chk.dataset.perm] = chk.checked;
     });
@@ -166,14 +166,25 @@ const Admin = (() => {
     const emp = Store.getById(Store.COLLECTIONS.EMPLOYEES, empId);
     if (!emp) return;
 
-    Store.update(Store.COLLECTIONS.EMPLOYEES, empId, { permissions: newPerms });
-    Utils.showToast(`Updated permissions for ${emp.name}.`);
+    const result = await Store.update(Store.COLLECTIONS.EMPLOYEES, empId, { permissions: newPerms });
+    if (!result) {
+      Utils.showToast(`Failed to save permissions for ${emp.name}. Check Supabase column exists.`, 'error');
+      return;
+    }
+
+    // If the updated user is the currently logged-in user, refresh their session
+    const currentUser = Store.getCurrentUser();
+    if (currentUser && currentUser.id === empId) {
+      Store.setCurrentUser({ ...currentUser, permissions: newPerms });
+    }
+
+    Utils.showToast(`Permissions updated for ${emp.name}.`, 'success');
 
     // Log the audit action
     const permString = Object.entries(newPerms)
       .map(([k, v]) => `${k.toUpperCase()}:${v ? 'Yes' : 'No'}`)
       .join(', ');
-    
+
     Store.logAction(
       'Updated Permissions',
       'System',
