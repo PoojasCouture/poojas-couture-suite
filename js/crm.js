@@ -484,7 +484,7 @@ poojascouture.com.au`
     container.innerHTML = `
       <div class="card p-0">
         <div class="card-header flex-wrap gap-4">
-          <div class="filter-bar m-0">
+          <div class="filter-bar m-0" style="flex-wrap:nowrap;align-items:center;">
             <select id="appt-filter-status" class="form-select">
               <option value="all">All Statuses</option>
               <option value="Scheduled" selected>Scheduled</option>
