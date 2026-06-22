@@ -199,6 +199,9 @@ const Store = (() => {
   // ============================================================
   async function ready() {
     if (isReady) return true;
+    // Clear in-memory user so reconcile block always re-fetches from Supabase.
+    // This ensures admin permission changes take effect on next page load.
+    currentUser = null;
     const c = client();
     if (!c) throw new Error('Supabase client unavailable. Check config.js and the CDN script.');
 
