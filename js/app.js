@@ -820,7 +820,6 @@ const App = (() => {
   function applySidebarPermissions(user) {
     const perms = user.permissions || {};
     const appRole = user.appRole || user.app_role || 'admin';
-    console.log('[PC Permissions] appRole:', appRole, '| permissions:', JSON.stringify(perms));
 
     // Master access map per role. This is the single source of truth for
     // what each role sees in the sidebar.
