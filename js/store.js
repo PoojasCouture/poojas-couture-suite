@@ -410,7 +410,7 @@ const Store = (() => {
         app_role: v.appRole,
         isVendor: true,
         vendorType: v.vendorType,
-        permissions: v.permissions || { crm:false, hrm:false, accounting:false, admin:false }
+        permissions: v.permissions || { crm:false, hrm:false, accounting:false, admin:false, socialCrm:false }
       };
     }
     return null;
