@@ -576,6 +576,19 @@ const Store = (() => {
     return null;
   }
 
+  // Expose Supabase client for direct use (e.g. admin permission saves)
+  function getClient() {
+    return client();
+  }
+
+  // Update a single record in the local cache without a Supabase round-trip
+  function updateCache(collection, id, changes) {
+    const idx = (cache[collection] || []).findIndex(r => r.id === id);
+    if (idx !== -1) {
+      cache[collection][idx] = { ...cache[collection][idx], ...changes };
+    }
+  }
+
   return {
     COLLECTIONS,
     ready,
@@ -596,6 +609,8 @@ const Store = (() => {
     subscribeRealtime,
     unsubscribeRealtime,
     setCurrentUser,
-    logout
+    logout,
+    getClient,
+    updateCache
   };
 })();
