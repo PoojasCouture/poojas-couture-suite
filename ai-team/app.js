@@ -596,7 +596,7 @@ function checkAccess(isRetry) {
     return;
   }
 
-  if (!ALLOWED_ROLES.includes(currentUser.role)) {
+  if (!ALLOWED_ROLES.includes(currentUser.appRole)) {
     gateMessage.textContent = `Access restricted. The AI Studio Team is available to Admin and Social/CRM roles only.`;
     gateActions.innerHTML = '<a href="../index.html" class="btn btn-primary w-full">Return to Main App</a>';
     gateActions.classList.remove('d-none');
