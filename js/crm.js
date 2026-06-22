@@ -157,7 +157,7 @@ poojascouture.com.au`
     container.innerHTML = `
       <div class="card p-0">
         <div class="card-header flex-wrap gap-4">
-          <div class="filter-bar m-0">
+          <div class="filter-bar m-0" style="flex-wrap:nowrap;align-items:center;">
             <div class="filter-search">
               <span class="filter-search-icon">🔍</span>
               <input type="text" id="client-search" class="form-input" placeholder="Search by name, email, phone, notes...">
