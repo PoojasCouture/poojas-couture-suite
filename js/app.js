@@ -161,15 +161,15 @@ const App = (() => {
     if (user) {
       const role = user.appRole || user.app_role || 'admin';
       const ACCESS = {
-        admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true },
-        operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false },
-        social_crm: { dashboard:true,  products:true,  crm:true,  hrm:false, accounting:false, admin:false, settings:false },
-        tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false },
-        logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false }
+        admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  'ai-team':true  },
+        operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, 'ai-team':false },
+        social_crm: { dashboard:true,  products:true,  crm:true,  hrm:false, accounting:false, admin:false, settings:false, 'ai-team':true  },
+        tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false },
+        logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false }
       };
       const access = ACCESS[role] || ACCESS.admin;
       // Module routes that can be access-denied
-      if (['dashboard','products','crm','hrm','accounting','admin','settings'].includes(route) && access[route] !== true) {
+      if (['dashboard','products','crm','hrm','accounting','admin','settings','ai-team'].includes(route) && access[route] !== true) {
         showAccessDenied();
         return;
       }
@@ -187,13 +187,14 @@ const App = (() => {
     // Update breadcrumb
     const breadcrumbLabel = Utils.$('#topbar-breadcrumb-active');
     const routesMap = {
-     dashboard:  'Overview Dashboard',
-     crm:        'Sales Dashboard',
-     products:   'Stock & Inventory',
-     accounting: 'Accounting & Finance',
-     hrm:        'Human Capital',
-     admin:      'Admin Center',
-     settings:   'Boutique Settings',
+      dashboard:  'Overview Dashboard',
+      crm:        'Sales Dashboard',
+      products:   'Stock & Inventory',
+      accounting: 'Accounting & Finance',
+      hrm:        'Human Capital',
+      admin:      'Admin Center',
+      settings:   'Boutique Settings',
+      'ai-team':  'Social CRM Studio',
     };
     if (breadcrumbLabel) {
       breadcrumbLabel.textContent = routesMap[route] || 'System Panel';
@@ -214,6 +215,8 @@ const App = (() => {
       renderSettings();
     } else if (route === 'admin') {
       Admin.init();
+    } else if (route === 'ai-team') {
+      window.location.href = '/ai-team/';
     } else if (route === 'workstation-tailor') {
       renderWorkstationHolding('tailor');
     } else if (route === 'workstation-logistics') {
@@ -753,7 +756,7 @@ const App = (() => {
       try { user = await Store.reconcileUser(); } catch (e) { user = null; }
     }
 
-if (user) {
+    if (user) {
       const role = (user.appRole || user.app_role || '').toLowerCase();
       // Logistics & tailor have no use for the business dashboard — send them
       // straight into their workstation page. replace() keeps this launchpad
@@ -768,7 +771,7 @@ if (user) {
       var defaultRoute = landingRouteFor(user);
       var routeToLoad = savedRoute || defaultRoute;
       // Validate saved route is accessible for this role
-      var safeRoutes = ['dashboard','products','crm','hrm','accounting','admin','settings'];
+      var safeRoutes = ['dashboard','products','crm','hrm','accounting','admin','settings','ai-team'];
       if (!safeRoutes.includes(routeToLoad)) routeToLoad = defaultRoute;
       navigate(routeToLoad);
     } else {
@@ -827,14 +830,20 @@ if (user) {
     //   dashboard  - business overview (NOT for tailor/logistics)
     //   crm,hrm,accounting,admin,settings - module sections
     //   tailorPortal, logisticsPortal - India workstation links
+    //   aiTeam - Social CRM Studio portal
     const ACCESS = {
-      admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  tailorPortal:true,  logisticsPortal:true },
-      operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:true },
-      social_crm: { dashboard:true,  products:true,  crm:true,  hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true },
-      tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:false },
-      logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true }
+      admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  tailorPortal:true,  logisticsPortal:true,  aiTeam:true  },
+      operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:true,  aiTeam:false },
+      social_crm: { dashboard:true,  products:true,  crm:true,  hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true,  aiTeam:true  },
+      tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:false, aiTeam:false },
+      logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true,  aiTeam:false }
     };
     const access = ACCESS[appRole] || ACCESS.admin;
+
+    // Route key mapping — maps data-route values to ACCESS keys
+    const routeKeyMap = {
+      'ai-team': 'aiTeam'
+    };
 
     Utils.$$('.sidebar-section').forEach(section => {
       const buttons = Utils.$$('.sidebar-link[data-route]', section);
@@ -843,7 +852,7 @@ if (user) {
       // Module sections (data-route buttons)
       if (buttons.length > 0) {
         const route = buttons[0].dataset.route;
-        const key = route === 'dashboard' ? 'dashboard' : route;
+        const key = routeKeyMap[route] || (route === 'dashboard' ? 'dashboard' : route);
         const allowed = access[key] === true;
         section.style.display = allowed ? 'block' : 'none';
         return;
@@ -876,23 +885,23 @@ if (user) {
     const nameEl = Utils.$('.sidebar-user-name');
     if (nameEl) nameEl.textContent = user.name;
 
-const roleEl = Utils.$('.sidebar-user-role');
-if (roleEl) {
-  const roleTitles = {
-    admin:      'Operations Director',
-    operations: 'Operations Manager',
-    social_crm: 'CRM & Social',
-    tailor:     'Master Tailor',
-    logistics:  'Logistics Manager'
-  };
-  const appRoleKey = (user.appRole || user.app_role || user.role || '').toLowerCase();
-  const displayName = (user.name || '').toLowerCase();
-  if (displayName.includes('pooja')) {
-    roleEl.textContent = 'Managing Director';
-  } else {
-    roleEl.textContent = roleTitles[appRoleKey] || user.role;
-  }
-}
+    const roleEl = Utils.$('.sidebar-user-role');
+    if (roleEl) {
+      const roleTitles = {
+        admin:      'Operations Director',
+        operations: 'Operations Manager',
+        social_crm: 'CRM & Social',
+        tailor:     'Master Tailor',
+        logistics:  'Logistics Manager'
+      };
+      const appRoleKey = (user.appRole || user.app_role || user.role || '').toLowerCase();
+      const displayName = (user.name || '').toLowerCase();
+      if (displayName.includes('pooja')) {
+        roleEl.textContent = 'Managing Director';
+      } else {
+        roleEl.textContent = roleTitles[appRoleKey] || user.role;
+      }
+    }
   }
 
   function showAccessDenied() {
