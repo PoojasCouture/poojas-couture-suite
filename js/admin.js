@@ -174,7 +174,6 @@ const Admin = (() => {
       return;
     }
 
-    console.log('[Admin] Saving permissions for', emp.name, empId, newPerms);
     const { data, error } = await supabase
       .from('employees')
       .update({ permissions: newPerms })
@@ -183,12 +182,10 @@ const Admin = (() => {
       .single();
 
     if (error) {
-      console.error('[Admin] Permission save failed:', error);
-      Utils.showToast(`Failed: ${error.message}`, 'error');
+        Utils.showToast(`Failed: ${error.message}`, 'error');
       return;
     }
 
-    console.log('[Admin] Saved. Supabase returned:', data);
 
     // Update local cache so UI reflects change without page reload
     Store.updateCache('employees', empId, { permissions: newPerms });
