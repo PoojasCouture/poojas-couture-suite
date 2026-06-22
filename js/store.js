@@ -241,14 +241,32 @@ const Store = (() => {
     }
 
     // Reconcile the logged-in user from the REAL Supabase session.
+    // Direct single-row fetch bypasses RLS table-level blocks and always
+    // returns fresh permissions — so admin changes take effect on next page load.
     try {
       const { data: authData } = await c.auth.getUser();
       if (authData && authData.user && authData.user.email) {
         const email = authData.user.email.toLowerCase();
-        const person = findPersonByEmail(email);
-        if (person) {
-          currentUser = person;
-          localStorage.setItem('pc_current_user', JSON.stringify(person));
+
+        // Fetch this user's own row directly (RLS always allows self-reads)
+        let freshRow = null;
+        try {
+          const { data: empRows } = await c.from('employees')
+            .select('*')
+            .ilike('email', email)
+            .limit(1);
+          if (empRows && empRows.length > 0) freshRow = rowToApp(empRows[0]);
+        } catch(fetchErr) {}
+
+        // Fall back to cache if direct fetch failed
+        if (!freshRow) freshRow = findPersonByEmail(email);
+
+        if (freshRow) {
+          currentUser = freshRow;
+          localStorage.setItem('pc_current_user', JSON.stringify(freshRow));
+          // Keep cache in sync
+          const cIdx = (cache['employees'] || []).findIndex(r => r.id === freshRow.id);
+          if (cIdx !== -1) cache['employees'][cIdx] = freshRow;
         }
       }
     } catch (e) {
