@@ -148,9 +148,11 @@ poojascouture.com.au`
     actions.innerHTML = `
       <button class="btn btn-secondary" id="btn-export-clients">📥 Export CSV</button>
       <button class="btn btn-primary" id="btn-add-client">+ Add New Client</button>
+      <button class="btn btn-primary" id="btn-add-order-clients">+ New Order</button>
     `;
     Utils.$('#btn-add-client').addEventListener('click', () => showClientModal());
     Utils.$('#btn-export-clients').addEventListener('click', exportClientsCSV);
+    Utils.$('#btn-add-order-clients').addEventListener('click', () => showOrderModal());
 
     container.innerHTML = `
       <div class="card p-0">
@@ -659,8 +661,7 @@ poojascouture.com.au`
   // ==========================================
 
   function renderOrders(container, actions) {
-    actions.innerHTML = `<button class="btn btn-primary" id="btn-add-order">+ New Order</button>`;
-    Utils.$('#btn-add-order').addEventListener('click', () => showOrderModal());
+    actions.innerHTML = ``;
 
     const stages = [
       { id: 'New',                  title: 'New Concept' },
