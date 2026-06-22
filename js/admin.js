@@ -166,29 +166,40 @@ const Admin = (() => {
     const emp = Store.getById(Store.COLLECTIONS.EMPLOYEES, empId);
     if (!emp) return;
 
-    const result = await Store.update(Store.COLLECTIONS.EMPLOYEES, empId, { permissions: newPerms });
-    if (!result) {
-      Utils.showToast(`Failed to save permissions for ${emp.name}. Check Supabase column exists.`, 'error');
+    // Write directly via Supabase client — bypass Store.update to avoid
+    // any caching or field-mapping issues, and get the raw error if it fails.
+    const supabase = Store.getClient();
+    if (!supabase) {
+      Utils.showToast('Supabase client not available.', 'error');
       return;
     }
 
-    // Refresh the stored session for whoever was just updated.
-    // If it's the currently logged-in user, update their live session too.
+    console.log('[Admin] Saving permissions for', emp.name, empId, newPerms);
+    const { data, error } = await supabase
+      .from('employees')
+      .update({ permissions: newPerms })
+      .eq('id', empId)
+      .select('id, permissions')
+      .single();
+
+    if (error) {
+      console.error('[Admin] Permission save failed:', error);
+      Utils.showToast(`Failed: ${error.message}`, 'error');
+      return;
+    }
+
+    console.log('[Admin] Saved. Supabase returned:', data);
+
+    // Update local cache so UI reflects change without page reload
+    Store.updateCache('employees', empId, { permissions: newPerms });
+
+    // If this is the currently logged-in user, update their live session too
     const currentUser = Store.getCurrentUser();
     if (currentUser && currentUser.id === empId) {
       Store.setCurrentUser({ ...currentUser, permissions: newPerms });
-    } else {
-      // For other users: if their session is cached in localStorage, clear it
-      // so they get a fresh permissions pull from Supabase on next login.
-      try {
-        const cached = JSON.parse(localStorage.getItem('pc_current_user') || 'null');
-        if (cached && cached.id === empId) {
-          localStorage.removeItem('pc_current_user');
-        }
-      } catch(e) {}
     }
 
-    Utils.showToast(`Permissions updated for ${emp.name}. They will see changes on next login.`, 'success');
+    Utils.showToast(`Permissions saved for ${emp.name}. Changes take effect on their next login.`, 'success');
 
     // Log the audit action
     const permString = Object.entries(newPerms)
