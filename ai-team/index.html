@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pooja's Couture — AI Studio Team</title>
 <link rel="icon" type="image/png" href="../assets/logo-mark.png">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
-<!-- Shared app theme (light/dark, base components). Falls back gracefully if missing. -->
+<!-- Shared app design system — tokens, reset, utilities -->
 <link rel="stylesheet" href="../css/index.css">
-<!-- Portal-specific styles -->
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<!-- Portal-specific overrides -->
 <link rel="stylesheet" href="style.css">
 
-<!-- Supabase client + shared config (same as tailor/shipping portals) -->
+<!-- Supabase client + shared config -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/config.js"></script>
 </head>
@@ -20,15 +21,15 @@
 
 <div class="app-container">
 
-  <!-- Loading / access gate (shown while we check the shared session) -->
+  <!-- Auth gate -->
   <div id="gate-screen" class="auth-overlay active">
     <div class="login-card text-center">
       <div class="brand-header">
         <img src="../assets/logo-wordmark-light.png" alt="Pooja's Couture" class="brand-wordmark" onerror="this.style.display='none'">
-        <h2 class="font-display">AI Studio Team</h2>
+        <h2 class="font-display" style="font-size:var(--text-lg);color:var(--pc-gold);margin-bottom:var(--sp-2)">AI Studio Team</h2>
         <p class="text-muted text-xs" id="gate-message">Checking your session…</p>
       </div>
-      <div id="gate-actions" class="d-none"></div>
+      <div id="gate-actions" class="d-none mt-4"></div>
     </div>
   </div>
 
@@ -39,7 +40,7 @@
     <div id="sidebar">
       <div class="brand">
         <img src="../assets/logo-wordmark-light.png" alt="Pooja's Couture" class="sidebar-wordmark" onerror="this.style.display='none'">
-        <div class="brand-sub">AI STUDIO TEAM</div>
+        <div class="brand-sub">AI Studio Team</div>
       </div>
 
       <div class="team-label">Your Team</div>
@@ -99,14 +100,14 @@
       </button>
 
       <div class="sidebar-footer">
-        <!-- Back link in sidebar footer — resets route before returning -->
         <a href="#" class="back-link" onclick="goBackToApp(event)">← Back to Main App</a>
-        <div class="powered-label">POWERED BY CLAUDE AI</div>
+        <div class="powered-label">Powered by Claude AI</div>
       </div>
     </div>
 
     <!-- MAIN -->
     <div id="main">
+      <!-- Chat header -->
       <div id="chat-header">
         <div class="header-avatar" id="h-avatar" style="background:rgba(200,113,90,0.15)">👑</div>
         <div class="header-info">
@@ -120,8 +121,10 @@
         <button class="clear-btn" onclick="clearChat()">Clear Chat</button>
       </div>
 
+      <!-- Messages -->
       <div id="messages"></div>
 
+      <!-- Input -->
       <div id="input-area">
         <textarea id="user-input" rows="1" placeholder="Ask your team member anything…" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         <button id="send-btn" onclick="sendMessage()">
@@ -131,13 +134,12 @@
         </button>
       </div>
     </div>
-  </div>
 
-</div>
+  </div><!-- /workspace -->
+
+</div><!-- /app-container -->
 
 <script>
-  // Reset the saved route to dashboard before navigating back,
-  // so the main app doesn't loop straight back here.
   function goBackToApp(e) {
     e.preventDefault();
     try { localStorage.setItem('pc_last_route', 'dashboard'); } catch(err) {}
