@@ -506,3 +506,55 @@ p {
 *, *::before, *::after {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
+
+/* ============================================================
+   LIGHT THEME — Targeted overrides for hardcoded dark rgba values
+   Only fixing components that use rgba(255,255,255,...) backgrounds
+   which become invisible on a light background.
+   ============================================================ */
+
+[data-theme="light"] .btn-secondary {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+[data-theme="light"] .btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.10);
+}
+[data-theme="light"] .btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .data-table th {
+  background: rgba(0, 0, 0, 0.03);
+}
+[data-theme="light"] .data-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .badge-muted {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="light"] .modal-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .progress-bar {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .list-item:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .kanban-column {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] .kanban-column-count {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="light"] .stat-card-trend.neutral {
+  background: rgba(0, 0, 0, 0.05);
+}
