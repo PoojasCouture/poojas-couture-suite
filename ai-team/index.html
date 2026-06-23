@@ -152,7 +152,10 @@
 <script>
   function goBackToApp(e) {
     e.preventDefault();
-    try { localStorage.setItem('pc_last_route', 'dashboard'); } catch(err) {}
+    try {
+      localStorage.setItem('pc_last_route', 'dashboard');
+      localStorage.setItem('pc_skip_login_flash', '1');
+    } catch(err) {}
     window.location.href = '../index.html';
   }
 </script>
