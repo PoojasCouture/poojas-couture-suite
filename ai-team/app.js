@@ -223,6 +223,59 @@ async function deleteProject(id) {
   } catch(err) { console.warn('Project delete failed:', err); }
 }
 
+// ── SAVE CONVERSATION (direct agent chats) ──
+async function saveConversation() {
+  const id = currentMember;
+  const msgs = histories[id];
+  if (!msgs || msgs.length === 0) return;
+
+  const btn = document.getElementById('save-convo-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const firstUserMsg = msgs.find(m => m.role === 'user')?.content || 'Conversation';
+  const title = firstUserMsg.length > 80 ? firstUserMsg.substring(0, 80) + '…' : firstUserMsg;
+
+  // Format conversation as readable transcript for final_output
+  const transcript = msgs.map(m => {
+    const speaker = m.role === 'user' ? '🧑 You' : (MEMBERS[id].emoji + ' ' + MEMBERS[id].name);
+    return speaker + ':\n' + stripImageTag(m.content);
+  }).join('\n\n---\n\n');
+
+  await saveProject(
+    title,
+    firstUserMsg,
+    [id],
+    [],
+    transcript
+  );
+
+  btn.textContent = '✓ Saved';
+  btn.style.color = 'var(--pc-gold)';
+  setTimeout(() => {
+    btn.textContent = 'Save Conversation';
+    btn.style.color = '';
+    btn.disabled = false;
+  }, 3000);
+}
+
+function updateSaveButton() {
+  const btn = document.getElementById('save-convo-btn');
+  if (!btn) return;
+  const id = currentMember;
+  const isDirectAgent = id !== 'ceo';
+  const hasMessages = histories[id] && histories[id].length > 0;
+
+  if (viewingHistory || !isDirectAgent) {
+    btn.style.display = 'none';
+  } else {
+    btn.style.display = 'inline-flex';
+    btn.disabled = !hasMessages;
+    btn.textContent = 'Save Conversation';
+    btn.style.color = '';
+  }
+}
+
 // ── HISTORY VIEW ──
 function switchToHistory() {
   viewingHistory = true;
@@ -237,6 +290,7 @@ function switchToHistory() {
   document.getElementById('h-name').textContent = 'Project History';
   document.getElementById('h-tag').textContent = 'All completed AI team projects';
   document.getElementById('delegate-toggle').classList.remove('visible');
+  updateSaveButton();
   renderHistory();
 }
 
@@ -249,7 +303,7 @@ async function renderHistory() {
       <div style="text-align:center;padding:48px 16px;color:var(--muted)">
         <div style="font-size:32px;margin-bottom:12px">🗂️</div>
         <div style="font-size:14px;font-weight:600;margin-bottom:6px">No projects yet</div>
-        <div style="font-size:12px">Completed Auto-Delegate runs will be saved here automatically.</div>
+        <div style="font-size:12px">Completed Auto-Delegate runs and saved conversations will appear here.</div>
       </div>`;
     return;
   }
@@ -257,20 +311,22 @@ async function renderHistory() {
     const date = new Date(p.created_at).toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
     const time = new Date(p.created_at).toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' });
     const agents = (p.agents_involved || []).map(a => MEMBERS[a]?.emoji || '').join(' ');
+    const isDirectChat = (p.contributions || []).length === 0;
+    const typeLabel = isDirectChat ? '💬 Direct Chat' : '🔀 Auto-Delegate';
     return `
       <div class="history-card" id="hcard-${p.id}">
         <div class="history-card-header">
           <div class="history-meta">
             <div class="history-title">${escapeHtml(p.title)}</div>
-            <div class="history-date">${date} · ${time} ${agents ? '· ' + agents : ''}</div>
+            <div class="history-date">${date} · ${time} ${agents ? '· ' + agents : ''} · <span style="opacity:0.6">${typeLabel}</span></div>
           </div>
           <button class="history-delete-btn" onclick="confirmDeleteProject('${p.id}')" title="Delete">🗑️</button>
         </div>
         <div class="history-request">${escapeHtml(p.request)}</div>
         <details class="history-details">
-          <summary>View final deliverable</summary>
+          <summary>View ${isDirectChat ? 'conversation' : 'final deliverable'}</summary>
           <div class="history-output">${formatText(p.final_output || '')}</div>
-          ${(p.contributions || []).length > 0 ? `
+          ${(!isDirectChat && (p.contributions || []).length > 0) ? `
             <div style="margin-top:12px">
               ${p.contributions.map(c => `
                 <details class="agent-contribution" style="margin-bottom:6px">
@@ -354,6 +410,8 @@ function switchMember(id) {
     toggle.classList.remove('visible');
     document.getElementById('user-input').placeholder = 'Ask your team member anything…';
   }
+
+  updateSaveButton();
   renderMessages();
 }
 
@@ -399,11 +457,9 @@ function appendBubble(role, content, scroll = true, skipImageGen = false) {
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
 
-  // Strip GENERATE_IMAGE tag from displayed text
   const displayText = role === 'assistant' ? stripImageTag(content) : content;
   bubble.innerHTML = formatText(displayText);
 
-  // Trigger image generation if tag present and agent supports it
   if (role === 'assistant' && !skipImageGen && MEMBERS[currentMember].canGenerateImages) {
     const imagePrompt = extractImagePrompt(content);
     if (imagePrompt) {
@@ -455,6 +511,7 @@ function removeTyping() {
 
 function clearChat() {
   histories[currentMember] = [];
+  updateSaveButton();
   renderMessages();
 }
 
@@ -511,6 +568,7 @@ async function sendMessage() {
   appendBubble('user', text);
   isLoading = true;
   document.getElementById('send-btn').disabled = true;
+  updateSaveButton();
   showTyping();
   setAgentStatus(id, 'working');
 
@@ -527,6 +585,7 @@ async function sendMessage() {
   }
   isLoading = false;
   document.getElementById('send-btn').disabled = false;
+  updateSaveButton();
 }
 
 async function runDelegationPipeline(text) {
@@ -628,7 +687,6 @@ async function runDelegationPipeline(text) {
     detailsWrapper.appendChild(details);
     msgs.appendChild(detailsWrapper);
 
-    // Generate image inside contribution if applicable
     if (imagePrompt) {
       details.addEventListener('toggle', function onToggle() {
         if (details.open) {
@@ -733,6 +791,7 @@ function checkAccess(isRetry) {
   gateScreen.classList.add('d-none');
   gateScreen.classList.remove('active');
   workspace.classList.remove('d-none');
+  updateSaveButton();
   renderMessages();
 }
 
