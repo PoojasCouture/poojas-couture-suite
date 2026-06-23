@@ -17,11 +17,9 @@ When answering:
 - If asked for decisions, make them — don't hedge
 - Always keep Pooja's Couture's South Asian cultural identity and Sydney market context front of mind
 - Never mention being an AI; stay fully in character as Priya`,
-
     welcome: "I'm Priya, your Delivery Lead. I handle brand strategy, business decisions, pricing, partnerships, and growth direction. Flip on Auto-Delegate above and I'll route your request straight to the right team members and hand you back one finished deliverable. What do you need?",
     chips: ['Plan our Diwali bridal collection launch', 'How do we grow in Sydney?', 'Build a full campaign for bridal sneakers', 'Plan for wedding season 2025', 'Launch a new product line']
   },
-
   coo: {
     name: 'Riya — Delivery Manager',
     emoji: '⚙️',
@@ -39,11 +37,9 @@ When answering:
 - Suggest tools and systems appropriate for a small boutique
 - Keep recommendations practical given the small team and garage studio setting
 - Never mention being an AI; stay fully in character as Riya`,
-
     welcome: "I'm Riya, your Delivery Manager. I handle operations — appointments, orders, inventory, vendor coordination, and studio workflows. What needs fixing or building?",
     chips: ['Build an appointment booking process', 'Create an order tracking system', 'How to manage custom orders?', 'Inventory checklist for bridal season', 'Streamline client fitting workflow']
   },
-
   marketing: {
     name: 'Meera — Marketing Manager',
     emoji: '📣',
@@ -61,11 +57,9 @@ When answering:
 - Suggest content ideas, hashtags, ad targeting, and posting schedules
 - Always consider the boutique's small budget and local focus
 - Never mention being an AI; stay fully in character as Meera`,
-
     welcome: "I'm Meera, your Marketing Manager. I run campaigns, social strategy, seasonal promotions, and brand awareness. What are we working on?",
     chips: ['Plan an Instagram campaign', 'Marketing for bridal sneakers', 'Navratri/Diwali promotion ideas', 'How to reach Sydney South Asian brides?', 'Reels content plan for this month']
   },
-
   writer: {
     name: 'Anika — Content Writer',
     emoji: '✍️',
@@ -83,11 +77,9 @@ Writing style:
 - Specific product details woven into emotional storytelling
 - Adapts tone to platform (Instagram = punchy/visual, Email = warm/personal, Blog = editorial)
 - Never mention being an AI; stay fully in character as Anika`,
-
     welcome: "I'm Anika, your Content Writer. Give me a product, campaign, or platform and I'll write copy that actually connects. What do you need?",
     chips: ['Write an Instagram caption for bridal sneakers', 'Product description for a red lehenga', 'Email for wedding season launch', 'Blog post: Why South Asian brides choose sneakers', 'WhatsApp message to follow up a lead']
   },
-
   designer: {
     name: 'Tara — Creative Designer',
     emoji: '🎨',
@@ -105,11 +97,9 @@ When answering:
 - Give Instagram grid/feed layout advice
 - Suggest visual themes tied to seasons and campaigns
 - Never mention being an AI; stay fully in character as Tara`,
-
     welcome: "I'm Tara, your Creative Designer. I handle visual direction, design briefs, brand aesthetics, and photography guidance. What are we creating?",
     chips: ['Create a mood board for bridal sneakers', 'Instagram grid aesthetic for winter', 'Photography brief for lehenga shoot', 'Brand colour palette guidance', 'Design brief for Diwali campaign']
   },
-
   creator: {
     name: 'Dia — Content Creator',
     emoji: '🎬',
@@ -128,7 +118,6 @@ When answering:
 - Always tie content ideas back to a clear goal: reach, saves, DMs, or bookings
 - Keep cultural authenticity central — this is South Asian bridal content, not generic fashion content
 - Never mention being an AI; stay fully in character as Dia`,
-
     welcome: "I'm Dia, your Content Creator. I script Reels, TikToks, and UGC-style video content — the stuff that actually gets watched and shared. What are we filming?",
     chips: ['Script a Reel for bridal sneakers launch', 'Trending audio ideas for this week', 'Behind-the-scenes content plan', 'Get-ready-with-me video concept', 'UGC brief for customer testimonials']
   }
@@ -139,22 +128,158 @@ let histories = { ceo: [], coo: [], marketing: [], writer: [], designer: [], cre
 let isLoading = false;
 let autoDelegate = false;
 let statusTimers = {};
+let viewingHistory = false;
 
+// ── SUPABASE HISTORY ──
+async function getSupabaseClient() {
+  // config.js exposes window.SUPABASE_URL and window.SUPABASE_ANON_KEY
+  if (window._sbClient) return window._sbClient;
+  window._sbClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  return window._sbClient;
+}
+
+async function saveProject(title, request, agents, contributions, finalOutput) {
+  try {
+    const sb = await getSupabaseClient();
+    let createdBy = null;
+    try {
+      const user = JSON.parse(localStorage.getItem('pc_current_user'));
+      createdBy = user?.email || null;
+    } catch(e) {}
+
+    await sb.from('ai_team_projects').insert({
+      title: title,
+      request: request,
+      agents_involved: agents,
+      contributions: contributions,
+      final_output: finalOutput,
+      created_by: createdBy
+    });
+  } catch(err) {
+    console.warn('Project save failed:', err);
+  }
+}
+
+async function loadProjects() {
+  try {
+    const sb = await getSupabaseClient();
+    const { data, error } = await sb
+      .from('ai_team_projects')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return data || [];
+  } catch(err) {
+    console.warn('Project load failed:', err);
+    return [];
+  }
+}
+
+async function deleteProject(id) {
+  try {
+    const sb = await getSupabaseClient();
+    await sb.from('ai_team_projects').delete().eq('id', id);
+  } catch(err) {
+    console.warn('Project delete failed:', err);
+  }
+}
+
+// ── HISTORY VIEW ──
+function switchToHistory() {
+  viewingHistory = true;
+  document.querySelectorAll('.member-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-history').classList.add('active');
+
+  document.getElementById('messages').style.display = 'none';
+  document.getElementById('input-area').style.display = 'none';
+  document.getElementById('history-panel').style.display = 'flex';
+  document.getElementById('history-panel').style.flexDirection = 'column';
+
+  document.getElementById('h-avatar').textContent = '🗂️';
+  document.getElementById('h-avatar').style.background = 'rgba(100,140,200,0.15)';
+  document.getElementById('h-name').textContent = 'Project History';
+  document.getElementById('h-tag').textContent = 'All completed AI team projects';
+  document.getElementById('delegate-toggle').classList.remove('visible');
+
+  renderHistory();
+}
+
+function exitHistory() {
+  viewingHistory = false;
+  document.getElementById('messages').style.display = 'flex';
+  document.getElementById('input-area').style.display = 'flex';
+  document.getElementById('history-panel').style.display = 'none';
+  switchMember('ceo');
+}
+
+async function renderHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px 0">Loading projects…</div>';
+
+  const projects = await loadProjects();
+
+  if (projects.length === 0) {
+    list.innerHTML = `
+      <div style="text-align:center;padding:48px 16px;color:var(--muted)">
+        <div style="font-size:32px;margin-bottom:12px">🗂️</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:6px">No projects yet</div>
+        <div style="font-size:12px">Completed Auto-Delegate runs will be saved here automatically.</div>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = projects.map(p => {
+    const date = new Date(p.created_at).toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
+    const time = new Date(p.created_at).toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' });
+    const agents = (p.agents_involved || []).map(a => MEMBERS[a]?.emoji || '').join(' ');
+    return `
+      <div class="history-card" id="hcard-${p.id}">
+        <div class="history-card-header">
+          <div class="history-meta">
+            <div class="history-title">${escapeHtml(p.title)}</div>
+            <div class="history-date">${date} · ${time} ${agents ? '· ' + agents : ''}</div>
+          </div>
+          <button class="history-delete-btn" onclick="confirmDeleteProject('${p.id}')" title="Delete">🗑️</button>
+        </div>
+        <div class="history-request">${escapeHtml(p.request)}</div>
+        <details class="history-details">
+          <summary>View final deliverable</summary>
+          <div class="history-output">${formatText(p.final_output || '')}</div>
+          ${(p.contributions || []).length > 0 ? `
+            <div style="margin-top:12px">
+              ${p.contributions.map(c => `
+                <details class="agent-contribution" style="margin-bottom:6px">
+                  <summary>
+                    <span style="font-size:13px">${MEMBERS[c.agent]?.emoji || ''}</span>
+                    <span>${MEMBERS[c.agent]?.name || c.agent} — contribution</span>
+                    <span class="chevron">▶</span>
+                  </summary>
+                  <div class="contribution-body">${formatText(c.output)}</div>
+                </details>`).join('')}
+            </div>` : ''}
+        </details>
+      </div>`;
+  }).join('');
+}
+
+async function confirmDeleteProject(id) {
+  if (!confirm('Delete this project? This cannot be undone.')) return;
+  const card = document.getElementById('hcard-' + id);
+  if (card) card.style.opacity = '0.4';
+  await deleteProject(id);
+  await renderHistory();
+}
+
+// ── AGENT STATUS ──
 function setAgentStatus(id, status, label) {
   const box = document.getElementById('status-' + id);
   if (!box) return;
-
   box.classList.remove('idle', 'working', 'done', 'error');
   box.classList.add(status);
-
   const defaults = { working: 'Working…', done: 'Done', error: 'Error', idle: 'Idle' };
   box.querySelector('.status-text').textContent = label || defaults[status] || 'Idle';
-
-  if (statusTimers[id]) {
-    clearTimeout(statusTimers[id]);
-    delete statusTimers[id];
-  }
-
+  if (statusTimers[id]) { clearTimeout(statusTimers[id]); delete statusTimers[id]; }
   if (status === 'done') {
     statusTimers[id] = setTimeout(() => setAgentStatus(id, 'idle'), 3000);
   }
@@ -182,10 +307,16 @@ Respond with ONLY valid JSON, no markdown code fences, no preamble, no explanati
 
 "agent" must be one of: coo, marketing, writer, designer, creator. Include 1 to 5 delegations depending on what the request actually needs.`;
 
+// ── MEMBER SWITCH ──
 function switchMember(id) {
+  viewingHistory = false;
   currentMember = id;
   document.querySelectorAll('.member-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('btn-' + id).classList.add('active');
+
+  document.getElementById('messages').style.display = 'flex';
+  document.getElementById('input-area').style.display = 'flex';
+  document.getElementById('history-panel').style.display = 'none';
 
   const m = MEMBERS[id];
   document.getElementById('h-avatar').textContent = m.emoji;
@@ -194,11 +325,7 @@ function switchMember(id) {
   document.getElementById('h-tag').textContent = m.tag;
 
   const toggle = document.getElementById('delegate-toggle');
-  if (id === 'ceo') {
-    toggle.classList.add('visible');
-  } else {
-    toggle.classList.remove('visible');
-  }
+  if (id === 'ceo') { toggle.classList.add('visible'); } else { toggle.classList.remove('visible'); }
 
   renderMessages();
 }
@@ -233,30 +360,24 @@ function renderMessages() {
   } else {
     histories[id].forEach(msg => appendBubble(msg.role, msg.content, false));
   }
-
   msgs.scrollTop = msgs.scrollHeight;
 }
 
 function appendBubble(role, content, scroll = true) {
   const msgs = document.getElementById('messages');
   const m = MEMBERS[currentMember];
-
   const wrapper = document.createElement('div');
   wrapper.className = `msg ${role === 'user' ? 'user' : 'ai'}`;
-
   const ava = document.createElement('div');
   ava.className = 'msg-avatar';
   ava.style.background = role === 'user' ? 'rgba(255,255,255,0.05)' : m.color;
   ava.textContent = role === 'user' ? '🧑' : m.emoji;
-
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
   bubble.innerHTML = formatText(content);
-
   wrapper.appendChild(ava);
   wrapper.appendChild(bubble);
   msgs.appendChild(wrapper);
-
   if (scroll) msgs.scrollTop = msgs.scrollHeight;
   return wrapper;
 }
@@ -275,20 +396,16 @@ function formatText(text) {
 function showTyping() {
   const msgs = document.getElementById('messages');
   const m = MEMBERS[currentMember];
-
   const wrapper = document.createElement('div');
   wrapper.className = 'msg ai';
   wrapper.id = 'typing-indicator';
-
   const ava = document.createElement('div');
   ava.className = 'msg-avatar';
   ava.style.background = m.color;
   ava.textContent = m.emoji;
-
   const bubble = document.createElement('div');
   bubble.className = 'bubble ai';
   bubble.innerHTML = '<div class="typing-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-
   wrapper.appendChild(ava);
   wrapper.appendChild(bubble);
   msgs.appendChild(wrapper);
@@ -323,11 +440,7 @@ async function callClaude(system, messages) {
   const response = await fetch('/api/ai-team', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      max_tokens: 1200,
-      system: system,
-      messages: messages
-    })
+    body: JSON.stringify({ max_tokens: 1200, system, messages })
   });
   if (!response.ok) {
     const errBody = await response.json().catch(() => ({}));
@@ -347,7 +460,6 @@ async function sendMessage() {
   const input = document.getElementById('user-input');
   const text = input.value.trim();
   if (!text) return;
-
   input.value = '';
   input.style.height = 'auto';
 
@@ -358,14 +470,9 @@ async function sendMessage() {
 
   const id = currentMember;
   const m = MEMBERS[id];
-
-  if (histories[id].length === 0) {
-    document.getElementById('messages').innerHTML = '';
-  }
-
+  if (histories[id].length === 0) document.getElementById('messages').innerHTML = '';
   histories[id].push({ role: 'user', content: text });
   appendBubble('user', text);
-
   isLoading = true;
   document.getElementById('send-btn').disabled = true;
   showTyping();
@@ -382,7 +489,6 @@ async function sendMessage() {
     appendBubble('assistant', 'There was an error connecting. Please try again.');
     setAgentStatus(id, 'error');
   }
-
   isLoading = false;
   document.getElementById('send-btn').disabled = false;
 }
@@ -390,13 +496,12 @@ async function sendMessage() {
 async function runDelegationPipeline(text) {
   const msgs = document.getElementById('messages');
   if (histories.ceo.length === 0) msgs.innerHTML = '';
-
   histories.ceo.push({ role: 'user', content: text });
   appendBubble('user', text);
-
   isLoading = true;
   document.getElementById('send-btn').disabled = true;
 
+  // Stage 1: orchestration
   const stageWrapper = document.createElement('div');
   stageWrapper.className = 'msg ai';
   const stageCard = document.createElement('div');
@@ -411,9 +516,7 @@ async function runDelegationPipeline(text) {
     setAgentStatus('ceo', 'working', 'Delegating…');
     const raw = await callClaude(ORCHESTRATOR_SYSTEM, [{ role: 'user', content: text }]);
     plan = parseOrchestratorJSON(raw);
-    if (!plan.delegations || !Array.isArray(plan.delegations) || plan.delegations.length === 0) {
-      throw new Error('empty plan');
-    }
+    if (!plan.delegations || !Array.isArray(plan.delegations) || plan.delegations.length === 0) throw new Error('empty plan');
     setAgentStatus('ceo', 'done', 'Delegated');
   } catch (err) {
     stageWrapper.remove();
@@ -446,10 +549,10 @@ async function runDelegationPipeline(text) {
           <div class="d-task">${escapeHtml(d.task)}</div>
         </div>
         <div class="d-status pending" id="del-status-${i}">○</div>
-      </div>`).join('')}
-  `;
+      </div>`).join('')}`;
   msgs.scrollTop = msgs.scrollHeight;
 
+  // Stage 2: execute delegations
   const contributions = [];
   for (let i = 0; i < validDelegations.length; i++) {
     const d = validDelegations[i];
@@ -482,8 +585,7 @@ async function runDelegationPipeline(text) {
         <span>${agent.name} — contribution ready</span>
         <span class="chevron">▶</span>
       </summary>
-      <div class="contribution-body">${formatText(output)}</div>
-    `;
+      <div class="contribution-body">${formatText(output)}</div>`;
     const detailsWrapper = document.createElement('div');
     detailsWrapper.className = 'msg ai';
     detailsWrapper.style.width = '100%';
@@ -492,6 +594,7 @@ async function runDelegationPipeline(text) {
     msgs.scrollTop = msgs.scrollHeight;
   }
 
+  // Stage 3: synthesis
   const synthStageWrapper = document.createElement('div');
   synthStageWrapper.className = 'msg ai';
   const synthCard = document.createElement('div');
@@ -522,7 +625,6 @@ Compile this into one final, cohesive, ready-to-use deliverable for the business
   }
 
   synthStageWrapper.remove();
-
   histories.ceo.push({ role: 'assistant', content: finalOutput });
 
   const finalWrapper = document.createElement('div');
@@ -534,6 +636,11 @@ Compile this into one final, cohesive, ready-to-use deliverable for the business
   msgs.appendChild(finalWrapper);
   msgs.scrollTop = msgs.scrollHeight;
 
+  // Save to Supabase
+  const agentsInvolved = validDelegations.map(d => d.agent);
+  const projectTitle = text.length > 80 ? text.substring(0, 80) + '…' : text;
+  await saveProject(projectTitle, text, agentsInvolved, contributions, finalOutput);
+
   isLoading = false;
   document.getElementById('send-btn').disabled = false;
 }
@@ -544,6 +651,7 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// ── ACCESS CONTROL ──
 const ALLOWED_ROLES = ['admin', 'social_crm'];
 
 function checkAccess(isRetry) {
@@ -553,16 +661,9 @@ function checkAccess(isRetry) {
   const workspace = document.getElementById('ai-team-workspace');
 
   let currentUser = null;
-  try {
-    currentUser = JSON.parse(localStorage.getItem('pc_current_user'));
-  } catch (e) {
-    currentUser = null;
-  }
+  try { currentUser = JSON.parse(localStorage.getItem('pc_current_user')); } catch (e) {}
 
-  if (!currentUser && !isRetry) {
-    setTimeout(() => checkAccess(true), 400);
-    return;
-  }
+  if (!currentUser && !isRetry) { setTimeout(() => checkAccess(true), 400); return; }
 
   if (!currentUser) {
     gateMessage.textContent = 'You need to log in to access the AI Studio Team.';
@@ -572,7 +673,7 @@ function checkAccess(isRetry) {
   }
 
   if (!ALLOWED_ROLES.includes(currentUser.appRole)) {
-    gateMessage.textContent = `Access restricted. The AI Studio Team is available to Admin and Social/CRM roles only.`;
+    gateMessage.textContent = 'Access restricted. The AI Studio Team is available to Admin and Social/CRM roles only.';
     gateActions.innerHTML = '<a href="../index.html" class="btn btn-primary w-full">Return to Main App</a>';
     gateActions.classList.remove('d-none');
     return;
