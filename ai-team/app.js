@@ -134,12 +134,7 @@ let autoDelegate = true;
 let statusTimers = {};
 let viewingHistory = false;
 
-// ── IMAGE GENERATION via Pollinations.ai ──
-function buildPollinationsUrl(prompt) {
-  const encoded = encodeURIComponent(prompt + ', South Asian bridal fashion, premium boutique aesthetic, high quality');
-  return `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&enhance=true`;
-}
-
+// ── IMAGE GENERATION via Replicate (Flux Schnell) ──
 function extractImagePrompt(text) {
   const match = text.match(/GENERATE_IMAGE:\s*(.+?)(?:\n|$)/);
   return match ? match[1].trim() : null;
@@ -151,37 +146,47 @@ function stripImageTag(text) {
 
 async function renderGeneratedImage(prompt, containerEl) {
   const imgWrapper = document.createElement('div');
-  imgWrapper.style.cssText = 'margin-top:12px;border-radius:8px;overflow:hidden;max-width:480px;';
+  imgWrapper.style.cssText = 'margin-top:12px;border-radius:8px;overflow:hidden;max-width:520px;';
 
   const loadingEl = document.createElement('div');
   loadingEl.style.cssText = 'padding:16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;';
-  loadingEl.innerHTML = '<div class="typing-indicator" style="display:inline-flex"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><span>Generating image…</span>';
+  loadingEl.innerHTML = '<div class="typing-indicator" style="display:inline-flex"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><span>Generating image — this takes 15-30 seconds…</span>';
   imgWrapper.appendChild(loadingEl);
   containerEl.appendChild(imgWrapper);
 
-  const url = buildPollinationsUrl(prompt);
-  const img = new Image();
+  try {
+    const fullPrompt = prompt + ', South Asian bridal fashion, premium boutique aesthetic, high quality, editorial photography style';
+    const res = await fetch('/api/generate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: fullPrompt })
+    });
 
-  img.onload = () => {
+    const data = await res.json();
+
+    if (!res.ok || !data.url) {
+      loadingEl.innerHTML = '⚠ Image generation failed: ' + (data.error || 'Unknown error') + '. Try rephrasing your request.';
+      return;
+    }
+
     loadingEl.remove();
+
+    const img = document.createElement('img');
+    img.src = data.url;
     img.style.cssText = 'width:100%;border-radius:8px;display:block;';
+    img.onerror = () => { imgWrapper.innerHTML = '⚠ Image loaded but could not be displayed.'; };
     imgWrapper.appendChild(img);
 
-    // Download button
     const dlBtn = document.createElement('a');
-    dlBtn.href = url;
-    dlBtn.download = 'poojascouture-visual.jpg';
+    dlBtn.href = data.url;
     dlBtn.target = '_blank';
     dlBtn.style.cssText = 'display:inline-block;margin-top:8px;font-size:11px;color:var(--muted);text-decoration:underline;';
-    dlBtn.textContent = '⬇ Download image';
+    dlBtn.textContent = '⬇ Open full image';
     imgWrapper.appendChild(dlBtn);
-  };
 
-  img.onerror = () => {
-    loadingEl.innerHTML = '⚠ Image generation failed. Try rephrasing your request.';
-  };
-
-  img.src = url;
+  } catch (err) {
+    loadingEl.innerHTML = '⚠ Image generation failed. Check your connection and try again.';
+  }
 }
 
 // ── SUPABASE HISTORY ──
