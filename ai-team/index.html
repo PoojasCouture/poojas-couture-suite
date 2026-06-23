@@ -5,15 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pooja's Couture — AI Studio Team</title>
 <link rel="icon" type="image/png" href="../assets/logo-mark.png">
-
-<!-- Shared app design system — tokens, reset, utilities -->
 <link rel="stylesheet" href="../css/index.css">
 <link rel="stylesheet" href="../css/layout.css">
 <link rel="stylesheet" href="../css/components.css">
-<!-- Portal-specific overrides -->
 <link rel="stylesheet" href="style.css">
-
-<!-- Supabase client + shared config -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/config.js"></script>
 </head>
@@ -49,7 +44,7 @@
         <div class="avatar" style="background:rgba(200,113,90,0.15)">👑</div>
         <div class="member-info">
           <div class="member-name">Priya</div>
-          <div class="member-role">Chief Executive Officer</div>
+          <div class="member-role">Delivery Lead</div>
           <div class="status-box idle" id="status-ceo"><span class="status-dot"></span><span class="status-text">Idle</span></div>
         </div>
       </button>
@@ -58,7 +53,7 @@
         <div class="avatar" style="background:rgba(212,168,75,0.15)">⚙️</div>
         <div class="member-info">
           <div class="member-name">Riya</div>
-          <div class="member-role">Chief Operations Officer</div>
+          <div class="member-role">Delivery Manager</div>
           <div class="status-box idle" id="status-coo"><span class="status-dot"></span><span class="status-text">Idle</span></div>
         </div>
       </button>
@@ -99,6 +94,16 @@
         </div>
       </button>
 
+      <!-- History -->
+      <div class="team-label" style="margin-top:var(--sp-4)">Project History</div>
+      <button class="member-btn" onclick="switchToHistory()" id="btn-history">
+        <div class="avatar" style="background:rgba(100,140,200,0.15)">🗂️</div>
+        <div class="member-info">
+          <div class="member-name">History</div>
+          <div class="member-role">All saved projects</div>
+        </div>
+      </button>
+
       <div class="sidebar-footer">
         <a href="#" class="back-link" onclick="goBackToApp(event)">← Back to Main App</a>
         <div class="powered-label">Powered by Claude AI</div>
@@ -111,7 +116,7 @@
       <div id="chat-header">
         <div class="header-avatar" id="h-avatar" style="background:rgba(200,113,90,0.15)">👑</div>
         <div class="header-info">
-          <div class="h-name" id="h-name">Priya — CEO</div>
+          <div class="h-name" id="h-name">Priya — Delivery Lead</div>
           <div class="h-tag" id="h-tag">Vision · Brand Strategy · Business Growth</div>
         </div>
         <div class="delegate-toggle" id="delegate-toggle" onclick="toggleDelegate()">
@@ -121,8 +126,13 @@
         <button class="clear-btn" onclick="clearChat()">Clear Chat</button>
       </div>
 
-      <!-- Messages -->
+      <!-- Messages (chat view) -->
       <div id="messages"></div>
+
+      <!-- History panel (hidden by default) -->
+      <div id="history-panel" style="display:none;flex:1;overflow-y:auto;padding:var(--sp-4)">
+        <div id="history-list"></div>
+      </div>
 
       <!-- Input -->
       <div id="input-area">
