@@ -126,15 +126,14 @@ When answering:
 let currentMember = 'ceo';
 let histories = { ceo: [], coo: [], marketing: [], writer: [], designer: [], creator: [] };
 let isLoading = false;
-let autoDelegate = false;
+let autoDelegate = true;
 let statusTimers = {};
 let viewingHistory = false;
 
 // ── SUPABASE HISTORY ──
 async function getSupabaseClient() {
-  // config.js exposes window.SUPABASE_URL and window.SUPABASE_ANON_KEY
   if (window._sbClient) return window._sbClient;
-  window._sbClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  window._sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
   return window._sbClient;
 }
 
@@ -325,7 +324,13 @@ function switchMember(id) {
   document.getElementById('h-tag').textContent = m.tag;
 
   const toggle = document.getElementById('delegate-toggle');
-  if (id === 'ceo') { toggle.classList.add('visible'); } else { toggle.classList.remove('visible'); }
+  if (id === 'ceo') {
+    toggle.classList.add('visible');
+    if (autoDelegate) toggle.classList.add('on');
+    document.getElementById('user-input').placeholder = 'Describe what you need — Priya will delegate to the team automatically…';
+  } else {
+    toggle.classList.remove('visible');
+  }
 
   renderMessages();
 }
