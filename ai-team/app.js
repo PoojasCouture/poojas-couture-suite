@@ -351,7 +351,6 @@ function renderMessages() {
     card.className = 'welcome-card msg ai';
     card.style.maxWidth = '560px';
     card.innerHTML = `
-      <div class="welcome-title">${m.emoji} ${m.name}</div>
       <div style="font-size:13.5px;color:var(--muted);line-height:1.6">${m.welcome}</div>
       <div class="welcome-tasks">
         ${m.chips.map(c => `<button class="task-chip" onclick="quickSend('${c.replace(/'/g,"\\'")}')"> ${c}</button>`).join('')}
