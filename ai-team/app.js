@@ -85,6 +85,7 @@ Writing style:
     emoji: '🎨',
     color: 'rgba(180,120,160,0.15)',
     tag: 'Visual Direction · Mood Boards · Brand Aesthetics · Design Briefs',
+    canGenerateImages: true,
     system: `You are Tara, the Creative Designer for Pooja's Couture — a South Asian bridal boutique in Sydney. You define the visual identity of the brand and provide design direction for all creative assets including social media posts, promotional material, product photography guidance, and in-store aesthetics.
 
 Your role: Translate the brand's South Asian bridal identity into visual language. Create design briefs, suggest colour palettes, typography, layout ideas, photography direction, and aesthetic guidelines that keep the brand premium, culturally rich, and modern.
@@ -96,30 +97,33 @@ When answering:
 - Write clear design briefs that a photographer or external designer can follow
 - Give Instagram grid/feed layout advice
 - Suggest visual themes tied to seasons and campaigns
+- When asked for a mood board, mockup, or visual concept, you MUST end your response with a line in this exact format: GENERATE_IMAGE: [detailed image generation prompt describing the visual]
 - Never mention being an AI; stay fully in character as Tara`,
-    welcome: "I'm Tara, your Creative Designer. I handle visual direction, design briefs, brand aesthetics, and photography guidance. What are we creating?",
-    chips: ['Create a mood board for bridal sneakers', 'Instagram grid aesthetic for winter', 'Photography brief for lehenga shoot', 'Brand colour palette guidance', 'Design brief for Diwali campaign']
+    welcome: "I'm Tara, your Creative Designer. I handle visual direction, design briefs, brand aesthetics, and photography guidance — and I can generate mood boards and mockups directly. What are we creating?",
+    chips: ['Create a mood board for bridal sneakers', 'Instagram grid aesthetic for winter', 'Generate a mockup for Diwali campaign', 'Brand colour palette guidance', 'Design brief for bridal lehenga shoot']
   },
   creator: {
     name: 'Dia — Content Creator',
     emoji: '🎬',
     color: 'rgba(220,140,90,0.15)',
-    tag: 'Reels · TikTok · UGC · Trend-Jacking · Video Scripts',
-    system: `You are Dia, the Content Creator for Pooja's Couture — a South Asian bridal boutique in Sydney specialising in bridal sneakers, lehengas, sarees, salwar suits, and sherwanis. Unlike Anika (the Content Writer, who handles written copy — captions, product descriptions, emails), your job is video-first, short-form content: Reels, TikTok, and UGC-style storytelling that drives reach and engagement.
+    tag: 'Reels · TikTok · UGC · Storyboards · Video Scripts',
+    canGenerateImages: true,
+    system: `You are Dia, the Content Creator for Pooja's Couture — a South Asian bridal boutique in Sydney specialising in bridal sneakers, lehengas, sarees, salwar suits, and sherwanis. Your job is video-first, short-form content: Reels, TikTok, and UGC-style storytelling that drives reach and engagement.
 
-Your role: Script and storyboard Reels and TikToks, identify and adapt trending audio/formats for the bridal niche, plan behind-the-scenes and process content (fittings, embroidery work, studio life), direct UGC and customer testimonial content, and build content series that build a personal, trustworthy brand voice on video platforms.
+Your role: Script and storyboard Reels and TikToks, identify and adapt trending audio/formats for the bridal niche, plan behind-the-scenes and process content, direct UGC and customer testimonial content, and build content series that build a personal, trustworthy brand voice on video platforms.
 
-Personality: Fast-moving, trend-literate, slightly cheeky. You think in hooks, pacing, and watch-time — not paragraphs. You know the difference between content that looks nice and content that actually performs.
+Personality: Fast-moving, trend-literate, slightly cheeky. You think in hooks, pacing, and watch-time.
 
 When answering:
-- Give scene-by-scene or shot-by-shot breakdowns for Reels/TikToks (Hook → Build → Payoff), with approximate timing
-- Reference real platform mechanics: hook in first 1-2 seconds, trending audio/format suggestions, on-screen text overlay ideas
-- Suggest UGC and behind-the-scenes content ideas specific to a bridal boutique (fittings, embroidery, client reactions, "get ready with me" formats)
+- Give scene-by-scene breakdowns for Reels/TikToks (Hook → Build → Payoff) with approximate timing
+- Reference real platform mechanics: hook in first 1-2 seconds, trending audio suggestions, on-screen text overlay ideas
+- Suggest UGC and behind-the-scenes content ideas specific to a bridal boutique
 - Always tie content ideas back to a clear goal: reach, saves, DMs, or bookings
-- Keep cultural authenticity central — this is South Asian bridal content, not generic fashion content
+- Keep cultural authenticity central — this is South Asian bridal content
+- When asked for a storyboard or visual scene reference, end your response with: GENERATE_IMAGE: [detailed prompt describing the key visual scene or storyboard frame]
 - Never mention being an AI; stay fully in character as Dia`,
-    welcome: "I'm Dia, your Content Creator. I script Reels, TikToks, and UGC-style video content — the stuff that actually gets watched and shared. What are we filming?",
-    chips: ['Script a Reel for bridal sneakers launch', 'Trending audio ideas for this week', 'Behind-the-scenes content plan', 'Get-ready-with-me video concept', 'UGC brief for customer testimonials']
+    welcome: "I'm Dia, your Content Creator. I script Reels, TikToks, storyboards and UGC-style video content — and I can generate visual storyboard frames too. What are we filming?",
+    chips: ['Script a Reel for bridal sneakers launch', 'Storyboard for a Diwali campaign Reel', 'Behind-the-scenes content plan', 'Generate a storyboard frame for lehenga shoot', 'UGC brief for customer testimonials']
   }
 };
 
@@ -129,6 +133,56 @@ let isLoading = false;
 let autoDelegate = true;
 let statusTimers = {};
 let viewingHistory = false;
+
+// ── IMAGE GENERATION via Pollinations.ai ──
+function buildPollinationsUrl(prompt) {
+  const encoded = encodeURIComponent(prompt + ', South Asian bridal fashion, premium boutique aesthetic, high quality');
+  return `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&enhance=true`;
+}
+
+function extractImagePrompt(text) {
+  const match = text.match(/GENERATE_IMAGE:\s*(.+?)(?:\n|$)/);
+  return match ? match[1].trim() : null;
+}
+
+function stripImageTag(text) {
+  return text.replace(/GENERATE_IMAGE:\s*.+?(?:\n|$)/, '').trim();
+}
+
+async function renderGeneratedImage(prompt, containerEl) {
+  const imgWrapper = document.createElement('div');
+  imgWrapper.style.cssText = 'margin-top:12px;border-radius:8px;overflow:hidden;max-width:480px;';
+
+  const loadingEl = document.createElement('div');
+  loadingEl.style.cssText = 'padding:16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;';
+  loadingEl.innerHTML = '<div class="typing-indicator" style="display:inline-flex"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><span>Generating image…</span>';
+  imgWrapper.appendChild(loadingEl);
+  containerEl.appendChild(imgWrapper);
+
+  const url = buildPollinationsUrl(prompt);
+  const img = new Image();
+
+  img.onload = () => {
+    loadingEl.remove();
+    img.style.cssText = 'width:100%;border-radius:8px;display:block;';
+    imgWrapper.appendChild(img);
+
+    // Download button
+    const dlBtn = document.createElement('a');
+    dlBtn.href = url;
+    dlBtn.download = 'poojascouture-visual.jpg';
+    dlBtn.target = '_blank';
+    dlBtn.style.cssText = 'display:inline-block;margin-top:8px;font-size:11px;color:var(--muted);text-decoration:underline;';
+    dlBtn.textContent = '⬇ Download image';
+    imgWrapper.appendChild(dlBtn);
+  };
+
+  img.onerror = () => {
+    loadingEl.innerHTML = '⚠ Image generation failed. Try rephrasing your request.';
+  };
+
+  img.src = url;
+}
 
 // ── SUPABASE HISTORY ──
 async function getSupabaseClient() {
@@ -141,47 +195,27 @@ async function saveProject(title, request, agents, contributions, finalOutput) {
   try {
     const sb = await getSupabaseClient();
     let createdBy = null;
-    try {
-      const user = JSON.parse(localStorage.getItem('pc_current_user'));
-      createdBy = user?.email || null;
-    } catch(e) {}
-
+    try { createdBy = JSON.parse(localStorage.getItem('pc_current_user'))?.email || null; } catch(e) {}
     await sb.from('ai_team_projects').insert({
-      title: title,
-      request: request,
-      agents_involved: agents,
-      contributions: contributions,
-      final_output: finalOutput,
-      created_by: createdBy
+      title, request, agents_involved: agents, contributions, final_output: finalOutput, created_by: createdBy
     });
-  } catch(err) {
-    console.warn('Project save failed:', err);
-  }
+  } catch(err) { console.warn('Project save failed:', err); }
 }
 
 async function loadProjects() {
   try {
     const sb = await getSupabaseClient();
-    const { data, error } = await sb
-      .from('ai_team_projects')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
+    const { data, error } = await sb.from('ai_team_projects').select('*').order('created_at', { ascending: false }).limit(50);
     if (error) throw error;
     return data || [];
-  } catch(err) {
-    console.warn('Project load failed:', err);
-    return [];
-  }
+  } catch(err) { console.warn('Project load failed:', err); return []; }
 }
 
 async function deleteProject(id) {
   try {
     const sb = await getSupabaseClient();
     await sb.from('ai_team_projects').delete().eq('id', id);
-  } catch(err) {
-    console.warn('Project delete failed:', err);
-  }
+  } catch(err) { console.warn('Project delete failed:', err); }
 }
 
 // ── HISTORY VIEW ──
@@ -189,35 +223,22 @@ function switchToHistory() {
   viewingHistory = true;
   document.querySelectorAll('.member-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('btn-history').classList.add('active');
-
   document.getElementById('messages').style.display = 'none';
   document.getElementById('input-area').style.display = 'none';
   document.getElementById('history-panel').style.display = 'flex';
   document.getElementById('history-panel').style.flexDirection = 'column';
-
   document.getElementById('h-avatar').textContent = '🗂️';
   document.getElementById('h-avatar').style.background = 'rgba(100,140,200,0.15)';
   document.getElementById('h-name').textContent = 'Project History';
   document.getElementById('h-tag').textContent = 'All completed AI team projects';
   document.getElementById('delegate-toggle').classList.remove('visible');
-
   renderHistory();
-}
-
-function exitHistory() {
-  viewingHistory = false;
-  document.getElementById('messages').style.display = 'flex';
-  document.getElementById('input-area').style.display = 'flex';
-  document.getElementById('history-panel').style.display = 'none';
-  switchMember('ceo');
 }
 
 async function renderHistory() {
   const list = document.getElementById('history-list');
   list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px 0">Loading projects…</div>';
-
   const projects = await loadProjects();
-
   if (projects.length === 0) {
     list.innerHTML = `
       <div style="text-align:center;padding:48px 16px;color:var(--muted)">
@@ -227,7 +248,6 @@ async function renderHistory() {
       </div>`;
     return;
   }
-
   list.innerHTML = projects.map(p => {
     const date = new Date(p.created_at).toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
     const time = new Date(p.created_at).toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' });
@@ -279,9 +299,7 @@ function setAgentStatus(id, status, label) {
   const defaults = { working: 'Working…', done: 'Done', error: 'Error', idle: 'Idle' };
   box.querySelector('.status-text').textContent = label || defaults[status] || 'Idle';
   if (statusTimers[id]) { clearTimeout(statusTimers[id]); delete statusTimers[id]; }
-  if (status === 'done') {
-    statusTimers[id] = setTimeout(() => setAgentStatus(id, 'idle'), 3000);
-  }
+  if (status === 'done') statusTimers[id] = setTimeout(() => setAgentStatus(id, 'idle'), 3000);
 }
 
 const ORCHESTRATOR_AGENTS = ['coo', 'marketing', 'writer', 'designer', 'creator'];
@@ -291,20 +309,20 @@ Team members available:
 - coo (Riya): operations, appointments, inventory, vendor coordination, order workflows, scheduling
 - marketing (Meera): campaigns, social media strategy, seasonal/festival promotions, audience targeting
 - writer (Anika): written copy — captions, product descriptions, emails, blog posts, WhatsApp messages
-- designer (Tara): visual direction, mood boards, colour palettes, photography briefs, grid aesthetics
-- creator (Dia): Reels/TikTok scripts, video content, UGC briefs, trending audio/formats
+- designer (Tara): visual direction, mood boards, colour palettes, photography briefs, grid aesthetics, mockup generation
+- creator (Dia): Reels/TikTok scripts, storyboards, video content, UGC briefs, trending audio/formats
 
-Be selective like a real Delivery Lead — only delegate to team members genuinely needed for this request. Do not default to involving everyone.
+Be selective — only delegate to team members genuinely needed. Do not default to involving everyone.
 
-Respond with ONLY valid JSON, no markdown code fences, no preamble, no explanation outside the JSON:
+Respond with ONLY valid JSON, no markdown fences, no preamble:
 {
   "strategic_take": "1-2 sentence Delivery Lead-level framing of the request and the goal",
   "delegations": [
-    {"agent": "marketing", "task": "specific, detailed, self-contained instruction this person can act on without further context"}
+    {"agent": "marketing", "task": "specific, detailed, self-contained instruction"}
   ]
 }
 
-"agent" must be one of: coo, marketing, writer, designer, creator. Include 1 to 5 delegations depending on what the request actually needs.`;
+"agent" must be one of: coo, marketing, writer, designer, creator. Include 1 to 5 delegations.`;
 
 // ── MEMBER SWITCH ──
 function switchMember(id) {
@@ -312,7 +330,6 @@ function switchMember(id) {
   currentMember = id;
   document.querySelectorAll('.member-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('btn-' + id).classList.add('active');
-
   document.getElementById('messages').style.display = 'flex';
   document.getElementById('input-area').style.display = 'flex';
   document.getElementById('history-panel').style.display = 'none';
@@ -330,8 +347,8 @@ function switchMember(id) {
     document.getElementById('user-input').placeholder = 'Describe what you need — Priya will delegate to the team automatically…';
   } else {
     toggle.classList.remove('visible');
+    document.getElementById('user-input').placeholder = 'Ask your team member anything…';
   }
-
   renderMessages();
 }
 
@@ -339,10 +356,9 @@ function toggleDelegate() {
   autoDelegate = !autoDelegate;
   const toggle = document.getElementById('delegate-toggle');
   toggle.classList.toggle('on', autoDelegate);
-  const input = document.getElementById('user-input');
-  input.placeholder = autoDelegate
-    ? "Describe what you need — Priya will delegate to the team automatically…"
-    : "Ask your team member anything…";
+  document.getElementById('user-input').placeholder = autoDelegate
+    ? 'Describe what you need — Priya will delegate to the team automatically…'
+    : 'Ask your team member anything…';
 }
 
 function renderMessages() {
@@ -350,7 +366,6 @@ function renderMessages() {
   const m = MEMBERS[id];
   const msgs = document.getElementById('messages');
   msgs.innerHTML = '';
-
   if (histories[id].length === 0) {
     const card = document.createElement('div');
     card.className = 'welcome-card msg ai';
@@ -367,7 +382,7 @@ function renderMessages() {
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-function appendBubble(role, content, scroll = true) {
+function appendBubble(role, content, scroll = true, skipImageGen = false) {
   const msgs = document.getElementById('messages');
   const m = MEMBERS[currentMember];
   const wrapper = document.createElement('div');
@@ -378,7 +393,19 @@ function appendBubble(role, content, scroll = true) {
   ava.textContent = role === 'user' ? '🧑' : m.emoji;
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-  bubble.innerHTML = formatText(content);
+
+  // Strip GENERATE_IMAGE tag from displayed text
+  const displayText = role === 'assistant' ? stripImageTag(content) : content;
+  bubble.innerHTML = formatText(displayText);
+
+  // Trigger image generation if tag present and agent supports it
+  if (role === 'assistant' && !skipImageGen && MEMBERS[currentMember].canGenerateImages) {
+    const imagePrompt = extractImagePrompt(content);
+    if (imagePrompt) {
+      renderGeneratedImage(imagePrompt, bubble);
+    }
+  }
+
   wrapper.appendChild(ava);
   wrapper.appendChild(bubble);
   msgs.appendChild(wrapper);
@@ -505,7 +532,6 @@ async function runDelegationPipeline(text) {
   isLoading = true;
   document.getElementById('send-btn').disabled = true;
 
-  // Stage 1: orchestration
   const stageWrapper = document.createElement('div');
   stageWrapper.className = 'msg ai';
   const stageCard = document.createElement('div');
@@ -556,7 +582,6 @@ async function runDelegationPipeline(text) {
       </div>`).join('')}`;
   msgs.scrollTop = msgs.scrollHeight;
 
-  // Stage 2: execute delegations
   const contributions = [];
   for (let i = 0; i < validDelegations.length; i++) {
     const d = validDelegations[i];
@@ -566,7 +591,7 @@ async function runDelegationPipeline(text) {
     setAgentStatus(d.agent, 'working');
 
     const agent = MEMBERS[d.agent];
-    const delegatedSystem = agent.system + `\n\nIMPORTANT CONTEXT: This task was delegated to you directly by Priya, the Delivery Lead, as part of the following directive: "${plan.strategic_take || text}"\n\nYour specific task: ${d.task}\n\nRespond with your actual finished deliverable — not a confirmation that you will do it.`;
+    const delegatedSystem = agent.system + `\n\nIMPORTANT CONTEXT: Delegated by Priya, Delivery Lead. Directive: "${plan.strategic_take || text}"\n\nYour task: ${d.task}\n\nRespond with your actual finished deliverable — not a confirmation.`;
 
     let output;
     try {
@@ -577,28 +602,44 @@ async function runDelegationPipeline(text) {
       setAgentStatus(d.agent, 'error');
     }
     contributions.push({ agent: d.agent, task: d.task, output });
-
     statusEl.className = 'd-status done';
     statusEl.textContent = '✓';
 
     const details = document.createElement('details');
     details.className = 'agent-contribution';
+    const imagePrompt = agent.canGenerateImages ? extractImagePrompt(output) : null;
+    const cleanOutput = imagePrompt ? stripImageTag(output) : output;
     details.innerHTML = `
       <summary>
         <span style="font-size:14px">${agent.emoji}</span>
         <span>${agent.name} — contribution ready</span>
         <span class="chevron">▶</span>
       </summary>
-      <div class="contribution-body">${formatText(output)}</div>`;
+      <div class="contribution-body" id="contrib-body-${i}">${formatText(cleanOutput)}</div>`;
+
     const detailsWrapper = document.createElement('div');
     detailsWrapper.className = 'msg ai';
     detailsWrapper.style.width = '100%';
     detailsWrapper.appendChild(details);
     msgs.appendChild(detailsWrapper);
+
+    // Generate image inside contribution if applicable
+    if (imagePrompt) {
+      details.addEventListener('toggle', function onToggle() {
+        if (details.open) {
+          const body = document.getElementById(`contrib-body-${i}`);
+          if (body && !body.querySelector('img') && !body.querySelector('.typing-indicator')) {
+            renderGeneratedImage(imagePrompt, body);
+          }
+          details.removeEventListener('toggle', onToggle);
+        }
+      });
+    }
+
     msgs.scrollTop = msgs.scrollHeight;
   }
 
-  // Stage 3: synthesis
+  // Synthesis
   const synthStageWrapper = document.createElement('div');
   synthStageWrapper.className = 'msg ai';
   const synthCard = document.createElement('div');
@@ -608,15 +649,12 @@ async function runDelegationPipeline(text) {
   msgs.appendChild(synthStageWrapper);
   msgs.scrollTop = msgs.scrollHeight;
 
-  const synthesisPrompt = `Original request from the owner: "${text}"
-
-Your strategic take: ${plan.strategic_take || ''}
-
+  const synthesisPrompt = `Original request: "${text}"
+Strategic take: ${plan.strategic_take || ''}
 Team outputs:
+${contributions.map(c => `[${MEMBERS[c.agent].name}]\n${stripImageTag(c.output)}`).join('\n\n')}
 
-${contributions.map(c => `[${MEMBERS[c.agent].name}]\n${c.output}`).join('\n\n')}
-
-Compile this into one final, cohesive, ready-to-use deliverable for the business owner. Organize it clearly by function with short headers. Remove redundancy between sections. Close with a brief Delivery Lead-level recommendation or next step. Do not just repeat each section verbatim — synthesize and ensure consistency across them.`;
+Compile into one final cohesive deliverable. Organise by function with short headers. Remove redundancy. Close with a brief Delivery Lead recommendation or next step.`;
 
   setAgentStatus('ceo', 'working', 'Compiling…');
   let finalOutput;
@@ -641,9 +679,13 @@ Compile this into one final, cohesive, ready-to-use deliverable for the business
   msgs.scrollTop = msgs.scrollHeight;
 
   // Save to Supabase
-  const agentsInvolved = validDelegations.map(d => d.agent);
-  const projectTitle = text.length > 80 ? text.substring(0, 80) + '…' : text;
-  await saveProject(projectTitle, text, agentsInvolved, contributions, finalOutput);
+  await saveProject(
+    text.length > 80 ? text.substring(0, 80) + '…' : text,
+    text,
+    validDelegations.map(d => d.agent),
+    contributions,
+    finalOutput
+  );
 
   isLoading = false;
   document.getElementById('send-btn').disabled = false;
