@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Brand Asset Picker — demo</title>
+<link rel="stylesheet" href="css/brand-asset-picker.css" />
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; }
+  .demo-controls { display: flex; gap: 10px; margin: 16px 0; }
+  button.primary { padding: 10px 18px; border-radius: 8px; border: none; background: #c8a24a; color: #fff; font-size: 15px; cursor: pointer; }
+  #result { margin-top: 20px; font-size: 14px; }
+  #result img { max-width: 240px; border-radius: 10px; display: block; margin-top: 10px; }
+  .note { background: #fff8e7; border: 1px solid #e8d49a; padding: 12px 14px; border-radius: 8px; font-size: 13px; }
+  code { background: #f3f3f3; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <h1>Brand Asset Picker</h1>
+
+  <p class="note">
+    <strong>Incognito test:</strong> open this file in a private window. If the two thumbnails below
+    render without a Google login, public embedding works and the picker is good to ship.
+    These tiles use the same <code>drive.google.com/thumbnail</code> URLs the live picker generates.
+  </p>
+
+  <div class="demo-controls">
+    <button class="primary" id="open">Open picker (baked-in assets)</button>
+    <button id="live">Open picker (live /api/brand-assets)</button>
+  </div>
+
+  <div id="result">Nothing selected yet.</div>
+
+  <script type="module">
+    import { openAssetPicker, mountAssetPicker } from "./js/brand-asset-picker.js";
+
+    // The two real files currently in the brand folder, confirmed public.
+    const BAKED = [
+      { id: "1T_LXTV5HO2Z2HR6fTQ6YG3Jh3LU5OZVB", name: "Copy of Yellow.jpg" },
+      { id: "1MAU1Qr2f04plJKGgHGwLHw63wF4YbdO4", name: "508691966_...n.jpg" },
+    ].map(a => ({
+      ...a,
+      thumb: `https://drive.google.com/thumbnail?id=${a.id}&sz=w800`,
+      thumbSmall: `https://drive.google.com/thumbnail?id=${a.id}&sz=w320`,
+      view: `https://drive.google.com/file/d/${a.id}/view`,
+    }));
+
+    const result = document.getElementById("result");
+    const show = (a) => {
+      result.innerHTML = a
+        ? `Selected: <strong>${a.name}</strong> (id <code>${a.id}</code>)<img src="${a.thumb}" alt="">`
+        : "Selection cancelled.";
+    };
+
+    // Baked-in path: build a quick modal over BAKED without hitting the network.
+    document.getElementById("open").addEventListener("click", () => {
+      const overlay = document.createElement("div");
+      overlay.className = "bap-overlay";
+      overlay.innerHTML = `<div class="bap-modal"><div class="bap-modal-head"><h2>Brand assets (baked-in)</h2></div><div class="bap-modal-body"></div><div class="bap-modal-foot"><button class="bap-cancel">Close</button></div></div>`;
+      document.body.appendChild(overlay);
+      mountAssetPicker(overlay.querySelector(".bap-modal-body"), {
+        onSelect: (a) => { show(a); overlay.remove(); },
+        // shim fetch for the baked path:
+      });
+      // mountAssetPicker fetches /api/... — for the baked demo we instead render manually:
+      const body = overlay.querySelector(".bap-modal-body");
+      body.innerHTML = "";
+      const grid = document.createElement("div");
+      grid.className = "bap-grid";
+      for (const a of BAKED) {
+        const cell = document.createElement("button");
+        cell.className = "bap-cell";
+        cell.innerHTML = `<img loading="lazy" src="${a.thumbSmall}" alt="${a.name}"><span class="bap-name">${a.name}</span>`;
+        cell.querySelector("img").onerror = () => { cell.classList.add("bap-broken"); cell.title = "not publicly shared"; };
+        cell.addEventListener("click", () => { show(a); overlay.remove(); });
+        grid.appendChild(cell);
+      }
+      body.appendChild(grid);
+      overlay.querySelector(".bap-cancel").addEventListener("click", () => overlay.remove());
+      overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+    });
+
+    // Live path: requires the deployed Pages Function + API key.
+    document.getElementById("live").addEventListener("click", async () => {
+      const a = await openAssetPicker();
+      show(a);
+    });
+  </script>
+</body>
+</html>
