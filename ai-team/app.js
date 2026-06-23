@@ -1,11 +1,10 @@
-
 const MEMBERS = {
   ceo: {
-    name: 'Priya — CEO',
+    name: 'Priya — Delivery Lead',
     emoji: '👑',
     color: 'rgba(200,113,90,0.15)',
     tag: 'Vision · Brand Strategy · Business Growth',
-    system: `You are Priya, the CEO of Pooja's Couture — a South Asian bridal and traditional fashion boutique based in Sydney, Australia. The boutique operates from a converted garage studio and specialises in bridal sneakers, lehengas, sarees, salwar suits, and sherwanis.
+    system: `You are Priya, the Delivery Lead of Pooja's Couture — a South Asian bridal and traditional fashion boutique based in Sydney, Australia. The boutique operates from a converted garage studio and specialises in bridal sneakers, lehengas, sarees, salwar suits, and sherwanis.
 
 Your role: Set strategic direction, approve major decisions, guide brand positioning, identify growth opportunities, and make final calls on pricing, partnerships, and business expansion.
 
@@ -19,16 +18,16 @@ When answering:
 - Always keep Pooja's Couture's South Asian cultural identity and Sydney market context front of mind
 - Never mention being an AI; stay fully in character as Priya`,
 
-    welcome: "I'm Priya, your CEO. I handle brand strategy, business decisions, pricing, partnerships, and growth direction. Flip on Auto-Delegate above and I'll route your request straight to the right team members and hand you back one finished deliverable. What do you need?",
+    welcome: "I'm Priya, your Delivery Lead. I handle brand strategy, business decisions, pricing, partnerships, and growth direction. Flip on Auto-Delegate above and I'll route your request straight to the right team members and hand you back one finished deliverable. What do you need?",
     chips: ['Plan our Diwali bridal collection launch', 'How do we grow in Sydney?', 'Build a full campaign for bridal sneakers', 'Plan for wedding season 2025', 'Launch a new product line']
   },
 
   coo: {
-    name: 'Riya — COO',
+    name: 'Riya — Delivery Manager',
     emoji: '⚙️',
     color: 'rgba(212,168,75,0.15)',
     tag: 'Operations · Workflow · Inventory · Scheduling',
-    system: `You are Riya, the COO of Pooja's Couture — a South Asian bridal boutique in Sydney operating from a converted garage studio. You manage day-to-day operations including appointment scheduling, inventory management, vendor coordination, studio workflow, and order fulfilment for bridal sneakers, lehengas, sarees, salwar suits, and sherwanis.
+    system: `You are Riya, the Delivery Manager of Pooja's Couture — a South Asian bridal boutique in Sydney operating from a converted garage studio. You manage day-to-day operations including appointment scheduling, inventory management, vendor coordination, studio workflow, and order fulfilment for bridal sneakers, lehengas, sarees, salwar suits, and sherwanis.
 
 Your role: Keep operations running smoothly, reduce bottlenecks, build repeatable processes, manage timelines for custom orders, and ensure the boutique experience is seamless for brides.
 
@@ -41,7 +40,7 @@ When answering:
 - Keep recommendations practical given the small team and garage studio setting
 - Never mention being an AI; stay fully in character as Riya`,
 
-    welcome: "I'm Riya, your COO. I handle operations — appointments, orders, inventory, vendor coordination, and studio workflows. What needs fixing or building?",
+    welcome: "I'm Riya, your Delivery Manager. I handle operations — appointments, orders, inventory, vendor coordination, and studio workflows. What needs fixing or building?",
     chips: ['Build an appointment booking process', 'Create an order tracking system', 'How to manage custom orders?', 'Inventory checklist for bridal season', 'Streamline client fitting workflow']
   },
 
@@ -162,7 +161,7 @@ function setAgentStatus(id, status, label) {
 }
 
 const ORCHESTRATOR_AGENTS = ['coo', 'marketing', 'writer', 'designer', 'creator'];
-const ORCHESTRATOR_SYSTEM = `You are Priya, CEO of Pooja's Couture, acting as an internal task router. Given a business request from the owner, decide which of the following team members actually need to act on it, and write each of them a clear, specific, self-contained task brief.
+const ORCHESTRATOR_SYSTEM = `You are Priya, Delivery Lead of Pooja's Couture, acting as an internal task router. Given a business request from the owner, decide which of the following team members actually need to act on it, and write each of them a clear, specific, self-contained task brief.
 
 Team members available:
 - coo (Riya): operations, appointments, inventory, vendor coordination, order workflows, scheduling
@@ -171,11 +170,11 @@ Team members available:
 - designer (Tara): visual direction, mood boards, colour palettes, photography briefs, grid aesthetics
 - creator (Dia): Reels/TikTok scripts, video content, UGC briefs, trending audio/formats
 
-Be selective like a real CEO — only delegate to team members genuinely needed for this request. Do not default to involving everyone.
+Be selective like a real Delivery Lead — only delegate to team members genuinely needed for this request. Do not default to involving everyone.
 
 Respond with ONLY valid JSON, no markdown code fences, no preamble, no explanation outside the JSON:
 {
-  "strategic_take": "1-2 sentence CEO-level framing of the request and the goal",
+  "strategic_take": "1-2 sentence Delivery Lead-level framing of the request and the goal",
   "delegations": [
     {"agent": "marketing", "task": "specific, detailed, self-contained instruction this person can act on without further context"}
   ]
@@ -221,7 +220,6 @@ function renderMessages() {
   msgs.innerHTML = '';
 
   if (histories[id].length === 0) {
-    // Welcome card
     const card = document.createElement('div');
     card.className = 'welcome-card msg ai';
     card.style.maxWidth = '560px';
@@ -322,9 +320,6 @@ function handleKey(e) {
 }
 
 async function callClaude(system, messages) {
-  // Calls our own Cloudflare Pages Function (/functions/api/ai-team.js),
-  // which holds the real Anthropic API key server-side. Never call
-  // api.anthropic.com directly from client code in a public repo.
   const response = await fetch('/api/ai-team', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -402,7 +397,6 @@ async function runDelegationPipeline(text) {
   isLoading = true;
   document.getElementById('send-btn').disabled = true;
 
-  // Stage 1: orchestration card
   const stageWrapper = document.createElement('div');
   stageWrapper.className = 'msg ai';
   const stageCard = document.createElement('div');
@@ -422,7 +416,6 @@ async function runDelegationPipeline(text) {
     }
     setAgentStatus('ceo', 'done', 'Delegated');
   } catch (err) {
-    // Fallback: just answer directly as Priya, no delegation
     stageWrapper.remove();
     showTyping();
     try {
@@ -441,7 +434,6 @@ async function runDelegationPipeline(text) {
     return;
   }
 
-  // Render delegation plan
   const validDelegations = plan.delegations.filter(d => ORCHESTRATOR_AGENTS.includes(d.agent));
   stageCard.innerHTML = `
     <div class="pipeline-stage-label"><span class="pdot"></span> DELEGATION PLAN</div>
@@ -458,7 +450,6 @@ async function runDelegationPipeline(text) {
   `;
   msgs.scrollTop = msgs.scrollHeight;
 
-  // Stage 2: execute each delegation sequentially, updating status live
   const contributions = [];
   for (let i = 0; i < validDelegations.length; i++) {
     const d = validDelegations[i];
@@ -468,7 +459,7 @@ async function runDelegationPipeline(text) {
     setAgentStatus(d.agent, 'working');
 
     const agent = MEMBERS[d.agent];
-    const delegatedSystem = agent.system + `\n\nIMPORTANT CONTEXT: This task was delegated to you directly by Priya, the CEO, as part of the following directive: "${plan.strategic_take || text}"\n\nYour specific task: ${d.task}\n\nRespond with your actual finished deliverable — not a confirmation that you will do it.`;
+    const delegatedSystem = agent.system + `\n\nIMPORTANT CONTEXT: This task was delegated to you directly by Priya, the Delivery Lead, as part of the following directive: "${plan.strategic_take || text}"\n\nYour specific task: ${d.task}\n\nRespond with your actual finished deliverable — not a confirmation that you will do it.`;
 
     let output;
     try {
@@ -483,7 +474,6 @@ async function runDelegationPipeline(text) {
     statusEl.className = 'd-status done';
     statusEl.textContent = '✓';
 
-    // Render collapsible contribution card
     const details = document.createElement('details');
     details.className = 'agent-contribution';
     details.innerHTML = `
@@ -502,7 +492,6 @@ async function runDelegationPipeline(text) {
     msgs.scrollTop = msgs.scrollHeight;
   }
 
-  // Stage 3: synthesis
   const synthStageWrapper = document.createElement('div');
   synthStageWrapper.className = 'msg ai';
   const synthCard = document.createElement('div');
@@ -520,7 +509,7 @@ Team outputs:
 
 ${contributions.map(c => `[${MEMBERS[c.agent].name}]\n${c.output}`).join('\n\n')}
 
-Compile this into one final, cohesive, ready-to-use deliverable for the business owner. Organize it clearly by function with short headers. Remove redundancy between sections. Close with a brief CEO-level recommendation or next step. Do not just repeat each section verbatim — synthesize and ensure consistency across them.`;
+Compile this into one final, cohesive, ready-to-use deliverable for the business owner. Organize it clearly by function with short headers. Remove redundancy between sections. Close with a brief Delivery Lead-level recommendation or next step. Do not just repeat each section verbatim — synthesize and ensure consistency across them.`;
 
   setAgentStatus('ceo', 'working', 'Compiling…');
   let finalOutput;
@@ -555,16 +544,6 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ── ACCESS CONTROL ──
-// ASSUMPTION FLAGGED: this reads `pc_current_user` from localStorage and
-// expects a `.role` field, based on the pattern used in your tailor/shipping
-// portals (session cached client-side after login). I have not seen the
-// exact shape of that object in this conversation — verify `currentUser.role`
-// actually matches your real auth code before relying on this. This is a
-// CLIENT-SIDE gate for UX only; your real access control still has to be
-// Supabase RLS on the data tables this page touches (it currently touches
-// none directly — it only calls /api/ai-team — but if you later log AI
-// conversations to a table, that table needs its own RLS policy too).
 const ALLOWED_ROLES = ['admin', 'social_crm'];
 
 function checkAccess(isRetry) {
@@ -580,10 +559,6 @@ function checkAccess(isRetry) {
     currentUser = null;
   }
 
-  // Guard against a race with config.js still hydrating the session on a
-  // fresh page load — retry once after a short delay before concluding
-  // the person isn't logged in. Remove this if your real session check
-  // is already synchronous by the time this script runs.
   if (!currentUser && !isRetry) {
     setTimeout(() => checkAccess(true), 400);
     return;
@@ -603,7 +578,6 @@ function checkAccess(isRetry) {
     return;
   }
 
-  // Access granted
   gateScreen.classList.add('d-none');
   gateScreen.classList.remove('active');
   workspace.classList.remove('d-none');
