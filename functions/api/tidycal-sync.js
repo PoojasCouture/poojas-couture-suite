@@ -1,11 +1,13 @@
 // functions/api/tidycal-sync.js
 // Syncs TidyCal bookings into the Supabase `appointments` table.
-// Called by the frontend when the Appointments view loads, or via a Sync button.
+// Batched: one insert request for ALL new bookings, one update request per
+// changed status value (max 2: Confirmed/Cancelled), to stay well under
+// Cloudflare's subrequest limit.
 //
 // Required Cloudflare env vars:
 //   TIDYCAL_API_TOKEN    - TidyCal personal access token
 //   SUPABASE_URL         - e.g. https://xxxx.supabase.co
-//   SUPABASE_SERVICE_KEY - Supabase service_role key (bypasses RLS; server-side only)
+//   SUPABASE_SERVICE_KEY - Supabase service_role key (server-side only)
 
 export async function onRequest(context) {
   const { env } = context;
@@ -28,8 +30,14 @@ export async function onRequest(context) {
     );
   }
 
+  const sbHeaders = {
+    'apikey': env.SUPABASE_SERVICE_KEY,
+    'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_KEY,
+    'Content-Type': 'application/json'
+  };
+
   try {
-    // 1. Fetch bookings from TidyCal (paginated)
+    // 1. Fetch bookings from TidyCal (paginated, capped at 10 pages)
     let bookings = [];
     let page = 1;
     let hasMore = true;
@@ -65,15 +73,10 @@ export async function onRequest(context) {
       );
     }
 
-    // 2. Get existing tidycal_ids from Supabase to split insert vs update
+    // 2. One read: existing tidycal_ids and their statuses
     const existingRes = await fetch(
       env.SUPABASE_URL + '/rest/v1/appointments?select=tidycal_id,status&tidycal_id=not.is.null',
-      {
-        headers: {
-          'apikey': env.SUPABASE_SERVICE_KEY,
-          'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_KEY
-        }
-      }
+      { headers: sbHeaders }
     );
 
     if (!existingRes.ok) {
@@ -90,10 +93,10 @@ export async function onRequest(context) {
       existingMap[row.tidycal_id] = row.status;
     }
 
-    // 3. Build rows and sync
-    let inserted = 0;
-    let updated = 0;
-    const errors = [];
+    // 3. Build new rows and status-change lists in memory
+    const newRows = [];
+    const toCancel = [];
+    const toConfirm = [];
 
     for (const b of bookings) {
       const tidycalId = String(b.id);
@@ -105,61 +108,72 @@ export async function onRequest(context) {
       const isCancelled = Boolean(b.cancelled_at);
       const status = isCancelled ? 'Cancelled' : 'Confirmed';
 
-      const noteParts = [];
-      if (contactEmail) noteParts.push('Email: ' + contactEmail);
-      if (contactPhone) noteParts.push('Phone: ' + contactPhone);
-      noteParts.push('Source: TidyCal');
-      const notes = noteParts.join(' | ');
-
       if (Object.prototype.hasOwnProperty.call(existingMap, tidycalId)) {
-        // Already synced - only update if status changed (e.g. cancellation)
         if (existingMap[tidycalId] !== status) {
-          const updRes = await fetch(
-            env.SUPABASE_URL + '/rest/v1/appointments?tidycal_id=eq.' + encodeURIComponent(tidycalId),
-            {
-              method: 'PATCH',
-              headers: {
-                'apikey': env.SUPABASE_SERVICE_KEY,
-                'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_KEY,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=minimal'
-              },
-              body: JSON.stringify({ status: status, updated_at: new Date().toISOString() })
-            }
-          );
-          if (updRes.ok) {
-            updated += 1;
+          if (status === 'Cancelled') {
+            toCancel.push(tidycalId);
           } else {
-            errors.push('Update failed for booking ' + tidycalId);
+            toConfirm.push(tidycalId);
           }
         }
       } else {
-        // New booking - insert
-        const insRes = await fetch(env.SUPABASE_URL + '/rest/v1/appointments', {
-          method: 'POST',
-          headers: {
-            'apikey': env.SUPABASE_SERVICE_KEY,
-            'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_KEY,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify({
-            tidycal_id: tidycalId,
-            client_name: contactName,
-            date: startsAt,
-            type: bookingType,
-            status: status,
-            notes: notes
-          })
+        const noteParts = [];
+        if (contactEmail) noteParts.push('Email: ' + contactEmail);
+        if (contactPhone) noteParts.push('Phone: ' + contactPhone);
+        noteParts.push('Source: TidyCal');
+
+        newRows.push({
+          tidycal_id: tidycalId,
+          client_name: contactName,
+          date: startsAt,
+          type: bookingType,
+          status: status,
+          notes: noteParts.join(' | ')
         });
-        if (insRes.ok) {
-          inserted += 1;
-        } else {
-          const body = await insRes.text();
-          errors.push('Insert failed for booking ' + tidycalId + ': ' + body.slice(0, 200));
-        }
       }
     }
+
+    const errors = [];
+    let inserted = 0;
+    let updated = 0;
+
+    // 4. ONE batched insert for all new rows
+    if (newRows.length > 0) {
+      const insRes = await fetch(env.SUPABASE_URL + '/rest/v1/appointments', {
+        method: 'POST',
+        headers: Object.assign({}, sbHeaders, { 'Prefer': 'return=minimal' }),
+        body: JSON.stringify(newRows)
+      });
+      if (insRes.ok) {
+        inserted = newRows.length;
+      } else {
+        const body = await insRes.text();
+        errors.push('Batch insert failed: ' + body.slice(0, 300));
+      }
+    }
+
+    // 5. At most TWO batched updates (one per target status) using in.() filter
+    async function batchUpdateStatus(ids, newStatus) {
+      if (ids.length === 0) return;
+      const filter = 'in.(' + ids.map(function (id) { return '"' + id + '"'; }).join(',') + ')';
+      const updRes = await fetch(
+        env.SUPABASE_URL + '/rest/v1/appointments?tidycal_id=' + encodeURIComponent(filter),
+        {
+          method: 'PATCH',
+          headers: Object.assign({}, sbHeaders, { 'Prefer': 'return=minimal' }),
+          body: JSON.stringify({ status: newStatus, updated_at: new Date().toISOString() })
+        }
+      );
+      if (updRes.ok) {
+        updated += ids.length;
+      } else {
+        const body = await updRes.text();
+        errors.push('Batch update to ' + newStatus + ' failed: ' + body.slice(0, 300));
+      }
+    }
+
+    await batchUpdateStatus(toCancel, 'Cancelled');
+    await batchUpdateStatus(toConfirm, 'Confirmed');
 
     return new Response(
       JSON.stringify({
