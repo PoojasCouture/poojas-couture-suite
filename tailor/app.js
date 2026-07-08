@@ -261,6 +261,133 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
+  // ---------- Photo Requests (from Pooja) ----------
+  let photoSection = null;
+
+  function ensurePhotoSection() {
+    if (photoSection) return photoSection;
+    photoSection = document.createElement('div');
+    photoSection.id = 'photo-requests-section';
+    photoSection.className = 'card mb-4';
+    tasksList.parentNode.insertBefore(photoSection, tasksList);
+    return photoSection;
+  }
+
+  function loadPhotoRequests() {
+    const section = ensurePhotoSection();
+    const pending = Store.getAll(Store.COLLECTIONS.PHOTO_REQUESTS)
+      .filter(r => r.status === 'Pending')
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    if (pending.length === 0) {
+      section.style.display = 'none';
+      section.innerHTML = '';
+      return;
+    }
+    section.style.display = '';
+    section.style.border = '2px solid #ef4444';
+    section.innerHTML =
+      '<div class="d-flex items-center gap-2 mb-3">' +
+        '<span class="badge badge-danger" style="background:#ef4444;color:#fff">&#128248; ' + pending.length + '</span>' +
+        '<span class="font-semibold text-sm">Photo Requests from Pooja</span>' +
+      '</div>' +
+      pending.map(r =>
+        '<div class="p-3 rounded-md mb-2" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.35)">' +
+          '<div class="font-semibold text-sm">' + Utils.sanitizeHTML(r.orderTitle || 'Order') + '</div>' +
+          '<div class="text-xs text-muted mt-1">Client: ' + Utils.sanitizeHTML(r.clientName || '') + '</div>' +
+          '<div class="text-xs mt-2"><span class="text-gold font-semibold">Requested:</span> ' + Utils.sanitizeHTML(r.requestedItems) + '</div>' +
+          '<button class="btn btn-primary btn-sm mt-2" onclick="openPhotoUpload(\'' + r.orderId + '\', \'' + r.id + '\')">&#128247; Upload Photos</button>' +
+        '</div>'
+      ).join('');
+  }
+
+  // Compress an image file to max 1600px JPEG base64 (keeps uploads fast on mobile data)
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Not a valid image'));
+        img.onload = () => {
+          const MAX = 1600;
+          let w = img.width, h = img.height;
+          if (w > MAX || h > MAX) {
+            const scale = MAX / Math.max(w, h);
+            w = Math.round(w * scale); h = Math.round(h * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(dataUrl.split(',')[1]);
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  window.openPhotoUpload = function (orderId, requestId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    const req = requestId ? Store.getById(Store.COLLECTIONS.PHOTO_REQUESTS, requestId) : null;
+
+    showModal({
+      title: '\uD83D\uDCF7 Upload Photos' + (o ? ' \u2014 ' + o.title : ''),
+      content:
+        (req ? '<div class="p-2 rounded-md mb-3 text-xs" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3)"><b>Pooja requested:</b> ' + Utils.sanitizeHTML(req.requestedItems) + '</div>' : '') +
+        '<div class="form-group"><label class="form-label">Choose photo(s)</label>' +
+        '<input type="file" id="ph-files" class="form-input" accept="image/*" multiple capture="environment"></div>' +
+        '<div class="form-group"><label class="form-label">Caption (optional)</label>' +
+        '<input type="text" id="ph-caption" class="form-input" placeholder="e.g. front view, back of blouse"></div>' +
+        (req ? '<label class="d-flex items-center gap-2 text-xs"><input type="checkbox" id="ph-fulfil" checked> This completes Pooja\'s request</label>' : '') +
+        '<div id="ph-progress" class="text-xs text-muted mt-2"></div>',
+      submitText: 'Upload',
+      onSubmit: async (overlay) => {
+        const files = overlay.querySelector('#ph-files').files;
+        if (!files || files.length === 0) { Utils.showToast('Choose at least one photo.', 'error'); return false; }
+        const caption = overlay.querySelector('#ph-caption').value.trim();
+        const fulfilEl = overlay.querySelector('#ph-fulfil');
+        const progress = overlay.querySelector('#ph-progress');
+        const submitBtn = overlay.querySelector('#pc-modal-submit');
+        submitBtn.disabled = true;
+
+        try {
+          for (let i = 0; i < files.length; i++) {
+            progress.textContent = 'Uploading photo ' + (i + 1) + ' of ' + files.length + '...';
+            const b64 = await compressImage(files[i]);
+            const isLast = i === files.length - 1;
+            const res = await fetch('/api/upload-photo', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                imageBase64: b64,
+                mimeType: 'image/jpeg',
+                orderId: orderId || null,
+                requestId: requestId || null,
+                markFulfilled: isLast && !!(fulfilEl && fulfilEl.checked),
+                context: 'Karigar Progress',
+                caption: caption || null,
+                uploadedBy: currentUser ? currentUser.name : 'Karigar'
+              })
+            });
+            const out = await res.json();
+            if (!out.ok) throw new Error(out.error || 'Upload failed');
+          }
+          Utils.showToast(files.length + ' photo(s) uploaded. Pooja can see them now.');
+          await Store.refresh('photo_requests');
+          loadPhotoRequests();
+          return true;
+        } catch (err) {
+          progress.textContent = '';
+          submitBtn.disabled = false;
+          Utils.showToast('Upload failed: ' + err.message, 'error');
+          return false;
+        }
+      }
+    });
+  };
+
   // ---------- Load Tasks ----------
   function loadTasks() {
     tasksList.innerHTML = '';
@@ -308,6 +435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (order.status === 'Ready') {
           actionButton = `<button class="btn btn-gold btn-sm mt-2" onclick="openShipToShashank('${order.id}')">🚚 Ship to Shashank</button>`;
         }
+        actionButton += ` <button class="btn btn-secondary btn-sm mt-2" onclick="openPhotoUpload('${order.id}', null)">📷 Photos</button>`;
       } else if (order.status === 'Shipped to Shashank') {
         actionButton = `<span class="badge badge-info text-xs mt-2 p-2">Shipped to Shashank — ${Utils.sanitizeHTML(order.domesticTracking || 'tracking pending')}</span>`;
       }
@@ -445,10 +573,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Realtime: re-render when orders change in another portal
+  loadPhotoRequests();
+
+  // Realtime: re-render when orders or photo requests change in another portal
   window.addEventListener('pc:datachange', (e) => {
     if (e.detail && e.detail.table === 'orders') {
       Store.refresh('orders').then(() => loadTasks());
+    }
+    if (e.detail && e.detail.table === 'photo_requests') {
+      Store.refresh('photo_requests').then(() => loadPhotoRequests());
     }
   });
 
@@ -458,6 +591,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         await Store.refresh('orders');
         loadTasks();
+        await Store.refresh('photo_requests');
+        loadPhotoRequests();
       } catch (e) { /* ignore */ }
     }
   });

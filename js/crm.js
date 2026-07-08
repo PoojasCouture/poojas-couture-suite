@@ -1407,6 +1407,9 @@ poojascouture.com.au`
   function showOrderDetails(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
     if (!o) return;
+    const orderPhotos = Store.query(Store.COLLECTIONS.JOB_PHOTOS, p => p.orderId === orderId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const pendingPhotoReqs = Store.query(Store.COLLECTIONS.PHOTO_REQUESTS, r => r.orderId === orderId && r.status === 'Pending');
 
     // Pre-compute deadline banner (avoid IIFE with const inside template literal)
     const DETAIL_DONE = ['Ready','Shipped to Shashank','At Shashank','In Transit','Awaiting Payment',
@@ -1518,6 +1521,22 @@ poojascouture.com.au`
             ${o.designNotes?`
             <h4 class="text-sm font-semibold text-gold mb-1 mt-3">Design Notes</h4>
             <div class="p-2 rounded-md text-xs" style="background:rgba(0,0,0,0.2);white-space:pre-line;border:1px solid var(--pc-border)">${Utils.sanitizeHTML(o.designNotes)}</div>`:''}
+            <div class="d-flex justify-between items-center mt-3 mb-1">
+              <h4 class="text-sm font-semibold text-gold">Photos (${orderPhotos.length})</h4>
+              <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.requestPhotos('${orderId}'),200)">📸 Request Photos</button>
+            </div>
+            ${pendingPhotoReqs.length?`<div class="p-2 rounded-md text-xs mb-2" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3)">
+              ${pendingPhotoReqs.map(r=>`<div>⏳ <b>Awaiting from karigar:</b> ${Utils.sanitizeHTML(r.requestedItems)} <span class="text-muted">(${Utils.formatDate(r.createdAt)})</span></div>`).join('')}
+            </div>`:''}
+            ${orderPhotos.length===0?`<div class="text-xs text-muted p-3 text-center rounded-md" style="border:1px dashed var(--pc-border)">No photos uploaded yet.</div>`:`
+            <div class="d-flex flex-wrap gap-2">
+              ${orderPhotos.map(p=>`
+                <a href="${p.url}" target="_blank" rel="noopener" style="display:block;width:92px;text-decoration:none">
+                  <img src="${p.url}" alt="${Utils.sanitizeHTML(p.caption||p.context||'photo')}" loading="lazy"
+                    style="width:92px;height:92px;object-fit:cover;border-radius:8px;border:1px solid var(--pc-border)">
+                  <div class="text-xs text-muted mt-1" style="line-height:1.3">${Utils.sanitizeHTML(Utils.truncateText(p.caption||p.context||'',24))}<br>${Utils.formatDate(p.createdAt)} · ${Utils.sanitizeHTML(p.uploadedBy||'')}</div>
+                </a>`).join('')}
+            </div>`}
             ${o.embroideryDetails?`
             <h4 class="text-sm font-semibold text-gold mb-1 mt-3">Embroidery Details</h4>
             <div class="p-2 rounded-md text-xs" style="background:rgba(0,0,0,0.2);white-space:pre-line;border:1px solid var(--pc-border)">${Utils.sanitizeHTML(o.embroideryDetails)}</div>`:''}
@@ -3686,6 +3705,37 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     showComposeModal(clientId, 'custom', {});
   }
 
+  function requestPhotos(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+    App.showModal({
+      title: `📸 Request Photos — ${o.title}`,
+      content: `
+        <div class="form-group">
+          <label class="form-label">What photos do you need? *</label>
+          <textarea id="preq-items" class="form-input" rows="3" placeholder="e.g. front, back, dupatta close-up, handwork detail" required></textarea>
+        </div>
+        <div class="text-xs text-muted">The karigar will see this as a red alert in their workstation. Send them a WhatsApp too so they check the portal.</div>`,
+      submitText: 'Send Request',
+      onSubmit: async () => {
+        const items = Utils.$('#preq-items').value.trim();
+        if (!items) { Utils.showToast('Describe the photos you need.', 'error'); return false; }
+        const currentUser = Store.getCurrentUser();
+        await Store.create(Store.COLLECTIONS.PHOTO_REQUESTS, {
+          orderId: orderId,
+          orderTitle: o.title,
+          clientName: o.clientName,
+          requestedItems: items,
+          status: 'Pending',
+          requestedBy: currentUser ? currentUser.name : 'Unknown'
+        });
+        Store.logAction(`Requested photos for order ${o.orderCode || o.title}: ${Utils.truncateText(items, 60)}`);
+        Utils.showToast('Photo request sent to the karigar workstation.');
+        return true;
+      }
+    });
+  }
+
   function logClientChange(clientId) {
     const client = Store.getById(Store.COLLECTIONS.CLIENTS, clientId);
     if (!client) return;
@@ -3784,6 +3834,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     showKPIReport,
     updateProjectInvoice,
     recordMilestonePayment,
-    logClientChange
+    logClientChange,
+    requestPhotos
   };
 })();
