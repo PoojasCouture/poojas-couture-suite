@@ -478,7 +478,9 @@ poojascouture.com.au`
   // ==========================================
 
   function renderAppointments(container, actions) {
-    actions.innerHTML = `<button class="btn btn-primary" id="btn-add-appt">+ Schedule Appointment</button>`;
+    actions.innerHTML = `
+      <button class="btn btn-secondary" id="btn-sync-tidycal" title="Pull latest bookings from TidyCal">&#8635; Sync TidyCal</button>
+      <button class="btn btn-primary" id="btn-add-appt">+ Schedule Appointment</button>`;
     Utils.$('#btn-add-appt').addEventListener('click', () => showAppointmentModal());
 
     container.innerHTML = `
@@ -497,6 +499,8 @@ poojascouture.com.au`
               <option value="Consultation">Consultations</option>
               <option value="Fitting">Fittings</option>
               <option value="Pickup">Pickups</option>
+              <option value="Video Call">Video Calls</option>
+              <option value="Store Visit">Store Visits</option>
             </select>
           </div>
           <div class="text-muted text-sm font-mono" id="appt-count"></div>
@@ -557,6 +561,43 @@ poojascouture.com.au`
     statusFilter.addEventListener('change', refreshTable);
     typeFilter.addEventListener('change', refreshTable);
     refreshTable();
+
+    // --- TidyCal sync (non-blocking) ---
+    const syncBtn = Utils.$('#btn-sync-tidycal');
+    let syncing = false;
+
+    async function syncTidyCal(silent) {
+      if (syncing) return;
+      syncing = true;
+      if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = '&#8635; Syncing...'; }
+      try {
+        const res = await fetch('/api/tidycal-sync');
+        const result = await res.json();
+        if (result && result.ok) {
+          if ((result.synced || 0) > 0 || (result.updated || 0) > 0) {
+            await Store.refresh(Store.COLLECTIONS.APPOINTMENTS);
+            refreshTable();
+            Utils.showToast(`TidyCal: ${result.synced || 0} new, ${result.updated || 0} updated.`);
+          } else if (!silent) {
+            Utils.showToast('TidyCal: already up to date.', 'info');
+          }
+        } else if (!silent) {
+          Utils.showToast('TidyCal sync failed. Check console.', 'error');
+          console.error('TidyCal sync error:', result);
+        }
+      } catch (err) {
+        if (!silent) Utils.showToast('TidyCal sync failed. Check console.', 'error');
+        console.error('TidyCal sync error:', err);
+      } finally {
+        syncing = false;
+        if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '&#8635; Sync TidyCal'; }
+      }
+    }
+
+    if (syncBtn) syncBtn.addEventListener('click', () => syncTidyCal(false));
+    // Background sync on view load: table renders instantly from cache,
+    // new bookings appear a moment later if any arrived.
+    syncTidyCal(true);
   }
 
   function showAppointmentModal(apptId = null) {
