@@ -68,14 +68,16 @@ const Store = (() => {
     SHIPMENTS: 'shipments',
     ORDER_TAILORS: 'order_tailors',
     EMAILS: 'emails',
-    ORDER_PROJECTS: 'order_projects'
+    ORDER_PROJECTS: 'order_projects',
+    CLIENT_CHANGES: 'client_changes'
   };
 
   // Tables to preload into cache at startup
   const PRELOAD_TABLES = [
     'clients','appointments','orders','employees','attendance','leaves',
     'payroll','invoices','expenses','audit_logs','products','sales',
-    'sale_items','shipments','order_tailors','emails','vendors','order_projects'
+    'sale_items','shipments','order_tailors','emails','vendors','order_projects',
+    'client_changes'
   ];
 
   // ---- In-memory cache: { tableName: [rows] } ----
