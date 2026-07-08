@@ -364,6 +364,7 @@ poojascouture.com.au`
     const appointments = Store.query(Store.COLLECTIONS.APPOINTMENTS, a => a.clientId === clientId);
     const orders = Store.query(Store.COLLECTIONS.ORDERS, o => o.clientId === clientId);
     const emails = getClientEmailHistory(clientId);
+    const changes = Store.query(Store.COLLECTIONS.CLIENT_CHANGES, ch => ch.clientId === clientId);
     const totalSpend = orders.reduce((sum, o) => sum + (o.price||0), 0);
 
     App.showModal({
@@ -415,6 +416,27 @@ poojascouture.com.au`
                     <td><span class="badge badge-gold">${o.status}</span></td>
                     <td>${Utils.formatDate(o.deadline)}</td>
                   </tr>`).join('')}</tbody>
+                </table>
+              </div>`}
+          </div>
+          <div>
+            <div class="d-flex justify-between items-center mb-2">
+              <h4 class="text-sm font-semibold text-gold">Change Log (${changes.length})</h4>
+              <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.logClientChange('${clientId}'),200)">+ Log Change</button>
+            </div>
+            ${changes.length===0?`<div class="text-xs text-muted p-3 text-center rounded-md" style="border:1px dashed var(--pc-border)">No changes logged yet.</div>`:`
+              <div class="table-container" style="max-height:170px">
+                <table class="data-table text-xs">
+                  <thead><tr><th>Date</th><th>Change</th><th>Requested By</th><th>Price Impact</th><th>Timeline</th></tr></thead>
+                  <tbody>${changes.slice().sort((a,b)=>new Date(b.changeDate)-new Date(a.changeDate)).map(ch=>{
+                    const relOrder = ch.orderId ? Store.getById(Store.COLLECTIONS.ORDERS, ch.orderId) : null;
+                    return `<tr>
+                    <td class="font-mono">${Utils.formatDate(ch.changeDate)}</td>
+                    <td>${Utils.sanitizeHTML(ch.description)}${relOrder?`<div class="text-muted mt-1">→ ${Utils.sanitizeHTML(relOrder.title)}</div>`:''}</td>
+                    <td><span class="badge ${ch.requestedBy==='Client'?'badge-info':'badge-muted'}">${Utils.sanitizeHTML(ch.requestedBy||'—')}</span></td>
+                    <td class="font-mono">${(ch.priceImpact||0)!==0?((ch.priceImpact>0?'+':'')+Utils.formatCurrency(ch.priceImpact)):'—'}</td>
+                    <td class="text-muted">${Utils.truncateText(ch.timelineImpact||'—',30)}</td>
+                  </tr>`;}).join('')}</tbody>
                 </table>
               </div>`}
           </div>
@@ -3598,6 +3620,78 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     showComposeModal(clientId, 'custom', {});
   }
 
+  function logClientChange(clientId) {
+    const client = Store.getById(Store.COLLECTIONS.CLIENTS, clientId);
+    if (!client) return;
+    const clientOrders = Store.query(Store.COLLECTIONS.ORDERS, o => o.clientId === clientId);
+    const today = new Date().toISOString().slice(0, 10);
+
+    App.showModal({
+      title: `Log Change — ${client.name}`,
+      content: `
+        <div class="d-flex flex-col gap-3">
+          <div class="d-grid gap-3" style="grid-template-columns:1fr 1fr">
+            <div class="form-group">
+              <label class="form-label">Change Date *</label>
+              <input type="date" id="chg-date" class="form-input" value="${today}" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Requested By *</label>
+              <select id="chg-requested-by" class="form-select">
+                <option value="Client">Client</option>
+                <option value="Boutique">Boutique</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Related Garment / Order (optional)</label>
+            <select id="chg-order" class="form-select">
+              <option value="">— Whole project / general —</option>
+              ${clientOrders.map(o => `<option value="${o.id}">${Utils.sanitizeHTML(o.title)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">What changed? *</label>
+            <textarea id="chg-desc" class="form-input" rows="3" placeholder="e.g. Client requested sleeve length increased to 18in; dupatta colour changed from 26 to 132" required></textarea>
+          </div>
+          <div class="d-grid gap-3" style="grid-template-columns:1fr 1fr">
+            <div class="form-group">
+              <label class="form-label">Price Impact (AUD, inc GST)</label>
+              <input type="number" id="chg-price" class="form-input" step="0.01" value="0" placeholder="0 = no change, negative = discount">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Timeline Impact</label>
+              <input type="text" id="chg-timeline" class="form-input" placeholder="e.g. +1 week, or none">
+            </div>
+          </div>
+        </div>`,
+      submitText: 'Save Change',
+      onSubmit: async () => {
+        const desc = Utils.$('#chg-desc').value.trim();
+        if (!desc) { Utils.showToast('Description is required.', 'error'); return false; }
+        const orderId = Utils.$('#chg-order').value || null;
+        const relOrder = orderId ? Store.getById(Store.COLLECTIONS.ORDERS, orderId) : null;
+        const currentUser = Store.getCurrentUser();
+        await Store.create(Store.COLLECTIONS.CLIENT_CHANGES, {
+          clientId: clientId,
+          clientName: client.name,
+          orderId: orderId,
+          projectId: relOrder ? (relOrder.projectId || null) : null,
+          changeDate: Utils.$('#chg-date').value || today,
+          description: desc,
+          requestedBy: Utils.$('#chg-requested-by').value,
+          priceImpact: parseFloat(Utils.$('#chg-price').value) || 0,
+          timelineImpact: Utils.$('#chg-timeline').value.trim() || null,
+          loggedBy: currentUser ? currentUser.name : 'Unknown'
+        });
+        Store.logAction(`Logged change for client ${client.name}: ${Utils.truncateText(desc, 60)}`);
+        Utils.showToast('Change logged.');
+        setTimeout(() => showClientDetailsModal(clientId), 250);
+        return true;
+      }
+    });
+  }
+
   return {
     init,
     editClient,
@@ -3623,6 +3717,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     createProjectInvoice,
     showKPIReport,
     updateProjectInvoice,
-    recordMilestonePayment
+    recordMilestonePayment,
+    logClientChange
   };
 })();
