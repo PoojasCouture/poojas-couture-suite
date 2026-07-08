@@ -934,6 +934,69 @@ poojascouture.com.au`
     return prefix + '-' + String(next).padStart(6, '0');
   }
 
+  // Boutique colour palette - shade card references used in orders.
+  // Hex values are PLACEHOLDER approximations; correct them against the
+  // physical shade cards (send Claude a photo of the card to set real values).
+  // Admins can also override via settings.colourPalette [{code,name,hex}].
+  const DEFAULT_COLOUR_PALETTE = [
+    { code: 'Neelam 92', name: 'Neelam Shade 92', hex: '#EDE6D6' },
+    { code: '26',        name: 'Shade 26 (Bridal)', hex: '#8B0E1F' },
+    { code: '53',        name: 'Shade 53', hex: '#0F5A5E' },
+    { code: '55L',       name: 'Shade 55L', hex: '#C9A227' },
+    { code: '77',        name: 'Shade 77', hex: '#D9642B' },
+    { code: '128',       name: 'Shade 128', hex: '#E8B4C8' },
+    { code: '132',       name: 'Shade 132', hex: '#6B2D5C' },
+    { code: '157',       name: 'Shade 157', hex: '#3E5F8A' },
+    { code: '157L',      name: 'Shade 157L', hex: '#7C9CC4' },
+    { code: '38',        name: 'Shade 38 (Purple)', hex: '#9B7BB8' },
+    { code: '39',        name: 'Shade 39 (Purple)', hex: '#7B5AA0' },
+    { code: '40',        name: 'Shade 40 (Purple)', hex: '#5C3D82' }
+  ];
+
+  function getColourPalette() {
+    const s = Store.getSettings();
+    return (s && Array.isArray(s.colourPalette) && s.colourPalette.length) ? s.colourPalette : DEFAULT_COLOUR_PALETTE;
+  }
+
+  function findPaletteColour(text) {
+    if (!text) return null;
+    const t = String(text).toLowerCase();
+    let best = null;
+    for (const p of getColourPalette()) {
+      const code = String(p.code).toLowerCase();
+      if (t === code || t.includes(code)) {
+        if (!best || String(p.code).length > String(best.code).length) best = p;
+      }
+    }
+    return best;
+  }
+
+  function renderColourSwatches(inputName) {
+    const chips = getColourPalette().map(p => `
+      <button type="button" class="colour-swatch-chip" data-target="${inputName}" data-code="${Utils.sanitizeHTML(p.code)}"
+        title="${Utils.sanitizeHTML(p.name)} (placeholder colour - verify against shade card)"
+        style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px 3px 4px;border:1px solid var(--pc-border);border-radius:999px;background:rgba(255,255,255,0.03);cursor:pointer;font-size:11px;color:var(--pc-text);">
+        <span style="width:16px;height:16px;border-radius:50%;background:${p.hex};border:1px solid rgba(0,0,0,0.25);display:inline-block;"></span>
+        ${Utils.sanitizeHTML(p.code)}
+      </button>`).join('');
+    return `<div class="d-flex flex-wrap gap-2 mt-2" data-swatch-row="${inputName}">${chips}</div>
+      <div class="text-xs text-muted mt-1">Tap a swatch to add it. Type freely for anything not on the card.</div>`;
+  }
+
+  function wireColourSwatches(modalEl) {
+    Utils.$$('.colour-swatch-chip', modalEl).forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = modalEl.querySelector(`[name="${btn.dataset.target}"]`);
+        if (!input) return;
+        const code = btn.dataset.code;
+        const cur = input.value.trim();
+        if (cur && cur.toLowerCase().includes(code.toLowerCase())) return;
+        input.value = cur ? cur + ', ' + code : code;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    });
+  }
+
   function showOrderModal(orderId = null) {
     const isEdit = !!orderId;
     const order = isEdit ? Store.getById(Store.COLLECTIONS.ORDERS, orderId) : null;
@@ -1051,6 +1114,7 @@ poojascouture.com.au`
               <div class="form-group">
                 <label class="form-label">Colour / Colour Ref #</label>
                 <input type="text" name="colourRef" class="form-input" placeholder="e.g. Rich Maroon, 252-L" value="${order?Utils.sanitizeHTML(order.colourRef||''):''}">
+                ${renderColourSwatches('colourRef')}
               </div>
             </div>
             <div class="form-row">
@@ -1335,6 +1399,8 @@ poojascouture.com.au`
         priceField.addEventListener('input', updatePct);
         depField.addEventListener('input', updatePct);
       }
+      const activeModal = document.querySelector('.modal-overlay.active');
+      if (activeModal) wireColourSwatches(activeModal);
     }, 50);
   }
 
@@ -1426,7 +1492,7 @@ poojascouture.com.au`
               ${o.eventDate?`<div><span class="text-muted">Event Date:</span> ${Utils.formatDate(o.eventDate)}</div>`:''}
               ${o.lookNumber?`<div><span class="text-muted">Look:</span> ${Utils.sanitizeHTML(o.lookNumber)}</div>`:''}
               ${o.fabricType?`<div><span class="text-muted">Fabric:</span> ${Utils.sanitizeHTML(o.fabricType)}</div>`:''}
-              ${o.colourRef?`<div><span class="text-muted">Colour Ref:</span> ${Utils.sanitizeHTML(o.colourRef)}</div>`:''}
+              ${o.colourRef?(()=>{const pc=findPaletteColour(o.colourRef);return `<div><span class="text-muted">Colour Ref:</span> ${pc?`<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${pc.hex};border:1px solid rgba(0,0,0,0.3);vertical-align:middle;margin-right:4px;" title="${Utils.sanitizeHTML(pc.name)}"></span>`:''}${Utils.sanitizeHTML(o.colourRef)}</div>`;})():''}
               ${o.dupattaDetails?`<div style="grid-column:1/-1"><span class="text-muted">Dupatta:</span> ${Utils.sanitizeHTML(o.dupattaDetails)}</div>`:''}
             </div>
             ${(o.mBust||o.mShoulder||o.mLehengaWaist)?`
