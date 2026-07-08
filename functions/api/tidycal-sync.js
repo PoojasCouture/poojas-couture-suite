@@ -106,10 +106,13 @@ export async function onRequest(context) {
       const bookingType = (b.booking_type && b.booking_type.title) ? b.booking_type.title : 'Booking';
       const startsAt = b.starts_at || null;
       const isCancelled = Boolean(b.cancelled_at);
-      const status = isCancelled ? 'Cancelled' : 'Confirmed';
+      const status = isCancelled ? 'Cancelled' : 'Scheduled';
 
       if (Object.prototype.hasOwnProperty.call(existingMap, tidycalId)) {
-        if (existingMap[tidycalId] !== status) {
+        const currentStatus = existingMap[tidycalId];
+        // Never override app-side terminal statuses (Completed / No-Show)
+        const appManaged = currentStatus === 'Completed' || currentStatus === 'No-Show';
+        if (!appManaged && currentStatus !== status) {
           if (status === 'Cancelled') {
             toCancel.push(tidycalId);
           } else {
@@ -173,7 +176,7 @@ export async function onRequest(context) {
     }
 
     await batchUpdateStatus(toCancel, 'Cancelled');
-    await batchUpdateStatus(toConfirm, 'Confirmed');
+    await batchUpdateStatus(toConfirm, 'Scheduled');
 
     return new Response(
       JSON.stringify({
