@@ -1410,6 +1410,8 @@ poojascouture.com.au`
     const orderPhotos = Store.query(Store.COLLECTIONS.JOB_PHOTOS, p => p.orderId === orderId)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     const pendingPhotoReqs = Store.query(Store.COLLECTIONS.PHOTO_REQUESTS, r => r.orderId === orderId && r.status === 'Pending');
+    const comms = Store.query(Store.COLLECTIONS.ORDER_COMMS, c => c.orderId === orderId)
+      .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     // Pre-compute deadline banner (avoid IIFE with const inside template literal)
     const DETAIL_DONE = ['Ready','Shipped to Shashank','At Shashank','In Transit','Awaiting Payment',
@@ -1523,7 +1525,10 @@ poojascouture.com.au`
             <div class="p-2 rounded-md text-xs" style="background:rgba(0,0,0,0.2);white-space:pre-line;border:1px solid var(--pc-border)">${Utils.sanitizeHTML(o.designNotes)}</div>`:''}
             <div class="d-flex justify-between items-center mt-3 mb-1">
               <h4 class="text-sm font-semibold text-gold">Photos (${orderPhotos.length})</h4>
-              <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.requestPhotos('${orderId}'),200)">📸 Request Photos</button>
+              <div class="d-flex gap-2">
+                <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.requestPhotos('${orderId}'),200)">📸 Request Photos</button>
+                <button class="btn btn-primary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.sendPhotosToClient('${orderId}'),200)">📧 Email to Client</button>
+              </div>
             </div>
             ${pendingPhotoReqs.length?`<div class="p-2 rounded-md text-xs mb-2" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3)">
               ${pendingPhotoReqs.map(r=>`<div>⏳ <b>Awaiting from karigar:</b> ${Utils.sanitizeHTML(r.requestedItems)} <span class="text-muted">(${Utils.formatDate(r.createdAt)})</span></div>`).join('')}
@@ -1540,6 +1545,22 @@ poojascouture.com.au`
                     title="Remove this photo"
                     style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:#ef4444;color:#fff;border:none;font-size:13px;font-weight:bold;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 4px rgba(0,0,0,0.5);z-index:2">✕</button>
                   <div class="text-xs text-muted mt-1" style="line-height:1.3">${Utils.sanitizeHTML(Utils.truncateText(p.caption||p.context||'',24))}<br>${Utils.formatDate(p.createdAt)} · ${Utils.sanitizeHTML(p.uploadedBy||'')}</div>
+                </div>`).join('')}
+            </div>`}
+            <div class="d-flex justify-between items-center mt-4 mb-1">
+              <h4 class="text-sm font-semibold text-gold">Client Communications (${comms.length})</h4>
+              <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.logClientReply('${orderId}'),200)">↩️ Log Client Reply</button>
+            </div>
+            ${comms.length===0?`<div class="text-xs text-muted p-3 text-center rounded-md" style="border:1px dashed var(--pc-border)">No emails sent yet.</div>`:`
+            <div class="d-flex flex-col gap-2" style="max-height:220px;overflow-y:auto">
+              ${comms.map(c=>`
+                <div class="p-2 rounded-md text-xs" style="background:${c.direction==='Received'?'rgba(16,185,129,0.08)':'rgba(212,175,55,0.06)'};border:1px solid ${c.direction==='Received'?'rgba(16,185,129,0.3)':'var(--pc-border)'}">
+                  <div class="d-flex justify-between items-center">
+                    <span class="badge ${c.direction==='Received'?'badge-success':'badge-gold'} text-xs">${c.direction==='Received'?'↩️ Client Replied':'📧 Sent — '+Utils.sanitizeHTML(c.templateName||'')}</span>
+                    <span class="text-muted">${Utils.formatDate(c.createdAt)}</span>
+                  </div>
+                  <div class="mt-1" style="white-space:pre-line">${Utils.sanitizeHTML(Utils.truncateText(c.message||'',200))}</div>
+                  ${c.photoUrls&&c.photoUrls.length?`<div class="text-muted mt-1">${c.photoUrls.length} photo(s) attached</div>`:''}
                 </div>`).join('')}
             </div>`}
             ${o.embroideryDetails?`
@@ -1846,6 +1867,196 @@ poojascouture.com.au`
 
   function fillTemplate(text, vars) {
     return text.replace(/\{\{(\w+)\}\}/g, (_,key) => vars[key]||'');
+  }
+
+  // ---------- Client Photo Update Emails ----------
+  const DEFAULT_PHOTO_EMAIL_TEMPLATES = [
+    { id: 'progress_update', name: 'Progress Update',
+      intro: "We wanted to share the latest progress on your outfit. Here's where things stand:" },
+    { id: 'approval_colour', name: 'Approval Needed — Colour / Fabric',
+      intro: "Before we proceed further, we'd love your approval on the colour and fabric shown below. Please reply to this email to confirm, or let us know if you'd like any adjustments." },
+    { id: 'approval_embroidery', name: 'Approval Needed — Embroidery / Handwork',
+      intro: "The handwork on your outfit has reached a stage where we'd like your approval before continuing. Please have a look below and reply with your thoughts." },
+    { id: 'ready_fitting', name: 'Ready for Fitting',
+      intro: "Exciting news — your outfit is ready for its first fitting! Please see the photos below." }
+  ];
+
+  function getPhotoEmailTemplates() {
+    const s = Store.getSettings();
+    const custom = (s && Array.isArray(s.photoEmailTemplates)) ? s.photoEmailTemplates : [];
+    return DEFAULT_PHOTO_EMAIL_TEMPLATES.concat(custom);
+  }
+
+  async function savePhotoEmailTemplate(name, intro) {
+    const s = Store.getSettings() || {};
+    const custom = Array.isArray(s.photoEmailTemplates) ? s.photoEmailTemplates.slice() : [];
+    const id = 'custom_' + Date.now();
+    custom.push({ id, name, intro });
+    await Store.updateSettings({ photoEmailTemplates: custom });
+    return id;
+  }
+
+  function buildPhotoEmailHtml({ clientName, orderTitle, introText, customMessage, photos }) {
+    const photoBlocks = photos.map(p => `
+      <div style="margin-bottom:20px;text-align:center;">
+        <img src="${p.url}" alt="${Utils.sanitizeHTML(p.caption||'')}" style="max-width:100%;width:420px;border-radius:10px;border:1px solid #e5e0d8;display:block;margin:0 auto;">
+        ${p.caption ? `<div style="font-family:Georgia,serif;font-size:12px;color:#8a8578;margin-top:6px;font-style:italic;">${Utils.sanitizeHTML(p.caption)}</div>` : ''}
+      </div>`).join('');
+
+    return `
+<div style="font-family:Georgia,'Times New Roman',serif;max-width:560px;margin:0 auto;background:#fffdf9;">
+  <div style="background:#0A0F2E;padding:28px 24px;text-align:center;">
+    <div style="color:#D4AF37;font-size:22px;letter-spacing:2px;font-weight:bold;">POOJA'S COUTURE</div>
+    <div style="color:#e8e4d8;font-size:11px;letter-spacing:3px;margin-top:4px;">BRIDAL &amp; COUTURE ATELIER</div>
+  </div>
+  <div style="padding:32px 28px;">
+    <p style="font-size:15px;color:#2a2a2a;line-height:1.7;">Dear ${Utils.sanitizeHTML(clientName)},</p>
+    <p style="font-size:15px;color:#2a2a2a;line-height:1.7;">${Utils.sanitizeHTML(introText)}</p>
+    ${customMessage ? `<div style="background:#f7f3ea;border-left:3px solid #D4AF37;padding:14px 18px;margin:18px 0;font-size:14px;color:#2a2a2a;line-height:1.6;">${Utils.sanitizeHTML(customMessage).replace(/\n/g,'<br>')}</div>` : ''}
+    <div style="margin:24px 0;">${photoBlocks}</div>
+    <p style="font-size:14px;color:#2a2a2a;line-height:1.7;">Simply reply to this email with any thoughts or questions — we're always happy to hear from you.</p>
+    <p style="font-size:14px;color:#2a2a2a;line-height:1.7;margin-top:24px;">Warm regards,<br><b>Pooja Shah</b><br>Pooja's Couture</p>
+  </div>
+  <div style="background:#0A0F2E;padding:14px;text-align:center;">
+    <div style="color:#8a8578;font-size:10px;">Re: ${Utils.sanitizeHTML(orderTitle)}</div>
+  </div>
+</div>`;
+  }
+
+  function sendPhotosToClient(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+    const client = Store.getById(Store.COLLECTIONS.CLIENTS, o.clientId);
+    const photos = Store.query(Store.COLLECTIONS.JOB_PHOTOS, p => p.orderId === orderId)
+      .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    if (photos.length === 0) { Utils.showToast('No photos on this order yet.', 'error'); return; }
+    if (!client || !client.email) { Utils.showToast('This client has no email on file.', 'error'); return; }
+
+    const templates = getPhotoEmailTemplates();
+
+    App.showModal({
+      title: `📧 Email Photos — ${Utils.sanitizeHTML(client.name)}`,
+      modalSize: 'modal-lg',
+      content: `
+        <div class="form-group">
+          <label class="form-label">Template</label>
+          <select id="pe-template" class="form-select">
+            ${templates.map(t=>`<option value="${t.id}">${Utils.sanitizeHTML(t.name)}</option>`).join('')}
+            <option value="__new__">+ Create New Template...</option>
+          </select>
+        </div>
+        <div id="pe-new-template-fields" class="d-none" style="border:1px dashed var(--pc-border);padding:10px;border-radius:8px;margin-bottom:12px">
+          <div class="form-group"><label class="form-label">New Template Name</label>
+            <input type="text" id="pe-new-name" class="form-input" placeholder="e.g. Fabric Sourced Update"></div>
+          <div class="form-group m-0"><label class="form-label">Intro Text</label>
+            <textarea id="pe-new-intro" class="form-input" rows="2" placeholder="Standard opening line for this scenario"></textarea></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Your Message (optional — added to the template)</label>
+          <textarea id="pe-message" class="form-input" rows="3" placeholder="Any specific note for ${Utils.sanitizeHTML(client.name)}..."></textarea>
+        </div>
+        <div class="form-group m-0">
+          <label class="form-label">Select Photos to Send</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;max-height:260px;overflow-y:auto;padding:4px">
+            ${photos.map((p,i)=>`
+              <label style="width:96px;cursor:pointer">
+                <div style="position:relative">
+                  <img src="${p.url}" style="width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--pc-border)">
+                  <input type="checkbox" class="pe-photo-cb" data-idx="${i}" checked style="position:absolute;top:4px;left:4px;width:18px;height:18px">
+                </div>
+                <div class="text-xs text-muted mt-1">${Utils.formatDate(p.createdAt)}</div>
+              </label>`).join('')}
+          </div>
+        </div>`,
+      submitText: '📧 Send to Client',
+      onSubmit: async (modalEl) => {
+        const tplSelect = Utils.$('#pe-template', modalEl);
+        let tplId = tplSelect.value;
+        let intro, tplName;
+
+        if (tplId === '__new__') {
+          const name = Utils.$('#pe-new-name', modalEl).value.trim();
+          const introText = Utils.$('#pe-new-intro', modalEl).value.trim();
+          if (!name || !introText) { Utils.showToast('Fill in the new template name and intro text.', 'error'); return false; }
+          tplId = await savePhotoEmailTemplate(name, introText);
+          intro = introText; tplName = name;
+        } else {
+          const tpl = templates.find(t => t.id === tplId);
+          intro = tpl.intro; tplName = tpl.name;
+        }
+
+        const selectedIdx = Array.from(Utils.$$('.pe-photo-cb', modalEl))
+          .filter(cb => cb.checked).map(cb => parseInt(cb.dataset.idx, 10));
+        if (selectedIdx.length === 0) { Utils.showToast('Select at least one photo.', 'error'); return false; }
+        const selectedPhotos = selectedIdx.map(i => photos[i]);
+        const customMessage = Utils.$('#pe-message', modalEl).value.trim();
+
+        const html = buildPhotoEmailHtml({
+          clientName: client.name, orderTitle: o.title, introText: intro,
+          customMessage, photos: selectedPhotos
+        });
+        const subject = `${tplName} — ${o.title} | Pooja's Couture`;
+
+        try {
+          if (EMAILJS_CONFIG.serviceId !== 'YOUR_SERVICE_ID') {
+            await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId,
+              { to_email: client.email, to_name: client.name, subject, message: html, reply_to: 'poojascoutures@gmail.com' },
+              EMAILJS_CONFIG.publicKey);
+          }
+          await Store.create(Store.COLLECTIONS.ORDER_COMMS, {
+            orderId, clientId: client.id, clientName: client.name,
+            direction: 'Sent', templateName: tplName, subject, message: customMessage || intro,
+            photoUrls: selectedPhotos.map(p => p.url),
+            loggedBy: Store.getCurrentUser() ? Store.getCurrentUser().name : 'Unknown'
+          });
+          Store.logAction(`Emailed ${selectedPhotos.length} photo(s) to ${client.name} (${tplName})`);
+          Utils.showToast(`Sent to ${client.name}.`);
+          setTimeout(() => showOrderDetails(orderId), 250);
+          return true;
+        } catch (err) {
+          console.error(err);
+          Utils.showToast('Send failed: ' + err.message, 'error');
+          return false;
+        }
+      }
+    });
+
+    setTimeout(() => {
+      const sel = document.getElementById('pe-template');
+      const newFields = document.getElementById('pe-new-template-fields');
+      if (sel) sel.addEventListener('change', () => {
+        newFields.classList.toggle('d-none', sel.value !== '__new__');
+      });
+    }, 50);
+  }
+
+  function logClientReply(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+    App.showModal({
+      title: `Log Client Reply — ${Utils.sanitizeHTML(o.title)}`,
+      content: `
+        <div class="text-xs text-muted mb-2">Paste what the client wrote back (from Gmail). This is stored on the order with today's date and time.</div>
+        <div class="form-group m-0">
+          <textarea id="cr-text" class="form-input" rows="5" placeholder="Paste the client's reply here..." required></textarea>
+        </div>`,
+      submitText: 'Save Reply',
+      onSubmit: async () => {
+        const text = Utils.$('#cr-text').value.trim();
+        if (!text) { Utils.showToast('Paste the reply text first.', 'error'); return false; }
+        const client = Store.getById(Store.COLLECTIONS.CLIENTS, o.clientId);
+        await Store.create(Store.COLLECTIONS.ORDER_COMMS, {
+          orderId, clientId: o.clientId, clientName: client ? client.name : o.clientName,
+          direction: 'Received', templateName: null, subject: null, message: text, photoUrls: [],
+          loggedBy: Store.getCurrentUser() ? Store.getCurrentUser().name : 'Unknown'
+        });
+        Store.logAction(`Logged client reply on order ${o.title}`);
+        Utils.showToast('Reply logged.');
+        setTimeout(() => showOrderDetails(orderId), 250);
+        return true;
+      }
+    });
   }
 
   function renderEmailCentre(container, actions) {
@@ -3872,6 +4083,8 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     logClientChange,
     requestPhotos,
     showOrderDetails,
-    deletePhoto
+    deletePhoto,
+    sendPhotosToClient,
+    logClientReply
   };
 })();
