@@ -2010,6 +2010,10 @@ poojascouture.com.au`
             photoUrls: selectedPhotos.map(p => p.url),
             loggedBy: Store.getCurrentUser() ? Store.getCurrentUser().name : 'Unknown'
           });
+          // Also log to the Email Centre so it shows in overall email stats/history
+          logEmail(client.id, client.name, subject,
+            `[Photo update — ${selectedPhotos.length} photo(s)] ${customMessage || intro}`,
+            tplName, EMAILJS_CONFIG.serviceId==='YOUR_SERVICE_ID' ? 'Logged (EmailJS not configured)' : 'Sent');
           Store.logAction(`Emailed ${selectedPhotos.length} photo(s) to ${client.name} (${tplName})`);
           Utils.showToast(`Sent to ${client.name}.`);
           setTimeout(() => showOrderDetails(orderId), 250);
