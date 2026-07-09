@@ -1531,11 +1531,16 @@ poojascouture.com.au`
             ${orderPhotos.length===0?`<div class="text-xs text-muted p-3 text-center rounded-md" style="border:1px dashed var(--pc-border)">No photos uploaded yet.</div>`:`
             <div class="d-flex flex-wrap gap-2">
               ${orderPhotos.map(p=>`
-                <a href="${p.url}" target="_blank" rel="noopener" style="display:block;width:92px;text-decoration:none">
-                  <img src="${p.url}" alt="${Utils.sanitizeHTML(p.caption||p.context||'photo')}" loading="lazy"
-                    style="width:92px;height:92px;object-fit:cover;border-radius:8px;border:1px solid var(--pc-border)">
+                <div style="position:relative;width:92px">
+                  <a href="${p.url}" target="_blank" rel="noopener" style="display:block;text-decoration:none">
+                    <img src="${p.url}" alt="${Utils.sanitizeHTML(p.caption||p.context||'photo')}" loading="lazy"
+                      style="width:92px;height:92px;object-fit:cover;border-radius:8px;border:1px solid var(--pc-border)">
+                  </a>
+                  <button onclick="event.preventDefault();App.closeModal();setTimeout(()=>CRM.deletePhoto('${p.id}','${orderId}'),200)"
+                    title="Remove this photo"
+                    style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;border:2px solid var(--pc-bg,#1a1a1a);font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">✕</button>
                   <div class="text-xs text-muted mt-1" style="line-height:1.3">${Utils.sanitizeHTML(Utils.truncateText(p.caption||p.context||'',24))}<br>${Utils.formatDate(p.createdAt)} · ${Utils.sanitizeHTML(p.uploadedBy||'')}</div>
-                </a>`).join('')}
+                </div>`).join('')}
             </div>`}
             ${o.embroideryDetails?`
             <h4 class="text-sm font-semibold text-gold mb-1 mt-3">Embroidery Details</h4>
@@ -3705,6 +3710,36 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     showComposeModal(clientId, 'custom', {});
   }
 
+  function deletePhoto(photoId, orderId) {
+    const photo = Store.getById(Store.COLLECTIONS.JOB_PHOTOS, photoId);
+    App.showModal({
+      title: 'Remove Photo?',
+      content: `
+        ${photo ? `<img src="${photo.url}" style="width:100%;max-height:220px;object-fit:contain;border-radius:8px;margin-bottom:12px">` : ''}
+        <div class="text-xs text-muted">This permanently removes the photo from the order. This cannot be undone. The karigar will need to re-upload if it was correct.</div>`,
+      submitText: 'Remove Photo',
+      onSubmit: async () => {
+        try {
+          const res = await fetch('/api/delete-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ photoId })
+          });
+          const out = await res.json();
+          if (!out.ok) throw new Error(out.error || 'Delete failed');
+          await Store.refresh('job_photos');
+          Store.logAction(`Removed a photo from order ${orderId}`);
+          Utils.showToast('Photo removed.');
+          setTimeout(() => showOrderDetails(orderId), 200);
+          return true;
+        } catch (err) {
+          Utils.showToast('Could not remove photo: ' + err.message, 'error');
+          return false;
+        }
+      }
+    });
+  }
+
   function requestPhotos(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
     if (!o) return;
@@ -3836,6 +3871,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     recordMilestonePayment,
     logClientChange,
     requestPhotos,
-    showOrderDetails
+    showOrderDetails,
+    deletePhoto
   };
 })();
