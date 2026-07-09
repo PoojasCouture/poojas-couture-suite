@@ -328,6 +328,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  window.viewMyPhotos = function (orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    const photos = Store.getAll(Store.COLLECTIONS.JOB_PHOTOS)
+      .filter(p => p.orderId === orderId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    showModal({
+      title: '\uD83D\uDDBC\uFE0F Photos Sent' + (o ? ' \u2014 ' + o.title : ''),
+      content: photos.length === 0
+        ? '<div class="text-center text-xs text-muted p-4">No photos sent yet for this order.</div>'
+        : '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
+          photos.map(p =>
+            '<a href="' + p.url + '" target="_blank" rel="noopener" style="display:block;width:100px;text-decoration:none">' +
+              '<img src="' + p.url + '" loading="lazy" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid var(--pc-border)">' +
+              '<div class="text-xs text-muted mt-1" style="line-height:1.3">' + Utils.sanitizeHTML(p.caption || p.context || '') + '<br>' + Utils.formatDate(p.createdAt) + '<br>by ' + Utils.sanitizeHTML(p.uploadedBy || '') + '</div>' +
+            '</a>'
+          ).join('') +
+          '</div>',
+      submitText: 'Close',
+      hideCancel: true,
+      onSubmit: () => true
+    });
+  };
+
   window.openPhotoUpload = function (orderId, requestId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
     const req = requestId ? Store.getById(Store.COLLECTIONS.PHOTO_REQUESTS, requestId) : null;
@@ -435,7 +459,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (order.status === 'Ready') {
           actionButton = `<button class="btn btn-gold btn-sm mt-2" onclick="openShipToShashank('${order.id}')">🚚 Ship to Shashank</button>`;
         }
-        actionButton += ` <button class="btn btn-secondary btn-sm mt-2" onclick="openPhotoUpload('${order.id}', null)">📷 Photos</button>`;
+        actionButton += ` <button class="btn btn-secondary btn-sm mt-2" onclick="openPhotoUpload('${order.id}', null)">📷 Upload</button>`;
+        actionButton += ` <button class="btn btn-secondary btn-sm mt-2" onclick="viewMyPhotos('${order.id}')">🖼️ My Photos</button>`;
       } else if (order.status === 'Shipped to Shashank') {
         actionButton = `<span class="badge badge-info text-xs mt-2 p-2">Shipped to Shashank — ${Utils.sanitizeHTML(order.domesticTracking || 'tracking pending')}</span>`;
       }

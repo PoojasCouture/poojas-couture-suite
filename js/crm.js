@@ -1538,7 +1538,7 @@ poojascouture.com.au`
                   </a>
                   <button onclick="event.preventDefault();App.closeModal();setTimeout(()=>CRM.deletePhoto('${p.id}','${orderId}'),200)"
                     title="Remove this photo"
-                    style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;border:2px solid var(--pc-bg,#1a1a1a);font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">✕</button>
+                    style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:#ef4444;color:#fff;border:none;font-size:13px;font-weight:bold;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 4px rgba(0,0,0,0.5);z-index:2">✕</button>
                   <div class="text-xs text-muted mt-1" style="line-height:1.3">${Utils.sanitizeHTML(Utils.truncateText(p.caption||p.context||'',24))}<br>${Utils.formatDate(p.createdAt)} · ${Utils.sanitizeHTML(p.uploadedBy||'')}</div>
                 </div>`).join('')}
             </div>`}
