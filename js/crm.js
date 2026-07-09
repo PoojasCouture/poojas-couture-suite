@@ -3305,7 +3305,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
                 <table class="data-table text-xs">
                   <thead><tr><th>Code</th><th>Garment</th><th>Price</th><th>Status</th><th>Deadline</th></tr></thead>
                   <tbody>
-                    ${subOrders.map(o => `<tr>
+                    ${subOrders.map(o => `<tr style="cursor:pointer" onclick="App.closeModal();setTimeout(()=>CRM.showOrderDetails('${o.id}'),200)" title="Click to view full garment details, photos, and photo requests">
                       <td class="font-mono text-gold">${Utils.sanitizeHTML(o.orderCode || '—')}</td>
                       <td class="font-medium">${Utils.sanitizeHTML(o.title)}</td>
                       <td class="font-mono">${Utils.formatCurrency(o.price)}</td>
@@ -3835,6 +3835,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     updateProjectInvoice,
     recordMilestonePayment,
     logClientChange,
-    requestPhotos
+    requestPhotos,
+    showOrderDetails
   };
 })();
