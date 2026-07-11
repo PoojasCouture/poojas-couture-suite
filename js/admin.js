@@ -224,21 +224,30 @@ const Admin = (() => {
     Utils.$('#btn-clear-logs').addEventListener('click', () => {
       App.showConfirm({
         title: 'Clear System Logs',
-        text: 'Are you sure you want to delete the audit trail history? This action is permanent and is logged itself.',
+        text: 'Are you sure you want to permanently delete the audit trail history? This action cannot be undone. A record of this action will be kept.',
         confirmText: 'Yes, Delete Logs',
-        onConfirm: () => {
-          // Log clearing logs first, then purge but keep the log of the purge!
-          const purgeEntry = {
-            id: 'log-' + Utils.generateId(),
-            timestamp: new Date().toISOString(),
-            user: 'Pooja Shah',
-            category: 'System',
-            action: 'Audit Log Cleared',
-            details: 'The system audit logs history was manually cleared by the administrator.'
-          };
-          localStorage.setItem('pc_suite_audit_logs', JSON.stringify([purgeEntry]));
-          Utils.showToast('Audit trail purged.');
-          renderSubTab();
+        onConfirm: async () => {
+          try {
+            const allLogs = Store.getAll(Store.COLLECTIONS.AUDIT_LOGS);
+            const ids = allLogs.map(l => l.id);
+            if (ids.length > 0) {
+              const c = Store.getClient();
+              const { error } = await c.from('audit_logs').delete().in('id', ids);
+              if (error) throw error;
+            }
+            await Store.refresh('audit_logs');
+            const currentUser = Store.getCurrentUser();
+            await Store.logAction(
+              'Audit Log Cleared', 'System',
+              `${ids.length} audit log entries were manually cleared by the administrator.`,
+              currentUser ? currentUser.name : 'Unknown'
+            );
+            Utils.showToast('Audit trail purged (' + ids.length + ' entries).');
+            renderSubTab();
+          } catch (err) {
+            console.error('Audit log purge failed:', err);
+            Utils.showToast('Failed to clear logs: ' + err.message, 'error');
+          }
         }
       });
     });
