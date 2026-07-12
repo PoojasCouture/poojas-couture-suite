@@ -410,7 +410,7 @@ poojascouture.com.au`
               <div class="table-container" style="max-height:150px">
                 <table class="data-table text-xs">
                   <thead><tr><th>Item</th><th>Price</th><th>Status</th><th>Deadline</th></tr></thead>
-                  <tbody>${orders.map(o=>`<tr>
+                  <tbody>${orders.map(o=>`<tr style="cursor:pointer" onclick="App.closeModal();setTimeout(()=>CRM.showOrderDetails('${o.id}'),200)" title="Click to view photos, details and photo requests">
                     <td class="font-medium">${Utils.sanitizeHTML(o.title)}</td>
                     <td class="font-mono">${Utils.formatCurrency(o.price)}</td>
                     <td><span class="badge badge-gold">${o.status}</span></td>
@@ -2700,18 +2700,18 @@ poojascouture.com.au`
       </style>
       <div style="overflow-x:auto;margin-bottom:20px;">
         <div style="display:flex;gap:10px;padding-bottom:6px;min-width:max-content;">
-          <div class="kpi-card" style="animation-delay:0.00s;cursor:pointer;" onclick="CRM.showKPIReport('revenue')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Revenue</div><div style="font-size:13px;">💰</div><div style="class="kpi-value"">${Utils.formatCurrency(totalRevenue)}</div></div>
-          <div class="kpi-card" style="animation-delay:0.05s;cursor:pointer;" onclick="CRM.showKPIReport('outstanding')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Outstanding</div><div style="font-size:13px;">⏳</div><div style="class="kpi-value"">${Utils.formatCurrency(outstandingAmt)}</div></div>
-          <div class="kpi-card" style="animation-delay:0.10s;cursor:pointer;" onclick="CRM.showKPIReport('avgorder')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Order Value</div><div style="font-size:13px;">📊</div><div style="class="kpi-value"">${Utils.formatCurrency(avgOrderValue)}</div></div>
-          <div class="kpi-card" style="animation-delay:0.15s;cursor:pointer;" onclick="CRM.showKPIReport('ltv')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg LTV</div><div style="font-size:13px;">👑</div><div style="class="kpi-value"">${Utils.formatCurrency(avgCLTV)}</div></div>
-          <div class="kpi-card" style="animation-delay:0.20s;cursor:pointer;" onclick="CRM.showKPIReport('delivered')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Delivered</div><div style="font-size:13px;">📦</div><div style="class="kpi-value"">${deliveredOrders.length} / ${allOrders.length}</div></div>
-          <div class="kpi-card" style="animation-delay:0.25s;cursor:pointer;" onclick="CRM.showKPIReport('completion')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Completion</div><div style="font-size:13px;">🎯</div><div style="class="kpi-value"">${conversionRate}%</div></div>
-          <div class="kpi-card" style="animation-delay:0.30s;cursor:pointer;" onclick="CRM.showKPIReport('fulfillment')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Fulfillment</div><div style="font-size:13px;">📅</div><div style="class="kpi-value"">${avgFulfillDays > 0 ? avgFulfillDays + String.fromCharCode(100) : String.fromCharCode(8212)}</div></div>
-          <div class="kpi-card" style="animation-delay:0.35s;cursor:pointer;" onclick="CRM.showKPIReport('overdue')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Overdue</div><div style="font-size:13px;">⚠️</div><div style="class="kpi-value"">${overdue.length}</div></div>
-          <div class="kpi-card" style="animation-delay:0.40s;cursor:pointer;" onclick="CRM.showKPIReport('clients')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Total Clients</div><div style="font-size:13px;">👥</div><div style="class="kpi-value"">${allClients.length}</div></div>
-          <div class="kpi-card" style="animation-delay:0.45s;cursor:pointer;" onclick="CRM.showKPIReport('repeatrate')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Repeat Rate</div><div style="font-size:13px;">🔁</div><div style="class="kpi-value"">${repeatRate}%</div></div>
-          <div class="kpi-card" style="animation-delay:0.50s;cursor:pointer;" onclick="CRM.showKPIReport('brides')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Brides</div><div style="font-size:13px;">💍</div><div style="class="kpi-value"">${allClients.filter(function(c){return c.type===String.fromCharCode(66,114,105,100,101);}).length}</div></div>
-          <div class="kpi-card" style="animation-delay:0.55s;cursor:pointer;" onclick="CRM.showKPIReport('appointments')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Appointments</div><div style="font-size:13px;">📋</div><div style="class="kpi-value"">${appointments.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.00s;cursor:pointer;" onclick="CRM.showKPIReport('revenue')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Revenue</div><div style="font-size:13px;">💰</div><div class="kpi-value">${Utils.formatCurrency(totalRevenue)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.05s;cursor:pointer;" onclick="CRM.showKPIReport('outstanding')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Outstanding</div><div style="font-size:13px;">⏳</div><div class="kpi-value">${Utils.formatCurrency(outstandingAmt)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.10s;cursor:pointer;" onclick="CRM.showKPIReport('avgorder')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Order Value</div><div style="font-size:13px;">📊</div><div class="kpi-value">${Utils.formatCurrency(avgOrderValue)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.15s;cursor:pointer;" onclick="CRM.showKPIReport('ltv')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg LTV</div><div style="font-size:13px;">👑</div><div class="kpi-value">${Utils.formatCurrency(avgCLTV)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.20s;cursor:pointer;" onclick="CRM.showKPIReport('delivered')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Delivered</div><div style="font-size:13px;">📦</div><div class="kpi-value">${deliveredOrders.length} / ${allOrders.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.25s;cursor:pointer;" onclick="CRM.showKPIReport('completion')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Completion</div><div style="font-size:13px;">🎯</div><div class="kpi-value">${conversionRate}%</div></div>
+          <div class="kpi-card" style="animation-delay:0.30s;cursor:pointer;" onclick="CRM.showKPIReport('fulfillment')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg Fulfillment</div><div style="font-size:13px;">📅</div><div class="kpi-value">${avgFulfillDays > 0 ? avgFulfillDays + String.fromCharCode(100) : String.fromCharCode(8212)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.35s;cursor:pointer;" onclick="CRM.showKPIReport('overdue')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Overdue</div><div style="font-size:13px;">⚠️</div><div class="kpi-value">${overdue.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.40s;cursor:pointer;" onclick="CRM.showKPIReport('clients')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Total Clients</div><div style="font-size:13px;">👥</div><div class="kpi-value">${allClients.length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.45s;cursor:pointer;" onclick="CRM.showKPIReport('repeatrate')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Repeat Rate</div><div style="font-size:13px;">🔁</div><div class="kpi-value">${repeatRate}%</div></div>
+          <div class="kpi-card" style="animation-delay:0.50s;cursor:pointer;" onclick="CRM.showKPIReport('brides')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Brides</div><div style="font-size:13px;">💍</div><div class="kpi-value">${allClients.filter(function(c){return c.type===String.fromCharCode(66,114,105,100,101);}).length}</div></div>
+          <div class="kpi-card" style="animation-delay:0.55s;cursor:pointer;" onclick="CRM.showKPIReport('appointments')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Appointments</div><div style="font-size:13px;">📋</div><div class="kpi-value">${appointments.length}</div></div>
         </div>
       </div>
 
@@ -3170,8 +3170,8 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           const paid = invoice ? ((invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0) : 0;
           const balance = invoice ? Math.round((invoice.total - paid) * 100) / 100 : 0;
           const invoiceBtn = !invoice
-            ? '<button class="btn btn-primary btn-sm" onclick="CRM.createProjectInvoice(\' + proj.id + \')">🧾 Create Invoice</button>'
-            : '<button class="btn btn-secondary btn-sm" onclick="CRM.updateProjectInvoice(\' + proj.id + \')">🔄 Update Invoice</button>';
+            ? '<button class="btn btn-primary btn-sm" onclick="CRM.createProjectInvoice(\'' + proj.id + '\')">🧾 Create Invoice</button>'
+            : '<button class="btn btn-secondary btn-sm" onclick="CRM.updateProjectInvoice(\'' + proj.id + '\')">🔄 Update Invoice</button>';
           const balanceDiv = invoice
             ? '<div class="text-xs ' + (balance > 0 ? 'text-danger' : 'text-success') + '">Balance: ' + Utils.formatCurrency(balance) + '</div>'
             : '<div class="text-xs text-muted">No invoice yet</div>';
@@ -3214,8 +3214,8 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
                   '<div class="font-mono font-bold text-gold">' + Utils.formatCurrency(proj.totalPrice) + '</div>' +
                   balanceDiv +
                   '<div class="d-flex gap-1 justify-end mt-1">' +
-                    '<button class="btn btn-secondary btn-sm" onclick="CRM.addSubOrder(\' + proj.id + \')">+ Add Garment</button>' +
-                    '<button class="btn btn-secondary btn-sm" onclick="CRM.viewProject(\' + proj.id + \')">View</button>' +
+                    '<button class="btn btn-secondary btn-sm" onclick="CRM.addSubOrder(\'' + proj.id + '\')">+ Add Garment</button>' +
+                    '<button class="btn btn-secondary btn-sm" onclick="CRM.viewProject(\'' + proj.id + '\')">View</button>' +
                     invoiceBtn +
                   '</div>' +
                 '</div>' +
