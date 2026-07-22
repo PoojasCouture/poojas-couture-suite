@@ -1482,7 +1482,10 @@ poojascouture.com.au`
                 <span>Balance Due:</span>
                 <span class="font-mono ${_invBalance>0?'text-danger':'text-success'}">${Utils.formatCurrency(_invBalance)}</span>
               </div>
-              ${_invBalance>0?`<button class="btn btn-secondary btn-sm mt-3" onclick="App.closeModal();setTimeout(()=>CRM.recordAdditionalPayment('${o.id}'),200)">💳 Record Payment</button>`:''}
+              <div class="d-flex gap-2 mt-3">
+                ${_invBalance>0?`<button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.recordAdditionalPayment('${o.id}'),200)">💳 Record Payment</button>`:''}
+                <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${_invoice.id}'),200)">✏️ Edit Invoice</button>
+              </div>
             </div>`:`
             <div class="p-3 rounded-md text-xs text-muted" style="border:1px dashed var(--pc-border)">
               No invoice found for this order.
@@ -3684,8 +3687,9 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
             <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
               <div class="d-flex justify-between items-center mb-3">
                 <div class="text-xs font-semibold text-gold">🧾 Invoice ${Utils.sanitizeHTML(invoice.invoiceNumber)}</div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 items-center">
                   <span class="badge ${invoice.status === 'Paid' ? 'badge-success' : invoice.status === 'Partially Paid' ? 'badge-warning' : 'badge-muted'} text-xs">${invoice.status}</span>
+                  <button class="btn btn-secondary" style="font-size:10px;padding:3px 10px" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${invoice.id}'),200)">✏️ Edit</button>
                 </div>
               </div>
               <!-- Totals -->
@@ -3757,6 +3761,152 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
       hideCancel: true, submitText: 'Close', onSubmit: () => true,
       modalSize: 'modal-lg'
     });
+  }
+
+  // Direct, plain invoice editing — every line item, GST amount, and
+  // amount paid is a manually editable field. Whatever is saved here is
+  // exactly what's stored; nothing recalculates behind your back. This is
+  // the deliberate override path for cases where the auto-derived numbers
+  // (from order prices) aren't trustworthy or don't apply — e.g. historical
+  // orders with missing per-garment prices.
+  function showEditInvoiceModal(invoiceId) {
+    const invoice = Store.getById(Store.COLLECTIONS.INVOICES, invoiceId);
+    if (!invoice) { Utils.showToast('Invoice not found.', 'error'); return; }
+
+    let items = (invoice.items && invoice.items.length)
+      ? invoice.items.map(it => ({
+          description: it.description || '',
+          unitPrice: it.unitPrice != null ? it.unitPrice : 0,
+          gst: it.gst != null ? it.gst : 0
+        }))
+      : [{ description: '', unitPrice: 0, gst: 0 }];
+
+    const fmt = (n) => Utils.formatCurrency(Math.round((n || 0) * 100) / 100);
+    const clean = (v) => {
+      const n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+      return isNaN(n) ? 0 : n;
+    };
+
+    App.showModal({
+      title: `✏️ Edit Invoice — ${Utils.sanitizeHTML(invoice.invoiceNumber || '')}`,
+      modalSize: 'modal-lg',
+      content: `
+        <div class="d-flex flex-col gap-4 animate-fade-in">
+          <div class="text-xs text-muted">Every field here is a plain, directly-editable number. Nothing auto-recalculates from orders — what you save is exactly what's stored.</div>
+          <div>
+            <div class="d-flex justify-between items-center mb-2">
+              <label class="form-label m-0">Line Items</label>
+              <button type="button" class="btn btn-secondary btn-sm" id="ei-add-item">+ Add Line</button>
+            </div>
+            <div id="ei-items-container" class="d-flex flex-col gap-2"></div>
+          </div>
+          <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
+            <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Subtotal (ex-GST):</span><span class="font-mono" id="ei-subtotal">${fmt(invoice.subtotal)}</span></div>
+            <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">GST Total:</span><span class="font-mono" id="ei-gsttotal">${fmt(invoice.gstTotal)}</span></div>
+            <div class="d-flex justify-between text-sm font-bold" style="border-top:1px solid var(--pc-border);padding-top:6px;margin-top:4px"><span>Invoice Total:</span><span class="font-mono" id="ei-total">${fmt(invoice.total)}</span></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Amount Paid (AUD)</label>
+            <input type="text" inputmode="decimal" autocomplete="off" id="ei-amount-paid" class="form-input" value="${invoice.amountPaid != null ? invoice.amountPaid : 0}">
+          </div>
+          <div class="p-3 rounded-md text-sm font-bold" style="background:rgba(236,182,118,0.06);border:1px solid var(--pc-border)">
+            <div class="d-flex justify-between"><span>Balance Due:</span><span class="font-mono" id="ei-balance">—</span></div>
+          </div>
+        </div>`,
+      submitText: 'Save Invoice',
+      onSubmit: async () => {
+        const paid = clean(document.getElementById('ei-amount-paid').value);
+        const subtotal = Math.round(items.reduce((s, it) => s + clean(it.unitPrice), 0) * 100) / 100;
+        const gstTotal  = Math.round(items.reduce((s, it) => s + clean(it.gst), 0) * 100) / 100;
+        const total     = Math.round((subtotal + gstTotal) * 100) / 100;
+        let status = 'Draft';
+        if (paid >= total && total > 0) status = 'Paid';
+        else if (paid > 0) status = 'Partially Paid';
+
+        const cleanItems = items
+          .filter(it => (it.description || '').trim() !== '' || clean(it.unitPrice) !== 0 || clean(it.gst) !== 0)
+          .map(it => ({
+            description: it.description || '',
+            quantity: 1,
+            unitPrice: clean(it.unitPrice),
+            gst: clean(it.gst),
+            amount: Math.round((clean(it.unitPrice) + clean(it.gst)) * 100) / 100
+          }));
+
+        await Store.update(Store.COLLECTIONS.INVOICES, invoiceId, {
+          items: cleanItems, subtotal, gstTotal, total, amountPaid: paid, status
+        });
+        if (invoice.projectId) {
+          await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, invoice.projectId, { totalPrice: subtotal });
+        }
+        Utils.showToast('Invoice saved.', 'success');
+        renderSubTab();
+        return true;
+      }
+    });
+
+    // --- Post-mount wiring: items list is fully dynamic (add/remove rows,
+    // live totals), so it's built and rewired after the modal is in the DOM.
+    setTimeout(() => {
+      const container  = document.getElementById('ei-items-container');
+      const subtotalEl  = document.getElementById('ei-subtotal');
+      const gstTotalEl  = document.getElementById('ei-gsttotal');
+      const totalEl     = document.getElementById('ei-total');
+      const paidInput   = document.getElementById('ei-amount-paid');
+      const balanceEl   = document.getElementById('ei-balance');
+      if (!container) return;
+
+      const recalc = () => {
+        const subtotal = items.reduce((s, it) => s + clean(it.unitPrice), 0);
+        const gstTotal  = items.reduce((s, it) => s + clean(it.gst), 0);
+        const total     = subtotal + gstTotal;
+        const paid      = clean(paidInput.value);
+        subtotalEl.textContent = fmt(subtotal);
+        gstTotalEl.textContent = fmt(gstTotal);
+        totalEl.textContent    = fmt(total);
+        const balance = Math.round((total - paid) * 100) / 100;
+        balanceEl.textContent = fmt(balance);
+        balanceEl.style.color = balance > 0 ? '#ef4444' : '#10b981';
+      };
+
+      const renderItems = () => {
+        container.innerHTML = items.map((it, idx) => `
+          <div class="d-flex gap-2 items-start" data-row="${idx}">
+            <input type="text" class="form-input ei-desc" data-idx="${idx}" placeholder="Description" value="${Utils.sanitizeHTML(it.description)}" style="flex:2">
+            <input type="text" inputmode="decimal" class="form-input ei-unitprice" data-idx="${idx}" placeholder="Price ex-GST" value="${it.unitPrice}" style="flex:1">
+            <input type="text" inputmode="decimal" class="form-input ei-gst" data-idx="${idx}" placeholder="GST" value="${it.gst}" style="flex:1">
+            <button type="button" class="btn btn-icon btn-ghost sm text-danger ei-remove" data-idx="${idx}" title="Remove line">🗑️</button>
+          </div>`).join('');
+
+        Utils.$$('.ei-desc', container).forEach(el => el.addEventListener('input', () => {
+          items[+el.dataset.idx].description = el.value;
+        }));
+        Utils.$$('.ei-unitprice', container).forEach(el => el.addEventListener('input', () => {
+          items[+el.dataset.idx].unitPrice = el.value.replace(/[^0-9.,]/g, '');
+          recalc();
+        }));
+        Utils.$$('.ei-gst', container).forEach(el => el.addEventListener('input', () => {
+          items[+el.dataset.idx].gst = el.value.replace(/[^0-9.,]/g, '');
+          recalc();
+        }));
+        Utils.$$('.ei-remove', container).forEach(el => el.addEventListener('click', () => {
+          if (items.length <= 1) { Utils.showToast('Invoice needs at least one line.', 'error'); return; }
+          items.splice(+el.dataset.idx, 1);
+          renderItems();
+          recalc();
+        }));
+      };
+
+      document.getElementById('ei-add-item').addEventListener('click', () => {
+        items.push({ description: '', unitPrice: 0, gst: 0 });
+        renderItems();
+        recalc();
+      });
+      paidInput.addEventListener('input', recalc);
+
+      renderItems();
+      recalc();
+    }, 50);
   }
 
   function createProjectInvoice(projectId) {
@@ -4280,6 +4430,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     showComposeModal,
     recordPaymentAndClear,
     recordAdditionalPayment,
+    showEditInvoiceModal,
     markReceivedInAustralia,
     markFinalFitting,
     markReadyToDeliver,
