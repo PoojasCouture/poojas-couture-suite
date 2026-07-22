@@ -1422,6 +1422,9 @@ poojascouture.com.au`
   function showOrderDetails(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
     if (!o) return;
+    const _invoice = _getOrderInvoice(o);
+    const _invPaid = _invoice ? ((_invoice.amountPaid != null && _invoice.amountPaid !== '') ? parseFloat(_invoice.amountPaid) : 0) : 0;
+    const _invBalance = _invoice ? Math.round((_invoice.total - _invPaid) * 100) / 100 : 0;
     const orderPhotos = Store.query(Store.COLLECTIONS.JOB_PHOTOS, p => p.orderId === orderId)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     const pendingPhotoReqs = Store.query(Store.COLLECTIONS.PHOTO_REQUESTS, r => r.orderId === orderId && r.status === 'Pending');
@@ -1466,6 +1469,23 @@ poojascouture.com.au`
               return proj ? `<div class="text-xs mt-1" style="color:#a78bfa;">📁 Project: ${Utils.sanitizeHTML(proj.projectName)}</div>` : '';
             })()}
           </div>
+          ${_invoice?`
+            <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
+              <div class="d-flex justify-between items-center mb-2">
+                <div class="text-xs font-semibold text-gold">🧾 Invoice ${Utils.sanitizeHTML(_invoice.invoiceNumber||'')}</div>
+                <span class="badge ${_invoice.status==='Paid'?'badge-success':_invoice.status==='Partially Paid'?'badge-warning':'badge-muted'} text-xs">${_invoice.status}</span>
+              </div>
+              <div class="d-flex justify-between text-xs mb-1"><span class="text-muted">Invoice Total (inc GST):</span><span class="font-mono">${Utils.formatCurrency(_invoice.total)}</span></div>
+              <div class="d-flex justify-between text-xs mb-1"><span class="text-muted">Amount Paid:</span><span class="font-mono text-success">${Utils.formatCurrency(_invPaid)}</span></div>
+              <div class="d-flex justify-between text-xs font-bold" style="border-top:1px solid var(--pc-border);padding-top:6px;margin-top:4px">
+                <span>Balance Due:</span>
+                <span class="font-mono ${_invBalance>0?'text-danger':'text-success'}">${Utils.formatCurrency(_invBalance)}</span>
+              </div>
+              ${_invBalance>0?`<button class="btn btn-secondary btn-sm mt-3" onclick="App.closeModal();setTimeout(()=>CRM.recordAdditionalPayment('${o.id}'),200)">💳 Record Payment</button>`:''}
+            </div>`:`
+            <div class="p-3 rounded-md text-xs text-muted" style="border:1px dashed var(--pc-border)">
+              No invoice found for this order.
+            </div>`}
           ${(o.shippingCost && o.shippingAllocation && o.shippingAllocation!=='None')?`
             <div class="p-3 rounded-md" style="background:rgba(236,182,118,0.06);border:1px solid var(--pc-border)">
               <div class="text-xs text-muted mb-2">This order shipped with a customer shipping contribution (${o.shippingAllocation==='Half'?'50/50 split':'customer pays full'}). Add it to the invoice when ready.</div>
@@ -2870,6 +2890,80 @@ poojascouture.com.au`
   }
 
 
+  // Generic payment recorder — for any order, at any pipeline stage, not
+  // tied to a specific status transition. Unlike recordPaymentAndClear
+  // (which also forces the order to "Cleared for Delivery"), this only
+  // updates the invoice. Used by the always-visible Invoice Summary panel
+  // in the Order Summary modal so a deposit/progress payment can be logged
+  // without the order needing to be in "Awaiting Payment" first.
+  function recordAdditionalPayment(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+    const invoice = _getOrderInvoice(o);
+    if (!invoice) { Utils.showToast('No invoice found for this order.', 'error'); return; }
+    const paid = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
+    const balance = Math.round((invoice.total - paid) * 100) / 100;
+
+    App.showModal({
+      title: '💳 Record Payment — ' + (o.orderCode || o.id),
+      content: `
+        <form id="add-pay-form" class="animate-fade-in-scale">
+          <div class="p-3 rounded-md mb-4" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
+            <div class="d-flex justify-between text-sm mb-1">
+              <span class="text-muted">Invoice total:</span>
+              <span class="font-mono font-bold">${Utils.formatCurrency(invoice.total)}</span>
+            </div>
+            <div class="d-flex justify-between text-sm mb-1">
+              <span class="text-muted">Already paid:</span>
+              <span class="font-mono text-success">${Utils.formatCurrency(paid)}</span>
+            </div>
+            <div class="d-flex justify-between text-sm font-bold" style="border-top:1px solid var(--pc-border);padding-top:8px;margin-top:8px;">
+              <span>Balance due:</span>
+              <span class="font-mono text-danger">${Utils.formatCurrency(balance)}</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Payment Amount Received (AUD) <span class="required">*</span></label>
+            <input type="text" inputmode="decimal" autocomplete="off" name="paymentAmount" class="form-input" required value="${balance}">
+            <div class="text-xs text-muted mt-1">Pre-filled with balance due. Edit if partial payment received.</div>
+          </div>
+          <div class="form-group m-0">
+            <label class="form-label">Payment Method</label>
+            <select name="paymentMethod" class="form-select">
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </form>`,
+      submitText: '✓ Confirm Payment',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#add-pay-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const fd = new FormData(form);
+        const amount = parseFloat((fd.get('paymentAmount') || '').replace(',', '.')) || 0;
+        if (amount <= 0) { Utils.showToast('Enter a payment amount.', 'error'); return false; }
+
+        const newPaid = Math.round((paid + amount) * 100) / 100;
+        const newBalance = Math.round((invoice.total - newPaid) * 100) / 100;
+        const newStatus = newBalance <= 0 ? 'Paid' : 'Partially Paid';
+
+        await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
+          amountPaid: newPaid,
+          status: newStatus,
+          notes: (invoice.notes || '') + `
+Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} recorded ${new Date().toLocaleDateString('en-AU')}.`
+        });
+
+        Utils.showToast(`Payment of ${Utils.formatCurrency(amount)} recorded. Balance: ${Utils.formatCurrency(newBalance)}.`, 'success');
+        App.closeModal();
+        setTimeout(() => showOrderDetails(orderId), 200);
+        return true;
+      }
+    });
+  }
+
   // ── STAGE 3: Pooja records payment → Cleared for Delivery ──
   function recordPaymentAndClear(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
@@ -4093,6 +4187,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     deleteOrder,
     showComposeModal,
     recordPaymentAndClear,
+    recordAdditionalPayment,
     markReceivedInAustralia,
     markFinalFitting,
     markReadyToDeliver,
