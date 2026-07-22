@@ -1030,7 +1030,7 @@ poojascouture.com.au`
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Price ex-GST (AUD) <span class="required">*</span></label>
-              <input type="number" name="price" class="form-input" min="0" required value="${order?order.price:''}">
+              <input type="text" inputmode="decimal" autocomplete="off" name="price" class="form-input" min="0" required value="${order?order.price:''}">
             </div>
             <div class="form-group">
               <label class="form-label">Deadline <span class="required">*</span></label>
@@ -1255,7 +1255,7 @@ poojascouture.com.au`
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
         const selectedClient = Store.getById(Store.COLLECTIONS.CLIENTS, fd.get('clientId'));
-        const price = parseFloat(fd.get('price'));
+        const price = parseFloat((fd.get('price') || '').replace(',', '.'));
         const productType = fd.get('productType') || 'GEN';
         const orderData = {
           clientId: fd.get('clientId'),
@@ -1725,7 +1725,7 @@ poojascouture.com.au`
           </p>
           <div class="form-group">
             <label class="form-label">Customer Shipping Charge (AUD, ex-GST) <span class="required">*</span></label>
-            <input type="number" name="shareAmount" class="form-input" min="0" step="0.01" required value="${share}">
+            <input type="text" inputmode="decimal" autocomplete="off" name="shareAmount" class="form-input" min="0" step="0.01" required value="${share}">
             <div class="text-xs text-muted mt-1">${isInternational ? 'International shipping — 0% Australian GST applies.' : 'Auto-calculated (ex-GST). 10% GST added on top.'} Edit if you agreed a different figure.</div>
           </div>
         </form>`,
@@ -1733,7 +1733,7 @@ poojascouture.com.au`
       onSubmit: (modalEl) => {
         const form = Utils.$('#ship-inv-form', modalEl);
         if (!form.checkValidity()) { form.reportValidity(); return false; }
-        const amount = parseFloat(new FormData(form).get('shareAmount')) || 0;
+        const amount = parseFloat((new FormData(form).get('shareAmount') || '').replace(',', '.')) || 0;
         if (amount <= 0) { Utils.showToast('Enter a charge greater than zero.', 'error'); return false; }
 
         // International shipping = 0% Australian GST. Domestic = 10%.
@@ -2902,7 +2902,7 @@ poojascouture.com.au`
           </div>
           <div class="form-group">
             <label class="form-label">Payment Amount Received (AUD) <span class="required">*</span></label>
-            <input type="number" name="paymentAmount" class="form-input" min="0" step="0.01"
+            <input type="text" inputmode="decimal" autocomplete="off" name="paymentAmount" class="form-input" min="0" step="0.01"
               value="${balance}" required>
             <div class="text-xs text-muted mt-1">Pre-filled with balance due. Edit if partial payment received.</div>
           </div>
@@ -2921,7 +2921,7 @@ poojascouture.com.au`
         const form = Utils.$('#pay-clear-form', modalEl);
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
-        const amount = parseFloat(fd.get('paymentAmount')) || 0;
+        const amount = parseFloat((fd.get('paymentAmount') || '').replace(',', '.')) || 0;
         if (amount <= 0) { Utils.showToast('Enter a payment amount.', 'error'); return false; }
 
         const newPaid   = Math.round((paid + amount) * 100) / 100;
@@ -3084,13 +3084,13 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
             </div>
             <div class="form-group m-0">
               <label class="form-label">Payment Amount Received (AUD)</label>
-              <input type="number" id="route-a-payment" class="form-input" min="0" step="0.01" value="${balance}" placeholder="0.00">
+              <input type="text" inputmode="decimal" autocomplete="off" id="route-a-payment" class="form-input" min="0" step="0.01" value="${balance}" placeholder="0.00">
               <div class="text-xs text-muted mt-1">Leave as 0 to skip payment recording and deliver anyway.</div>
             </div>
           </div>`,
         submitText: '✓ Mark Delivered',
         onSubmit: async (modalEl) => {
-          const amount = parseFloat(Utils.$('#route-a-payment', modalEl).value) || 0;
+          const amount = parseFloat((Utils.$('#route-a-payment', modalEl).value || '').replace(',', '.')) || 0;
           if (amount > 0 && invoice) {
             const newPaid = Math.round((paid + amount) * 100) / 100;
             const newBal  = Math.round((invoice.total - newPaid) * 100) / 100;
@@ -3284,7 +3284,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Total Project Price ex-GST (AUD) <span class="required">*</span></label>
-              <input type="number" name="totalPrice" class="form-input" min="0" step="0.01" required value="${proj?proj.totalPrice:''}">
+              <input type="text" inputmode="decimal" autocomplete="off" name="totalPrice" class="form-input" min="0" step="0.01" required value="${proj?proj.totalPrice:''}">
               <div class="text-xs text-muted mt-1" id="project-gst-hint">Invoice total inc GST will be calculated automatically.</div>
             </div>
             <div class="form-group">
@@ -3314,7 +3314,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           projectName: fd.get('projectName'),
           eventName: fd.get('eventName') || '',
           eventDate: fd.get('eventDate') || null,
-          totalPrice: parseFloat(fd.get('totalPrice')) || 0,
+          totalPrice: parseFloat((fd.get('totalPrice') || '').replace(',', '.')) || 0,
           status: fd.get('status'),
           notes: fd.get('notes') || ''
         };
@@ -3388,7 +3388,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Price ex-GST (AUD) <span class="required">*</span></label>
-              <input type="number" name="price" class="form-input" min="0" step="0.01" required>
+              <input type="text" inputmode="decimal" autocomplete="off" name="price" class="form-input" min="0" step="0.01" required>
             </div>
             <div class="form-group">
               <label class="form-label">Deadline <span class="required">*</span></label>
@@ -3436,7 +3436,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           clientId: proj.clientId,
           clientName: proj.clientName,
           title: fd.get('title'),
-          price: parseFloat(fd.get('price')) || 0,
+          price: parseFloat((fd.get('price') || '').replace(',', '.')) || 0,
           deadline: fd.get('deadline'),
           status: 'New',
           productType,
@@ -3620,7 +3620,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
               </div>
               <div class="form-group m-0">
                 <label class="form-label" style="font-size:10px">Amount paid by customer (AUD)</label>
-                <input type="number" name="m1paid" id="m1paid-input" class="form-input" min="0" step="0.01" value="0" placeholder="0.00">
+                <input type="text" inputmode="decimal" autocomplete="off" name="m1paid" id="m1paid-input" class="form-input" min="0" step="0.01" value="0" placeholder="0.00">
                 <div id="m1-rollover-hint" class="text-xs mt-1"></div>
               </div>
             </div>
@@ -3668,7 +3668,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         const form = Utils.$('#proj-inv-form', modalEl);
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
-        const m1paid = parseFloat(fd.get('m1paid')) || 0;
+        const m1paid = parseFloat((fd.get('m1paid') || '').replace(',', '.')) || 0;
 
         // Shortfall on M1 rolls into M2
         const m1Shortfall = Math.max(0, Math.round((m1 - m1paid) * 100) / 100);
@@ -3788,7 +3788,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           </div>
           <div class="form-group">
             <label class="form-label">Amount Received (AUD) <span class="required">*</span></label>
-            <input type="number" name="amount" class="form-input" id="milestone-amount-input"
+            <input type="text" inputmode="decimal" autocomplete="off" name="amount" class="form-input" id="milestone-amount-input"
               min="0" step="0.01" value="${mBalance}" required>
             <div id="milestone-pay-hint" class="text-xs text-muted mt-1">
               Pre-filled with outstanding amount. Edit if partial payment received.
@@ -3809,7 +3809,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         const form = Utils.$('#milestone-pay-form', modalEl);
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
-        const amount = parseFloat(fd.get('amount')) || 0;
+        const amount = parseFloat((fd.get('amount') || '').replace(',', '.')) || 0;
         if (amount <= 0) { Utils.showToast('Enter a payment amount greater than zero.', 'error'); return false; }
 
         // Update this milestone + roll any shortfall to the next one
@@ -4042,7 +4042,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
           <div class="d-grid gap-3" style="grid-template-columns:1fr 1fr">
             <div class="form-group">
               <label class="form-label">Price Impact (AUD, inc GST)</label>
-              <input type="number" id="chg-price" class="form-input" step="0.01" value="0" placeholder="0 = no change, negative = discount">
+              <input type="text" inputmode="decimal" autocomplete="off" id="chg-price" class="form-input" step="0.01" value="0" placeholder="0 = no change, negative = discount">
             </div>
             <div class="form-group">
               <label class="form-label">Timeline Impact</label>
@@ -4065,7 +4065,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
           changeDate: Utils.$('#chg-date').value || today,
           description: desc,
           requestedBy: Utils.$('#chg-requested-by').value,
-          priceImpact: parseFloat(Utils.$('#chg-price').value) || 0,
+          priceImpact: parseFloat((Utils.$('#chg-price').value || '').replace(',', '.')) || 0,
           timelineImpact: Utils.$('#chg-timeline').value.trim() || null,
           loggedBy: currentUser ? currentUser.name : 'Unknown'
         });
