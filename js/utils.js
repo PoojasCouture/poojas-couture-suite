@@ -56,18 +56,21 @@ const Utils = (() => {
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   function formatDate(date) {
+    if (!date) return '—';
     const d = new Date(date);
     if (isNaN(d.getTime())) return '—';
     return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
   }
 
   function formatDateShort(date) {
+    if (!date) return '—';
     const d = new Date(date);
     if (isNaN(d.getTime())) return '—';
     return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
   }
 
   function formatDateTime(date) {
+    if (!date) return '—';
     const d = new Date(date);
     if (isNaN(d.getTime())) return '—';
     const hours = d.getHours();
@@ -88,6 +91,7 @@ const Utils = (() => {
   }
 
   function formatDateInput(date) {
+    if (!date) return '';
     const d = new Date(date);
     if (isNaN(d.getTime())) return '';
     return d.toISOString().split('T')[0];
@@ -127,7 +131,14 @@ const Utils = (() => {
   }
 
   function daysFromNow(date) {
+    // A null/empty deadline must never resolve to the 1970 epoch and look
+    // like ~20,000 days overdue. Returns Infinity (not null) for a missing
+    // or invalid date, so numeric comparisons like `days <= 7` still fail
+    // safely at every call site instead of null coercing to 0 and matching
+    // "upcoming" / "overdue" filters that were never meant to include it.
+    if (!date) return Infinity;
     const d = new Date(date);
+    if (isNaN(d.getTime())) return Infinity;
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     d.setHours(0, 0, 0, 0);
