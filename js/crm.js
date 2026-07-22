@@ -1672,9 +1672,10 @@ poojascouture.com.au`
       const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0];
       if (!invoice || subOrders.length === 0) return;
 
-      const newExGST = Math.round(subOrders.reduce((s, x) => s + (x.price || 0), 0) * 100) / 100;
-      const newGST   = Math.round(newExGST * 0.10 * 100) / 100;
-      const newTotal = Math.round((newExGST + newGST) * 100) / 100;
+      const newExGST  = Math.round(subOrders.reduce((s, x) => s + (x.price || 0), 0) * 100) / 100;
+      const newGST    = Math.round(newExGST * 0.10 * 100) / 100;
+      const shipping  = (invoice.shipping != null && invoice.shipping !== '') ? parseFloat(invoice.shipping) : 0;
+      const newTotal  = Math.round((newExGST + newGST + shipping) * 100) / 100;
       const paid     = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
 
       const items = subOrders.map(x => ({
@@ -1687,9 +1688,14 @@ poojascouture.com.au`
 
       const existingM = invoice.milestones || [];
       const m1paid    = existingM[0] ? (existingM[0].paidAmount || 0) : 0;
-      const m1Shortfall = Math.max(0, Math.round((newTotal * 0.30 - m1paid) * 100) / 100);
+      const m1Nominal = Math.round(newTotal * 0.30 * 100) / 100;
+      const m1Shortfall = Math.max(0, Math.round((m1Nominal - m1paid) * 100) / 100);
       const newM2     = Math.round((newTotal * 0.40 + m1Shortfall) * 100) / 100;
-      const newM3     = Math.max(0, Math.round((newTotal - m1paid - newM2) * 100) / 100);
+      // M3 must subtract M1's nominal 30% target, not m1paid — the unpaid
+      // portion of M1 is already accounted for via the shortfall rolled into
+      // M2, so subtracting m1paid here double-counted it and overshot the
+      // three milestones' combined total above the invoice total.
+      const newM3     = Math.max(0, Math.round((newTotal - m1Nominal - newM2) * 100) / 100);
 
       let newStatus = invoice.status;
       if (paid >= newTotal && newTotal > 0) newStatus = 'Paid';
@@ -1697,7 +1703,7 @@ poojascouture.com.au`
       else newStatus = 'Draft';
 
       await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-        items, subtotal: newExGST, gstTotal: newGST, total: newTotal, status: newStatus,
+        items, subtotal: newExGST, gstTotal: newGST, shipping, total: newTotal, status: newStatus,
         milestones: existingM.length ? [
           { ...existingM[0], amount: Math.round(newTotal * 0.30 * 100) / 100 },
           { ...existingM[1], amount: newM2, rollover: m1Shortfall },
@@ -3800,9 +3806,14 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
             </div>
             <div id="ei-items-container" class="d-flex flex-col gap-2"></div>
           </div>
+          <div class="form-group">
+            <label class="form-label">Shipping (AUD, no GST)</label>
+            <input type="text" inputmode="decimal" autocomplete="off" id="ei-shipping" class="form-input" value="${invoice.shipping != null ? invoice.shipping : 0}">
+          </div>
           <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
             <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Subtotal (ex-GST):</span><span class="font-mono" id="ei-subtotal">${fmt(invoice.subtotal)}</span></div>
             <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">GST Total:</span><span class="font-mono" id="ei-gsttotal">${fmt(invoice.gstTotal)}</span></div>
+            <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Shipping:</span><span class="font-mono" id="ei-shipping-display">${fmt(invoice.shipping || 0)}</span></div>
             <div class="d-flex justify-between text-sm font-bold" style="border-top:1px solid var(--pc-border);padding-top:6px;margin-top:4px"><span>Invoice Total:</span><span class="font-mono" id="ei-total">${fmt(invoice.total)}</span></div>
           </div>
           <div class="form-group">
@@ -3816,9 +3827,10 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
       submitText: 'Save Invoice',
       onSubmit: async () => {
         const paid = clean(document.getElementById('ei-amount-paid').value);
+        const shipping  = clean(document.getElementById('ei-shipping').value);
         const subtotal = Math.round(items.reduce((s, it) => s + clean(it.unitPrice), 0) * 100) / 100;
         const gstTotal  = Math.round(items.reduce((s, it) => s + clean(it.gst), 0) * 100) / 100;
-        const total     = Math.round((subtotal + gstTotal) * 100) / 100;
+        const total     = Math.round((subtotal + gstTotal + shipping) * 100) / 100;
         let status = 'Draft';
         if (paid >= total && total > 0) status = 'Paid';
         else if (paid > 0) status = 'Partially Paid';
@@ -3834,7 +3846,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           }));
 
         await Store.update(Store.COLLECTIONS.INVOICES, invoiceId, {
-          items: cleanItems, subtotal, gstTotal, total, amountPaid: paid, status
+          items: cleanItems, subtotal, gstTotal, shipping, total, amountPaid: paid, status
         });
         if (invoice.projectId) {
           await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, invoice.projectId, { totalPrice: subtotal });
@@ -3854,20 +3866,25 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
       const totalEl     = document.getElementById('ei-total');
       const paidInput   = document.getElementById('ei-amount-paid');
       const balanceEl   = document.getElementById('ei-balance');
+      const shippingInput = document.getElementById('ei-shipping');
+      const shippingDisplayEl = document.getElementById('ei-shipping-display');
       if (!container) return;
 
       const recalc = () => {
         const subtotal = items.reduce((s, it) => s + clean(it.unitPrice), 0);
         const gstTotal  = items.reduce((s, it) => s + clean(it.gst), 0);
-        const total     = subtotal + gstTotal;
+        const shipping  = clean(shippingInput.value);
+        const total     = subtotal + gstTotal + shipping;
         const paid      = clean(paidInput.value);
         subtotalEl.textContent = fmt(subtotal);
         gstTotalEl.textContent = fmt(gstTotal);
+        shippingDisplayEl.textContent = fmt(shipping);
         totalEl.textContent    = fmt(total);
         const balance = Math.round((total - paid) * 100) / 100;
         balanceEl.textContent = fmt(balance);
         balanceEl.style.color = balance > 0 ? '#ef4444' : '#10b981';
       };
+      shippingInput.addEventListener('input', recalc);
 
       const renderItems = () => {
         container.innerHTML = items.map((it, idx) => `
@@ -4006,10 +4023,14 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         const fd = new FormData(form);
         const m1paid = parseFloat((fd.get('m1paid') || '').replace(',', '.')) || 0;
 
-        // Shortfall on M1 rolls into M2
+        // Shortfall on M1 rolls into M2. M3 subtracts M1's nominal target
+        // (not m1paid) — the unpaid portion is already covered by the
+        // shortfall rolled into M2, so subtracting m1paid again here
+        // double-counted it and pushed the three milestones' total above
+        // the invoice total whenever the deposit wasn't paid in full.
         const m1Shortfall = Math.max(0, Math.round((m1 - m1paid) * 100) / 100);
         const m2Adjusted  = Math.round((m2 + m1Shortfall) * 100) / 100;
-        const m3Adjusted  = Math.max(0, Math.round((total - m1paid - m2Adjusted) * 100) / 100);
+        const m3Adjusted  = Math.max(0, Math.round((total - m1 - m2Adjusted) * 100) / 100);
 
         let invStatus = 'Draft';
         if (m1paid >= total) invStatus = 'Paid';
@@ -4228,9 +4249,10 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
     // Rebuild milestones with new total, preserving what's already been paid
     const existingM = invoice.milestones || [];
     const m1paid    = existingM[0] ? (existingM[0].paidAmount || 0) : paid;
-    const m1Shortfall = Math.max(0, Math.round((newTotal * 0.30 - m1paid) * 100) / 100);
+    const m1Nominal = Math.round(newTotal * 0.30 * 100) / 100;
+    const m1Shortfall = Math.max(0, Math.round((m1Nominal - m1paid) * 100) / 100);
     const newM2     = Math.round((newTotal * 0.40 + m1Shortfall) * 100) / 100;
-    const newM3     = Math.max(0, Math.round((newTotal - m1paid - newM2) * 100) / 100);
+    const newM3     = Math.max(0, Math.round((newTotal - m1Nominal - newM2) * 100) / 100);
 
     App.showConfirm({
       title: '🔄 Update Project Invoice',
