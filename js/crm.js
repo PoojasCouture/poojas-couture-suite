@@ -1304,7 +1304,8 @@ poojascouture.com.au`
           notes: fd.get('notes') || ''
         };
         if (isEdit) {
-          Store.update(Store.COLLECTIONS.ORDERS, orderId, orderData);
+          await Store.update(Store.COLLECTIONS.ORDERS, orderId, orderData);
+          await _syncInvoiceAfterOrderEdit(orderId);
           Utils.showToast('Order updated.');
         } else {
           // Assign a human-facing order code (UUID stays the primary key).
@@ -1648,6 +1649,93 @@ poojascouture.com.au`
   function _milestoneIsPaid(m) {
     if (!m) return true; // no milestone = no gate
     return m.paid || ((m.paidAmount || 0) >= m.amount);
+  }
+
+  // Keeps an order's invoice in sync after the order itself is edited.
+  // Previously, editing an order's price (standalone or a project garment)
+  // only updated the order record — the invoice silently kept its old
+  // numbers forever unless someone remembered to click "Update Invoice"
+  // (project orders only; standalone orders had no re-sync path at all).
+  // Called automatically after every order edit now. Preserves whatever
+  // has already been paid; only recalculates subtotal/GST/total/items.
+  async function _syncInvoiceAfterOrderEdit(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+
+    if (o.projectId) {
+      // Project garment — rebuild the whole project invoice from all
+      // current sub-order prices, same math as updateProjectInvoice().
+      const subOrders = Store.query(Store.COLLECTIONS.ORDERS, x => x.projectId === o.projectId);
+      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0];
+      if (!invoice || subOrders.length === 0) return;
+
+      const newExGST = Math.round(subOrders.reduce((s, x) => s + (x.price || 0), 0) * 100) / 100;
+      const newGST   = Math.round(newExGST * 0.10 * 100) / 100;
+      const newTotal = Math.round((newExGST + newGST) * 100) / 100;
+      const paid     = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
+
+      const items = subOrders.map(x => ({
+        description: `${x.orderCode ? x.orderCode + ' — ' : ''}${x.title}`,
+        quantity: 1,
+        unitPrice: Math.round(x.price * 100) / 100,
+        gst: Math.round(x.price * 0.10 * 100) / 100,
+        amount: Math.round(x.price * 1.10 * 100) / 100
+      }));
+
+      const existingM = invoice.milestones || [];
+      const m1paid    = existingM[0] ? (existingM[0].paidAmount || 0) : 0;
+      const m1Shortfall = Math.max(0, Math.round((newTotal * 0.30 - m1paid) * 100) / 100);
+      const newM2     = Math.round((newTotal * 0.40 + m1Shortfall) * 100) / 100;
+      const newM3     = Math.max(0, Math.round((newTotal - m1paid - newM2) * 100) / 100);
+
+      let newStatus = invoice.status;
+      if (paid >= newTotal && newTotal > 0) newStatus = 'Paid';
+      else if (paid > 0) newStatus = 'Partially Paid';
+      else newStatus = 'Draft';
+
+      await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
+        items, subtotal: newExGST, gstTotal: newGST, total: newTotal, status: newStatus,
+        milestones: existingM.length ? [
+          { ...existingM[0], amount: Math.round(newTotal * 0.30 * 100) / 100 },
+          { ...existingM[1], amount: newM2, rollover: m1Shortfall },
+          { ...existingM[2], amount: newM3 }
+        ] : existingM
+      });
+      await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, o.projectId, { totalPrice: newExGST });
+      Utils.showToast('Invoice updated to match the new price.', 'info');
+    } else {
+      // Standalone order — its own invoice, keyed by orderId.
+      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+      if (!invoice) return;
+
+      const newSub   = Math.round((o.price || 0) * 100) / 100;
+      const newGst   = Math.round(newSub * 0.10 * 100) / 100;
+      const newTotal = Math.round((newSub + newGst) * 100) / 100;
+      const paid     = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
+
+      let newStatus = 'Draft';
+      if (paid >= newTotal && newTotal > 0) newStatus = 'Paid';
+      else if (paid > 0) newStatus = 'Partially Paid';
+
+      // Preserve any extra line items (e.g. an added shipping line);
+      // only the first line (the garment itself) tracks the order price.
+      const items = (invoice.items || []).slice();
+      if (items.length > 0) {
+        items[0] = { ...items[0], description: o.title, unitPrice: newSub, gst: newGst, amount: newTotal };
+      } else {
+        items.push({ description: o.title, quantity: 1, unitPrice: newSub, gst: newGst, amount: newTotal });
+      }
+      const shippingLine = items.slice(1).reduce((s, it) => s + (it.amount || 0), 0);
+
+      await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
+        items,
+        subtotal: Math.round((newSub + items.slice(1).reduce((s, it) => s + (it.unitPrice || 0), 0)) * 100) / 100,
+        gstTotal: Math.round((newGst + items.slice(1).reduce((s, it) => s + (it.gst || 0), 0)) * 100) / 100,
+        total: Math.round((newTotal + shippingLine) * 100) / 100,
+        status: newStatus
+      });
+      Utils.showToast('Invoice updated to match the new price.', 'info');
+    }
   }
   function moveOrderStage(id, status) {
     const order = Store.getById(Store.COLLECTIONS.ORDERS, id);
@@ -3555,10 +3643,14 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         const newTotal = allSubOrders.reduce((sum, o) => sum + (o.price || 0), 0);
         await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, projectId, { totalPrice: newTotal });
 
-        // Check if invoice already exists — warn Pooja to update it
+        // If an invoice already exists for this project, keep it in sync
+        // automatically instead of relying on someone remembering to click
+        // "Update Invoice" — that manual-step reliance was the whole
+        // problem: garments got added, the invoice silently didn't change.
         const existingInv = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === projectId)[0];
         if (existingInv) {
-          Utils.showToast(`Garment added. ⚠️ Invoice exists — click "Update Invoice" to include this garment.`, 'info');
+          await _syncInvoiceAfterOrderEdit(createdOrder.id);
+          Utils.showToast(`Garment added to ${proj.projectName}. Invoice updated.`);
         } else {
           Utils.showToast(`Garment added to ${proj.projectName}.`);
         }
