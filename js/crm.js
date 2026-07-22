@@ -1040,7 +1040,7 @@ poojascouture.com.au`
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Deposit Paid Now (AUD)</label>
-              <input type="number" name="depositPaid" class="form-input" min="0" step="0.01" placeholder="0.00" value="">
+              <input type="text" inputmode="decimal" autocomplete="off" name="depositPaid" class="form-input" placeholder="0.00" value="">
               <div class="text-xs text-muted mt-1" id="deposit-pct-hint">Optional. Leave blank if no deposit taken yet.</div>
             </div>
             <div class="form-group">
@@ -1310,7 +1310,7 @@ poojascouture.com.au`
           // Assign a human-facing order code (UUID stays the primary key).
           orderData.orderCode = generateOrderCode(productType);
           const createdOrder = await Store.create(Store.COLLECTIONS.ORDERS, orderData);
-          const depositPaid = parseFloat(fd.get('depositPaid')) || 0;
+          const depositPaid = parseFloat((fd.get('depositPaid') || '').replace(',', '.')) || 0;
 
           // Invoice total = order price (ex-GST) + 10% GST on top.
           // Deposit is a flat amount off the GST-inclusive total.
@@ -1383,6 +1383,21 @@ poojascouture.com.au`
       const priceField = document.querySelector('#order-form [name="price"]');
       const depField   = document.querySelector('#order-form [name="depositPaid"]');
       const hint       = document.getElementById('deposit-pct-hint');
+      if (depField) {
+        // Sanitize as the user types: accept a comma or dot as the decimal
+        // separator, strip anything else. Prevents the native number-input
+        // blur-sanitization bug where an unparseable value silently clears
+        // to empty with no error shown.
+        depField.addEventListener('input', () => {
+          let v = depField.value.replace(/,/g, '.');
+          v = v.replace(/[^0-9.]/g, '');
+          const firstDot = v.indexOf('.');
+          if (firstDot !== -1) {
+            v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, '');
+          }
+          if (v !== depField.value) depField.value = v;
+        });
+      }
       if (priceField && depField && hint) {
         const updatePct = () => {
           const p = parseFloat(priceField.value) || 0;
