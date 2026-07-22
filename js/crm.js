@@ -2953,7 +2953,11 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           const share    = o.shippingAllocation === 'Half'
             ? Math.round((shipCost / 2) * 100) / 100
             : shipCost;
-          const lineGst   = Math.round((share * 0.10) * 100) / 100;
+          // International shipping = 0% Australian GST. Domestic = 10%.
+          // (Fixed: this auto-add path was previously always charging 10%,
+          // even though most orders hitting this stage ship from India.)
+          const isInternational = o.deliveryDestination === 'India' || o.deliveryDestination === 'Overseas';
+          const lineGst   = isInternational ? 0 : Math.round((share * 0.10) * 100) / 100;
           const lineSub   = Math.round(share * 100) / 100;
           const lineTotal = Math.round((share + lineGst) * 100) / 100;
 
@@ -3906,7 +3910,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
           total: newTotal,
           status: newStatus,
           milestones: [
-            { label: 'Milestone 1 — Deposit', amount: newTotal * 0.30, paid: m1paid > 0, paidAmount: m1paid },
+            { label: 'Milestone 1 — Deposit', amount: Math.round(newTotal * 0.30 * 100) / 100, paid: m1paid > 0, paidAmount: m1paid },
             { label: 'Milestone 2 — Design Approval', amount: newM2, paid: false, paidAmount: 0, rollover: m1Shortfall },
             { label: 'Milestone 3 — Before Delivery', amount: newM3, paid: false, paidAmount: 0 }
           ]
