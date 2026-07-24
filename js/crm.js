@@ -3403,7 +3403,9 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
           const balance = invoice ? Math.round((invoice.total - paid) * 100) / 100 : 0;
           const invoiceBtn = !invoice
             ? '<button class="btn btn-primary btn-sm" onclick="CRM.createProjectInvoice(\'' + proj.id + '\')">🧾 Create Invoice</button>'
-            : '<button class="btn btn-secondary btn-sm" onclick="CRM.updateProjectInvoice(\'' + proj.id + '\')">🔄 Update Invoice</button>';
+            : (invoice.status === 'Paid'
+              ? '<button class="btn btn-secondary btn-sm" disabled title="Invoice is Paid and locked">🔒 Locked</button>'
+              : '<button class="btn btn-secondary btn-sm" onclick="CRM.syncInvoiceFromOrders(\'' + (subOrders[0] ? subOrders[0].id : '') + '\')">🔄 Sync from Orders</button>');
           const balanceDiv = invoice
             ? '<div class="text-xs ' + (balance > 0 ? 'text-danger' : 'text-success') + '">Balance: ' + Utils.formatCurrency(balance) + '</div>'
             : '<div class="text-xs text-muted">No invoice yet</div>';
@@ -3783,7 +3785,9 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
             <button class="btn btn-secondary" onclick="App.closeModal();setTimeout(()=>CRM.showProjectModal('${proj.id}'),200)">✏️ Edit Project</button>
             ${!invoice
               ? `<button class="btn btn-primary" onclick="App.closeModal();setTimeout(()=>CRM.createProjectInvoice('${proj.id}'),200)">🧾 Create Invoice</button>`
-              : `<button class="btn btn-secondary" onclick="App.closeModal();setTimeout(()=>CRM.updateProjectInvoice('${proj.id}'),200)">🔄 Update Invoice</button>`}
+              : invoice.status === 'Paid'
+                ? `<button class="btn btn-secondary" disabled title="Invoice is Paid and locked">🔒 Locked</button>`
+                : `<button class="btn btn-secondary" onclick="CRM.syncInvoiceFromOrders('${subOrders[0] ? subOrders[0].id : ''}')">🔄 Sync from Orders</button>`}
           </div>
         </div>`,
       hideCancel: true, submitText: 'Close', onSubmit: () => true,
@@ -4246,78 +4250,20 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
     }, 100);
   }
 
-  // Regenerate invoice line items from current sub-orders
-  // Preserves: invoice number, dates, amount already paid, milestones paid status
-  // Updates: line items, subtotal, GST, total, milestone amounts
+  // RETIRED — this function used to recalculate invoice totals without
+  // including shipping, and had no check preventing it from overwriting a
+  // Paid/locked invoice. That combination is what wiped Sanjana & Rishi's
+  // shipping figure and clobbered a settled invoice. All UI buttons now
+  // call syncInvoiceFromOrders() instead, which includes shipping and
+  // refuses to run on a Paid invoice. This redirect exists only in case
+  // a stale cached page still references the old name.
   function updateProjectInvoice(projectId) {
-    const proj = Store.getById(Store.COLLECTIONS.ORDER_PROJECTS, projectId);
-    if (!proj) return;
     const subOrders = Store.query(Store.COLLECTIONS.ORDERS, o => o.projectId === projectId);
-    const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === projectId)[0];
-    if (!invoice) { Utils.showToast('No invoice found for this project.', 'error'); return; }
-
     if (subOrders.length === 0) {
       Utils.showToast('No garments in this project to invoice.', 'error');
       return;
     }
-
-    // Recalculate totals from current sub-orders
-    const newExGST  = Math.round(subOrders.reduce((s, o) => s + (o.price || 0), 0) * 100) / 100;
-    const newGST    = Math.round(newExGST * 0.10 * 100) / 100;
-    const newTotal  = Math.round((newExGST + newGST) * 100) / 100;
-    const paid      = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
-    const newBalance = Math.round((newTotal - paid) * 100) / 100;
-
-    // Rebuild milestones with new total, preserving what's already been paid
-    const existingM = invoice.milestones || [];
-    const m1paid    = existingM[0] ? (existingM[0].paidAmount || 0) : paid;
-    const m1Nominal = Math.round(newTotal * 0.30 * 100) / 100;
-    const m1Shortfall = Math.max(0, Math.round((m1Nominal - m1paid) * 100) / 100);
-    const newM2     = Math.round((newTotal * 0.40 + m1Shortfall) * 100) / 100;
-    const newM3     = Math.max(0, Math.round((newTotal - m1Nominal - newM2) * 100) / 100);
-
-    App.showConfirm({
-      title: '🔄 Update Project Invoice',
-      text: `This will update the invoice to include all ${subOrders.length} garments.
-
-New total: ${Utils.formatCurrency(newTotal)} (was ${Utils.formatCurrency(invoice.total)}).
-Amount already paid (${Utils.formatCurrency(paid)}) will be preserved.
-New balance: ${Utils.formatCurrency(newBalance)}.`,
-      confirmText: 'Update Invoice',
-      onConfirm: async () => {
-        const items = subOrders.map(o => ({
-          description: `${o.orderCode ? o.orderCode + ' — ' : ''}${o.title}`,
-          quantity: 1,
-          unitPrice: Math.round(o.price * 100) / 100,
-          gst: Math.round(o.price * 0.10 * 100) / 100,
-          amount: Math.round(o.price * 1.10 * 100) / 100
-        }));
-
-        let newStatus = invoice.status;
-        if (paid >= newTotal && newTotal > 0) newStatus = 'Paid';
-        else if (paid > 0) newStatus = 'Partially Paid';
-        else newStatus = 'Draft';
-
-        await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-          items,
-          subtotal: newExGST,
-          gstTotal: newGST,
-          total: newTotal,
-          status: newStatus,
-          milestones: [
-            { label: 'Milestone 1 — Deposit', amount: Math.round(newTotal * 0.30 * 100) / 100, paid: m1paid > 0, paidAmount: m1paid },
-            { label: 'Milestone 2 — Design Approval', amount: newM2, paid: false, paidAmount: 0, rollover: m1Shortfall },
-            { label: 'Milestone 3 — Before Delivery', amount: newM3, paid: false, paidAmount: 0 }
-          ]
-        });
-
-        // Update project total too
-        await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, projectId, { totalPrice: newExGST });
-
-        Utils.showToast(`Invoice updated. New total: ${Utils.formatCurrency(newTotal)}.`, 'success');
-        renderSubTab();
-      }
-    });
+    return syncInvoiceFromOrders(subOrders[0].id);
   }
 
   function quickEmailClient(clientId) {
