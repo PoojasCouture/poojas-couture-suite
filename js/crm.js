@@ -740,7 +740,8 @@ poojascouture.com.au`
       { id: 'Received in Australia', title: 'Received in AU' },
       { id: 'Final Fitting',        title: 'Final Fitting' },
       { id: 'Cleared for Delivery', title: 'Cleared for Delivery' },
-      { id: 'Delivered',            title: 'Delivered' }
+      { id: 'Delivered',            title: 'Delivered' },
+      { id: 'Completed',            title: 'Completed' }
     ];
 
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
@@ -816,7 +817,7 @@ poojascouture.com.au`
 
       // Statuses where deadline is no longer actionable
       const DONE_STATUSES = ['Ready','Shipped to Shashank','At Shashank','In Transit',
-        'Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery','Delivered'];
+        'Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery','Delivered','Completed'];
 
       list.forEach(o => {
         const days = Utils.daysFromNow(o.deadline);
@@ -834,6 +835,7 @@ poojascouture.com.au`
           : days + ' days left';
         const stageColor =
           o.status === 'Delivered' ? 'badge-success'
+          : o.status === 'Completed' ? 'badge-success'
           : o.status === 'Cleared for Delivery' ? 'badge-success'
           : o.status === 'Ready' || o.status === 'In Transit' ? 'badge-info'
           : o.status === 'Received in Australia' ? 'badge-info'
