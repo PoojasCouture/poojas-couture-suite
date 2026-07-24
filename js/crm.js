@@ -1305,7 +1305,9 @@ poojascouture.com.au`
         };
         if (isEdit) {
           await Store.update(Store.COLLECTIONS.ORDERS, orderId, orderData);
-          await _syncInvoiceAfterOrderEdit(orderId);
+          // Auto-sync removed by design: editing an order no longer touches
+          // its invoice. Use the explicit "Sync Invoice from Orders" button
+          // on the invoice/project view to pull updated prices in.
           Utils.showToast('Order updated.');
         } else {
           // Assign a human-facing order code (UUID stays the primary key).
@@ -1484,6 +1486,7 @@ poojascouture.com.au`
               </div>
               <div class="d-flex gap-2 mt-3">
                 ${_invBalance>0?`<button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.recordAdditionalPayment('${o.id}'),200)">💳 Record Payment</button>`:''}
+                ${_invoice.status!=='Paid'?`<button class="btn btn-secondary btn-sm" onclick="CRM.syncInvoiceFromOrders('${o.id}')" title="Recalculate invoice from current order prices">🔄 Sync from Orders</button>`:''}
                 <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${_invoice.id}'),200)">✏️ Edit Invoice</button>
               </div>
             </div>`:`
@@ -1655,15 +1658,27 @@ poojascouture.com.au`
   }
 
   // Keeps an order's invoice in sync after the order itself is edited.
-  // Previously, editing an order's price (standalone or a project garment)
-  // only updated the order record — the invoice silently kept its old
-  // numbers forever unless someone remembered to click "Update Invoice"
-  // (project orders only; standalone orders had no re-sync path at all).
-  // Called automatically after every order edit now. Preserves whatever
-  // has already been paid; only recalculates subtotal/GST/total/items.
-  async function _syncInvoiceAfterOrderEdit(orderId) {
+  // Explicit "Sync Invoice from Orders" action — the ONLY place invoice
+  // totals get recalculated from order data. Never called automatically.
+  // Refuses to run if the invoice is Paid (locked) to protect settled
+  // invoices from being silently altered.
+  async function syncInvoiceFromOrders(orderId) {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
     if (!o) return;
+
+    if (o.projectId) {
+      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0];
+      if (invoice && invoice.status === 'Paid') {
+        Utils.showToast('Invoice is Paid and locked. Use "Edit Invoice Directly" to make changes.', 'error');
+        return;
+      }
+    } else {
+      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+      if (invoice && invoice.status === 'Paid') {
+        Utils.showToast('Invoice is Paid and locked. Use "Edit Invoice Directly" to make changes.', 'error');
+        return;
+      }
+    }
 
     if (o.projectId) {
       // Project garment — rebuild the whole project invoice from all
@@ -1711,7 +1726,9 @@ poojascouture.com.au`
         ] : existingM
       });
       await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, o.projectId, { totalPrice: newExGST });
-      Utils.showToast('Invoice updated to match the new price.', 'info');
+      Utils.showToast('Invoice synced from current order prices.', 'info');
+      if (typeof App !== 'undefined' && App.closeModal) App.closeModal();
+      renderSubTab();
     } else {
       // Standalone order — its own invoice, keyed by orderId.
       const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
@@ -1743,6 +1760,9 @@ poojascouture.com.au`
         total: Math.round((newTotal + shippingLine) * 100) / 100,
         status: newStatus
       });
+      Utils.showToast('Invoice synced from current order price.', 'info');
+      if (typeof App !== 'undefined' && App.closeModal) App.closeModal();
+      renderSubTab();
       Utils.showToast('Invoice updated to match the new price.', 'info');
     }
   }
@@ -3652,14 +3672,13 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         const newTotal = allSubOrders.reduce((sum, o) => sum + (o.price || 0), 0);
         await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, projectId, { totalPrice: newTotal });
 
-        // If an invoice already exists for this project, keep it in sync
-        // automatically instead of relying on someone remembering to click
-        // "Update Invoice" — that manual-step reliance was the whole
-        // problem: garments got added, the invoice silently didn't change.
+        // If an invoice already exists for this project, it is left
+        // untouched — auto-sync was the root cause of totals/shipping/
+        // milestones being silently overwritten. Use the explicit
+        // "Sync Invoice from Orders" button to pull the new garment in.
         const existingInv = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === projectId)[0];
         if (existingInv) {
-          await _syncInvoiceAfterOrderEdit(createdOrder.id);
-          Utils.showToast(`Garment added to ${proj.projectName}. Invoice updated.`);
+          Utils.showToast(`Garment added to ${proj.projectName}. Click "Sync Invoice from Orders" to update the invoice.`, 'info');
         } else {
           Utils.showToast(`Garment added to ${proj.projectName}.`);
         }
@@ -3695,6 +3714,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
                 <div class="text-xs font-semibold text-gold">🧾 Invoice ${Utils.sanitizeHTML(invoice.invoiceNumber)}</div>
                 <div class="d-flex gap-2 items-center">
                   <span class="badge ${invoice.status === 'Paid' ? 'badge-success' : invoice.status === 'Partially Paid' ? 'badge-warning' : 'badge-muted'} text-xs">${invoice.status}</span>
+                  ${invoice.status !== 'Paid' && subOrders.length > 0 ? `<button class="btn btn-secondary" style="font-size:10px;padding:3px 10px" onclick="CRM.syncInvoiceFromOrders('${subOrders[0].id}')" title="Recalculate invoice from current order prices">🔄 Sync</button>` : ''}
                   <button class="btn btn-secondary" style="font-size:10px;padding:3px 10px" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${invoice.id}'),200)">✏️ Edit</button>
                 </div>
               </div>
@@ -4453,6 +4473,7 @@ New balance: ${Utils.formatCurrency(newBalance)}.`,
     recordPaymentAndClear,
     recordAdditionalPayment,
     showEditInvoiceModal,
+    syncInvoiceFromOrders,
     markReceivedInAustralia,
     markFinalFitting,
     markReadyToDeliver,
