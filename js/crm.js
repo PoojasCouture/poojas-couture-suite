@@ -1316,45 +1316,27 @@ poojascouture.com.au`
           orderData.orderCode = generateOrderCode(productType);
           const createdOrder = await Store.create(Store.COLLECTIONS.ORDERS, orderData);
           const depositPaid = parseFloat((fd.get('depositPaid') || '').replace(',', '.')) || 0;
+          if (!createdOrder) { Utils.showToast('Order created, but invoice could not be generated.', 'error'); return true; }
 
-          // Invoice total = order price (ex-GST) + 10% GST on top.
-          // Deposit is a flat amount off the GST-inclusive total.
-          const gstTotal     = Math.round((price * 0.10) * 100) / 100;
-          const subtotal     = Math.round(price * 100) / 100;
-          const invoiceTotal = Math.round((price + gstTotal) * 100) / 100;
-          const balance      = Math.round((invoiceTotal - depositPaid) * 100) / 100;
-
-          let invStatus = 'Draft';
-          if (depositPaid >= invoiceTotal && invoiceTotal > 0) invStatus = 'Paid';
-          else if (depositPaid > 0)                            invStatus = 'Partially Paid';
-
-          await Store.create(Store.COLLECTIONS.INVOICES, {
-            orderId: createdOrder ? createdOrder.id : null,
+          const createdInvoice = await Invoicing.createForOrder(createdOrder.id, {
             clientId: fd.get('clientId'),
             clientName: selectedClient ? selectedClient.name : 'Unknown',
             invoiceNumber: 'INV-' + new Date().getFullYear() + '-' + Utils.randomBetween(100, 999),
             issueDate: new Date().toISOString().split('T')[0],
             dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            subtotal: subtotal,
-            gstTotal: gstTotal,
-            total: invoiceTotal,
-            amountPaid: depositPaid,
-            status: invStatus,
             notes: depositPaid > 0
-              ? `Deposit of ${Utils.formatCurrency(depositPaid)} received. Balance due: ${Utils.formatCurrency(balance)}.`
-              : `Full invoice for: ${orderData.title}. No deposit recorded yet.`,
-            items: [{
-              description: orderData.title,
-              quantity: 1,
-              unitPrice: subtotal,
-              gst: gstTotal,
-              amount: invoiceTotal
-            }]
+              ? `Deposit of ${Utils.formatCurrency(depositPaid)} received.`
+              : `Full invoice for: ${orderData.title}. No deposit recorded yet.`
           });
+
+          if (createdInvoice && depositPaid > 0) {
+            await Invoicing.recordAdditionalPayment(createdInvoice.id, depositPaid, 'Deposit');
+          }
+
           Utils.showToast(
             depositPaid > 0
-              ? `Order created. Invoice ${Utils.formatCurrency(invoiceTotal)} inc GST — deposit ${Utils.formatCurrency(depositPaid)} recorded.`
-              : `Order created. Invoice ${Utils.formatCurrency(invoiceTotal)} inc GST generated (no deposit yet).`,
+              ? `Order created. Deposit ${Utils.formatCurrency(depositPaid)} recorded.`
+              : `Order created. Invoice generated (no deposit yet).`,
             'info'
           );
         }
@@ -1665,107 +1647,10 @@ poojascouture.com.au`
   // Refuses to run if the invoice is Paid (locked) to protect settled
   // invoices from being silently altered.
   async function syncInvoiceFromOrders(orderId) {
-    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
-    if (!o) return;
-
-    if (o.projectId) {
-      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0];
-      if (invoice && invoice.status === 'Paid') {
-        Utils.showToast('Invoice is Paid and locked. Use "Edit Invoice Directly" to make changes.', 'error');
-        return;
-      }
-    } else {
-      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
-      if (invoice && invoice.status === 'Paid') {
-        Utils.showToast('Invoice is Paid and locked. Use "Edit Invoice Directly" to make changes.', 'error');
-        return;
-      }
-    }
-
-    if (o.projectId) {
-      // Project garment — rebuild the whole project invoice from all
-      // current sub-order prices, same math as updateProjectInvoice().
-      const subOrders = Store.query(Store.COLLECTIONS.ORDERS, x => x.projectId === o.projectId);
-      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0];
-      if (!invoice || subOrders.length === 0) return;
-
-      const newExGST  = Math.round(subOrders.reduce((s, x) => s + (x.price || 0), 0) * 100) / 100;
-      const newGST    = Math.round(newExGST * 0.10 * 100) / 100;
-      const shipping  = (invoice.shipping != null && invoice.shipping !== '') ? parseFloat(invoice.shipping) : 0;
-      const newTotal  = Math.round((newExGST + newGST + shipping) * 100) / 100;
-      const paid     = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
-
-      const items = subOrders.map(x => ({
-        description: `${x.orderCode ? x.orderCode + ' — ' : ''}${x.title}`,
-        quantity: 1,
-        unitPrice: Math.round(x.price * 100) / 100,
-        gst: Math.round(x.price * 0.10 * 100) / 100,
-        amount: Math.round(x.price * 1.10 * 100) / 100
-      }));
-
-      const existingM = invoice.milestones || [];
-      const m1paid    = existingM[0] ? (existingM[0].paidAmount || 0) : 0;
-      const m1Nominal = Math.round(newTotal * 0.30 * 100) / 100;
-      const m1Shortfall = Math.max(0, Math.round((m1Nominal - m1paid) * 100) / 100);
-      const newM2     = Math.round((newTotal * 0.40 + m1Shortfall) * 100) / 100;
-      // M3 must subtract M1's nominal 30% target, not m1paid — the unpaid
-      // portion of M1 is already accounted for via the shortfall rolled into
-      // M2, so subtracting m1paid here double-counted it and overshot the
-      // three milestones' combined total above the invoice total.
-      const newM3     = Math.max(0, Math.round((newTotal - m1Nominal - newM2) * 100) / 100);
-
-      let newStatus = invoice.status;
-      if (paid >= newTotal && newTotal > 0) newStatus = 'Paid';
-      else if (paid > 0) newStatus = 'Partially Paid';
-      else newStatus = 'Draft';
-
-      await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-        items, subtotal: newExGST, gstTotal: newGST, shipping, total: newTotal, status: newStatus,
-        milestones: existingM.length ? [
-          { ...existingM[0], amount: Math.round(newTotal * 0.30 * 100) / 100 },
-          { ...existingM[1], amount: newM2, rollover: m1Shortfall },
-          { ...existingM[2], amount: newM3 }
-        ] : existingM
-      });
-      await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, o.projectId, { totalPrice: newExGST });
-      Utils.showToast('Invoice synced from current order prices.', 'info');
+    const ok = await Invoicing.syncFromOrders(orderId);
+    if (ok) {
       if (typeof App !== 'undefined' && App.closeModal) App.closeModal();
       renderSubTab();
-    } else {
-      // Standalone order — its own invoice, keyed by orderId.
-      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
-      if (!invoice) return;
-
-      const newSub   = Math.round((o.price || 0) * 100) / 100;
-      const newGst   = Math.round(newSub * 0.10 * 100) / 100;
-      const newTotal = Math.round((newSub + newGst) * 100) / 100;
-      const paid     = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
-
-      let newStatus = 'Draft';
-      if (paid >= newTotal && newTotal > 0) newStatus = 'Paid';
-      else if (paid > 0) newStatus = 'Partially Paid';
-
-      // Preserve any extra line items (e.g. an added shipping line);
-      // only the first line (the garment itself) tracks the order price.
-      const items = (invoice.items || []).slice();
-      if (items.length > 0) {
-        items[0] = { ...items[0], description: o.title, unitPrice: newSub, gst: newGst, amount: newTotal };
-      } else {
-        items.push({ description: o.title, quantity: 1, unitPrice: newSub, gst: newGst, amount: newTotal });
-      }
-      const shippingLine = items.slice(1).reduce((s, it) => s + (it.amount || 0), 0);
-
-      await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-        items,
-        subtotal: Math.round((newSub + items.slice(1).reduce((s, it) => s + (it.unitPrice || 0), 0)) * 100) / 100,
-        gstTotal: Math.round((newGst + items.slice(1).reduce((s, it) => s + (it.gst || 0), 0)) * 100) / 100,
-        total: Math.round((newTotal + shippingLine) * 100) / 100,
-        status: newStatus
-      });
-      Utils.showToast('Invoice synced from current order price.', 'info');
-      if (typeof App !== 'undefined' && App.closeModal) App.closeModal();
-      renderSubTab();
-      Utils.showToast('Invoice updated to match the new price.', 'info');
     }
   }
   function moveOrderStage(id, status) {
@@ -1869,46 +1754,19 @@ poojascouture.com.au`
           </div>
         </form>`,
       submitText: 'Add to Invoice',
-      onSubmit: (modalEl) => {
+      onSubmit: async (modalEl) => {
         const form = Utils.$('#ship-inv-form', modalEl);
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const amount = parseFloat((new FormData(form).get('shareAmount') || '').replace(',', '.')) || 0;
         if (amount <= 0) { Utils.showToast('Enter a charge greater than zero.', 'error'); return false; }
 
-        // International shipping = 0% Australian GST. Domestic = 10%.
-        const lineGst   = isInternational ? 0 : Math.round((amount * 0.10) * 100) / 100;
-        const lineSub   = Math.round(amount * 100) / 100;
-        const lineTotal = Math.round((amount + lineGst) * 100) / 100;
-
-        const items = (invoice.items || []).slice();
-        items.push({
+        const ok = await Invoicing.addShippingLine(invoice.id, {
           description: 'Shipping contribution',
-          quantity: 1,
-          unitPrice: lineSub,
-          gst: lineGst,
-          amount: lineTotal,
-          isShipping: true
+          shareAmount: amount,
+          gstRate: isInternational ? 0 : 0.10
         });
+        if (!ok) return false;
 
-        const newTotal = Math.round((invoice.total + lineTotal) * 100) / 100;
-        const newGst   = Math.round((invoice.gstTotal + lineGst) * 100) / 100;
-        const newSub   = Math.round((invoice.subtotal + lineSub) * 100) / 100;
-        const paid     = (invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0;
-
-        let newStatus = invoice.status;
-        if (paid >= newTotal && newTotal > 0) newStatus = 'Paid';
-        else if (paid > 0) newStatus = 'Partially Paid';
-        else if (newStatus === 'Paid') newStatus = 'Partially Paid';
-
-        Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-          items: items,
-          subtotal: newSub,
-          gstTotal: newGst,
-          total: newTotal,
-          status: newStatus
-        });
-
-        Utils.showToast(`Shipping of ${Utils.formatCurrency(lineTotal)} (inc GST) added to ${invoice.invoiceNumber}.`);
         App.closeModal();
         renderSubTab();
         return true;
@@ -3062,20 +2920,9 @@ poojascouture.com.au`
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
         const amount = parseFloat((fd.get('paymentAmount') || '').replace(',', '.')) || 0;
-        if (amount <= 0) { Utils.showToast('Enter a payment amount.', 'error'); return false; }
+        const ok = await Invoicing.recordAdditionalPayment(invoice.id, amount, fd.get('paymentMethod'));
+        if (!ok) return false;
 
-        const newPaid = Math.round((paid + amount) * 100) / 100;
-        const newBalance = Math.round((invoice.total - newPaid) * 100) / 100;
-        const newStatus = newBalance <= 0 ? 'Paid' : 'Partially Paid';
-
-        await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-          amountPaid: newPaid,
-          status: newStatus,
-          notes: (invoice.notes || '') + `
-Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} recorded ${new Date().toLocaleDateString('en-AU')}.`
-        });
-
-        Utils.showToast(`Payment of ${Utils.formatCurrency(amount)} recorded. Balance: ${Utils.formatCurrency(newBalance)}.`, 'success');
         App.closeModal();
         setTimeout(() => showOrderDetails(orderId), 200);
         return true;
@@ -3135,19 +2982,8 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
         const amount = parseFloat((fd.get('paymentAmount') || '').replace(',', '.')) || 0;
-        if (amount <= 0) { Utils.showToast('Enter a payment amount.', 'error'); return false; }
-
-        const newPaid   = Math.round((paid + amount) * 100) / 100;
-        const newBalance = Math.round((invoice.total - newPaid) * 100) / 100;
-        const newStatus  = newBalance <= 0 ? 'Paid' : 'Partially Paid';
-
-        // Update invoice
-        await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-          amountPaid: newPaid,
-          status: newStatus,
-          notes: (invoice.notes || '') + `
-Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} recorded ${new Date().toLocaleDateString('en-AU')}.`
-        });
+        const ok = await Invoicing.recordAdditionalPayment(invoice.id, amount, fd.get('paymentMethod'));
+        if (!ok) return false;
 
         // Move order to Cleared for Delivery
         await Store.update(Store.COLLECTIONS.ORDERS, orderId, {
@@ -3175,40 +3011,15 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0]
         : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
       if (invoice) {
-        const already = (invoice.items || []).some(it => it.isShipping);
-        if (!already) {
-          const shipCost = parseFloat(o.shippingCost) || 0;
-          const share    = o.shippingAllocation === 'Half'
-            ? Math.round((shipCost / 2) * 100) / 100
-            : shipCost;
-          // International shipping = 0% Australian GST. Domestic = 10%.
-          // (Fixed: this auto-add path was previously always charging 10%,
-          // even though most orders hitting this stage ship from India.)
-          const isInternational = o.deliveryDestination === 'India' || o.deliveryDestination === 'Overseas';
-          const lineGst   = isInternational ? 0 : Math.round((share * 0.10) * 100) / 100;
-          const lineSub   = Math.round(share * 100) / 100;
-          const lineTotal = Math.round((share + lineGst) * 100) / 100;
-
-          const items    = (invoice.items || []).slice();
-          items.push({
-            description: 'Shipping contribution',
-            quantity: 1, unitPrice: lineSub, gst: lineGst, amount: lineTotal, isShipping: true
-          });
-
-          const newTotal = Math.round((invoice.total + lineTotal) * 100) / 100;
-          const newGst   = Math.round((invoice.gstTotal + lineGst) * 100) / 100;
-          const newSub   = Math.round((invoice.subtotal + lineSub) * 100) / 100;
-          const paidSoFar = (invoice.amountPaid != null && invoice.amountPaid !== '') ? invoice.amountPaid : 0;
-          let newInvStatus = invoice.status;
-          if (paidSoFar >= newTotal && newTotal > 0) newInvStatus = 'Paid';
-          else if (paidSoFar > 0) newInvStatus = 'Partially Paid';
-          else if (newInvStatus === 'Paid') newInvStatus = 'Partially Paid';
-
-          await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-            items, subtotal: newSub, gstTotal: newGst, total: newTotal, status: newInvStatus
-          });
-          Utils.showToast(`Shipping ${Utils.formatCurrency(lineTotal)} (inc GST) auto-added to invoice.`, 'info');
-        }
+        const shipCost = parseFloat(o.shippingCost) || 0;
+        const share = o.shippingAllocation === 'Half' ? shipCost / 2 : shipCost;
+        // International shipping = 0% Australian GST. Domestic = 10%.
+        const isInternational = o.deliveryDestination === 'India' || o.deliveryDestination === 'Overseas';
+        await Invoicing.addShippingLine(invoice.id, {
+          description: 'Shipping contribution',
+          shareAmount: share,
+          gstRate: isInternational ? 0 : 0.10
+        });
       }
     }
 
@@ -3305,12 +3116,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         onSubmit: async (modalEl) => {
           const amount = parseFloat((Utils.$('#route-a-payment', modalEl).value || '').replace(',', '.')) || 0;
           if (amount > 0 && invoice) {
-            const newPaid = Math.round((paid + amount) * 100) / 100;
-            const newBal  = Math.round((invoice.total - newPaid) * 100) / 100;
-            await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-              amountPaid: newPaid,
-              status: newBal <= 0 ? 'Paid' : 'Partially Paid'
-            });
+            await Invoicing.recordAdditionalPayment(invoice.id, amount, 'Delivery Collection');
           }
           await Store.update(Store.COLLECTIONS.ORDERS, orderId, { status: 'Delivered' });
           Utils.showToast('Order delivered.');
@@ -3854,12 +3660,6 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
       onSubmit: async () => {
         const paid = clean(document.getElementById('ei-amount-paid').value);
         const shipping  = clean(document.getElementById('ei-shipping').value);
-        const subtotal = Math.round(items.reduce((s, it) => s + clean(it.unitPrice), 0) * 100) / 100;
-        const gstTotal  = Math.round(items.reduce((s, it) => s + clean(it.gst), 0) * 100) / 100;
-        const total     = Math.round((subtotal + gstTotal + shipping) * 100) / 100;
-        let status = 'Draft';
-        if (paid >= total && total > 0) status = 'Paid';
-        else if (paid > 0) status = 'Partially Paid';
 
         const cleanItems = items
           .filter(it => (it.description || '').trim() !== '' || clean(it.unitPrice) !== 0 || clean(it.gst) !== 0)
@@ -3871,13 +3671,12 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
             amount: Math.round((clean(it.unitPrice) + clean(it.gst)) * 100) / 100
           }));
 
-        await Store.update(Store.COLLECTIONS.INVOICES, invoiceId, {
-          items: cleanItems, subtotal, gstTotal, shipping, total, amountPaid: paid, status
-        });
+        await Invoicing.editDirect(invoiceId, { items: cleanItems, shipping, amountPaid: paid });
+
         if (invoice.projectId) {
-          await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, invoice.projectId, { totalPrice: subtotal });
+          const subtotal = cleanItems.reduce((s, it) => s + (it.unitPrice || 0), 0);
+          await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, invoice.projectId, { totalPrice: Math.round(subtotal * 100) / 100 });
         }
-        Utils.showToast('Invoice saved.', 'success');
         renderSubTab();
         return true;
       }
@@ -4049,49 +3848,23 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         const fd = new FormData(form);
         const m1paid = parseFloat((fd.get('m1paid') || '').replace(',', '.')) || 0;
 
-        // Shortfall on M1 rolls into M2. M3 subtracts M1's nominal target
-        // (not m1paid) — the unpaid portion is already covered by the
-        // shortfall rolled into M2, so subtracting m1paid again here
-        // double-counted it and pushed the three milestones' total above
-        // the invoice total whenever the deposit wasn't paid in full.
-        const m1Shortfall = Math.max(0, Math.round((m1 - m1paid) * 100) / 100);
-        const m2Adjusted  = Math.round((m2 + m1Shortfall) * 100) / 100;
-        const m3Adjusted  = Math.max(0, Math.round((total - m1 - m2Adjusted) * 100) / 100);
-
-        let invStatus = 'Draft';
-        if (m1paid >= total) invStatus = 'Paid';
-        else if (m1paid > 0) invStatus = 'Partially Paid';
-
-        // Build line items from sub-orders
-        const items = subOrders.map(o => ({
-          description: `${o.orderCode ? o.orderCode + ' — ' : ''}${o.title}`,
-          quantity: 1,
-          unitPrice: Math.round(o.price * 100) / 100,
-          gst: Math.round(o.price * 0.10 * 100) / 100,
-          amount: Math.round(o.price * 1.10 * 100) / 100
-        }));
-
-        await Store.create(Store.COLLECTIONS.INVOICES, {
-          projectId,
+        const created = await Invoicing.createForProject(projectId, {
           clientId: proj.clientId,
           clientName: proj.clientName,
           invoiceNumber: 'INV-' + new Date().getFullYear() + '-' + Utils.randomBetween(100, 999),
           issueDate: fd.get('issueDate'),
           dueDate: fd.get('dueDate'),
-          subtotal: exGST,
-          gstTotal: gst,
-          total,
-          amountPaid: m1paid,
-          status: invStatus,
-          notes: fd.get('notes') || '',
-          items,
-          // Milestone structure
-          milestones: [
-            { label: 'Milestone 1 — Deposit', amount: m1, paid: m1paid > 0, paidAmount: m1paid, suggested: m1 },
-            { label: 'Milestone 2 — Design Approval', amount: m2Adjusted, paid: false, paidAmount: 0, rollover: m1Shortfall },
-            { label: 'Milestone 3 — Before Delivery', amount: m3Adjusted, paid: false, paidAmount: 0 }
-          ]
+          notes: fd.get('notes') || ''
         });
+        if (!created) { Utils.showToast('Could not create invoice.', 'error'); return false; }
+
+        // Deposit entered at creation time — record it through the same
+        // shared milestone-payment function everything else uses, so the
+        // rollover math has exactly one implementation, not a second copy
+        // duplicated here.
+        if (m1paid > 0) {
+          await Invoicing.recordMilestonePayment(created.id, 0, m1paid, 'Deposit', fd.get('issueDate'));
+        }
 
         Utils.showToast(`Project invoice created. Total: ${Utils.formatCurrency(total)} — 3 payment milestones set.`);
         renderSubTab();
@@ -4193,36 +3966,10 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
         const amount = parseFloat((fd.get('amount') || '').replace(',', '.')) || 0;
-        if (amount <= 0) { Utils.showToast('Enter a payment amount greater than zero.', 'error'); return false; }
 
-        // Update this milestone + roll any shortfall to the next one
-        const shortfall = Math.max(0, Math.round((m.amount - (m.paidAmount || 0) - amount) * 100) / 100);
-        const updatedMilestones = milestones.map((ms, idx) => {
-          if (idx === milestoneIndex) {
-            const newPaidAmount = Math.round(((ms.paidAmount || 0) + amount) * 100) / 100;
-            return { ...ms, paidAmount: newPaidAmount, paid: newPaidAmount >= ms.amount };
-          }
-          // Roll shortfall into the immediately next milestone
-          if (idx === milestoneIndex + 1 && shortfall > 0) {
-            const newAmount = Math.round((ms.amount + shortfall) * 100) / 100;
-            return { ...ms, amount: newAmount, rollover: Math.round(((ms.rollover || 0) + shortfall) * 100) / 100 };
-          }
-          return ms;
-        });
+        const ok = await Invoicing.recordMilestonePayment(invoice.id, milestoneIndex, amount, fd.get('paymentMethod'));
+        if (!ok) return false;
 
-        // Update total paid on invoice
-        const newTotalPaid = Math.round((totalPaidSoFar + amount) * 100) / 100;
-        const newBalance   = Math.round((invoice.total - newTotalPaid) * 100) / 100;
-        let newStatus = newBalance <= 0 ? 'Paid' : 'Partially Paid';
-
-        await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-          amountPaid: newTotalPaid,
-          status: newStatus,
-          milestones: updatedMilestones,
-          notes: (invoice.notes || '') + '\n' + m.label + ': ' + Utils.formatCurrency(amount) + ' via ' + fd.get('paymentMethod') + ' on ' + new Date().toLocaleDateString('en-AU') + '.'
-        });
-
-        Utils.showToast('Payment of ' + Utils.formatCurrency(amount) + ' recorded for ' + m.label + '. Balance: ' + Utils.formatCurrency(newBalance) + '.', 'success');
         App.closeModal();
         renderSubTab();
         return true;

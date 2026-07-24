@@ -152,7 +152,13 @@ const Store = (() => {
         computedGstTotal += (item.gst || 0);
       });
 
-      const computedTotal = Math.round((computedSubtotal + computedGstTotal) * 100) / 100;
+      // Project invoices track shipping as a separate `shipping` field
+      // added on top of the item-derived subtotal/GST (not folded into
+      // items). This MUST be included here — omitting it silently
+      // stripped shipping off invoice.total on every app load, since
+      // the recomputed total never matched the stored (correct) one.
+      const shippingAmt = (inv.shipping != null && inv.shipping !== '') ? parseFloat(inv.shipping) : 0;
+      const computedTotal = Math.round((computedSubtotal + computedGstTotal + shippingAmt) * 100) / 100;
 
       if (inv.subtotal !== computedSubtotal || inv.gstTotal !== computedGstTotal || inv.total !== computedTotal) {
         inv.subtotal = Math.round(computedSubtotal * 100) / 100;

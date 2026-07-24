@@ -729,41 +729,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Step 1: Auto-add shipping to invoice (flat order or project invoice)
     if (order.shippingCost && order.shippingAllocation && order.shippingAllocation !== 'None') {
-      // Find invoice — flat order uses orderId, project order uses projectId
       const invoice = order.projectId
         ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === order.projectId)[0]
         : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
 
       if (invoice) {
-        const already = (invoice.items || []).some(it => it.isShipping);
-        if (!already) {
-          const shipCost  = parseFloat(order.shippingCost) || 0;
-          const share     = order.shippingAllocation === 'Half'
-            ? Math.round((shipCost / 2) * 100) / 100 : shipCost;
-          const lineGst   = Math.round((share * 0.10) * 100) / 100;
-          const lineSub   = Math.round(share * 100) / 100;
-          const lineTotal = Math.round((share + lineGst) * 100) / 100;
-
-          const items  = (invoice.items || []).slice();
-          items.push({
-            description: 'Shipping — ' + (order.orderCode || orderId),
-            quantity: 1, unitPrice: lineSub, gst: lineGst, amount: lineTotal, isShipping: true
-          });
-
-          const newTotal = Math.round((invoice.total + lineTotal) * 100) / 100;
-          const newGst   = Math.round((invoice.gstTotal + lineGst) * 100) / 100;
-          const newSub   = Math.round((invoice.subtotal + lineSub) * 100) / 100;
-          const paidSoFar = (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
-          let newInvStatus = invoice.status;
-          if (paidSoFar >= newTotal && newTotal > 0) newInvStatus = 'Paid';
-          else if (paidSoFar > 0) newInvStatus = 'Partially Paid';
-          else if (newInvStatus === 'Paid') newInvStatus = 'Partially Paid';
-
-          await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-            items, subtotal: newSub, gstTotal: newGst, total: newTotal, status: newInvStatus
-          });
-          toast('Shipping ' + money(lineTotal) + ' (inc GST) auto-added to invoice.');
-        }
+        const shipCost = parseFloat(order.shippingCost) || 0;
+        const share = order.shippingAllocation === 'Half' ? shipCost / 2 : shipCost;
+        await Invoicing.addShippingLine(invoice.id, {
+          description: 'Shipping — ' + (order.orderCode || orderId),
+          shareAmount: share
+        });
       }
     }
 

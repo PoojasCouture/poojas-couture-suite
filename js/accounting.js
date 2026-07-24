@@ -255,33 +255,10 @@ const Accounting = (() => {
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
         const amount = parseFloat((fd.get('amount') || '').replace(',', '.')) || 0;
-        if (amount <= 0) { Utils.showToast('Enter a payment amount greater than zero.', 'error'); return false; }
 
-        const shortfall = Math.max(0, Math.round((m.amount - (m.paidAmount || 0) - amount) * 100) / 100);
-        const updatedMilestones = milestones.map((ms, idx) => {
-          if (idx === milestoneIndex) {
-            const newPaidAmount = Math.round(((ms.paidAmount || 0) + amount) * 100) / 100;
-            return { ...ms, paidAmount: newPaidAmount, paid: newPaidAmount >= ms.amount };
-          }
-          if (idx === milestoneIndex + 1 && shortfall > 0) {
-            const newAmount = Math.round((ms.amount + shortfall) * 100) / 100;
-            return { ...ms, amount: newAmount, rollover: Math.round(((ms.rollover || 0) + shortfall) * 100) / 100 };
-          }
-          return ms;
-        });
+        const ok = await Invoicing.recordMilestonePayment(invoice.id, milestoneIndex, amount, fd.get('paymentMethod'));
+        if (!ok) return false;
 
-        const newTotalPaid = Math.round((totalPaidSoFar + amount) * 100) / 100;
-        const newBalance   = Math.round((invoice.total - newTotalPaid) * 100) / 100;
-        let newStatus = newBalance <= 0 ? 'Paid' : 'Partially Paid';
-
-        await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-          amountPaid: newTotalPaid,
-          status: newStatus,
-          milestones: updatedMilestones,
-          notes: (invoice.notes || '') + '\n' + m.label + ': ' + Utils.formatCurrency(amount) + ' via ' + fd.get('paymentMethod') + ' on ' + new Date().toLocaleDateString('en-AU') + '.'
-        });
-
-        Utils.showToast('Payment of ' + Utils.formatCurrency(amount) + ' recorded for ' + m.label + '. Balance: ' + Utils.formatCurrency(newBalance) + '.', 'success');
         App.closeModal();
         renderSubTab();
         return true;
@@ -461,7 +438,7 @@ const Accounting = (() => {
       title: isEdit ? 'Edit Tax Invoice' : 'Create Tax Invoice',
       content: modalHTML,
       submitText: isEdit ? 'Save Invoice' : 'Issue Invoice',
-      onSubmit: (modalEl) => {
+      onSubmit: async (modalEl) => {
         const form = Utils.$('#invoice-form', modalEl);
         if (!form.checkValidity()) { form.reportValidity(); return false; }
 
@@ -495,27 +472,30 @@ const Accounting = (() => {
           return false;
         }
 
-        const invoiceData = {
-          clientId: selClientId,
-          clientName: selectedClient ? selectedClient.name : 'Unknown Client',
-          invoiceNumber: formData.get('invoiceNumber'),
-          issueDate: formData.get('issueDate'),
-          dueDate: formData.get('dueDate'),
-          notes: formData.get('notes'),
-          items,
-          subtotal: Math.round(subtotal * 100) / 100,
-          gstTotal: Math.round(gstTotal * 100) / 100,
-          total: Math.round((subtotal + gstTotal) * 100) / 100,
-          status: inv ? inv.status : 'Draft',
-          amountPaid: inv ? (inv.amountPaid != null ? inv.amountPaid : 0) : 0,
-          orderId: inv ? (inv.orderId || null) : null
-        };
+        if (isEdit && Invoicing.isLocked(inv)) {
+          Utils.showToast('Invoice is Paid and locked. Use "Edit Invoice Directly" on the order/project view to override.', 'error');
+          return false;
+        }
 
         if (isEdit) {
-          Store.update(Store.COLLECTIONS.INVOICES, invoiceId, invoiceData);
-          Utils.showToast('Tax invoice saved.');
+          await Invoicing.editDirect(invoiceId, {
+            items,
+            shipping: inv.shipping || 0,
+            amountPaid: inv.amountPaid != null ? inv.amountPaid : 0,
+            status: inv.status
+          });
         } else {
-          Store.create(Store.COLLECTIONS.INVOICES, invoiceData);
+          await Invoicing.createManual({
+            clientId: selClientId,
+            clientName: selectedClient ? selectedClient.name : 'Unknown Client',
+            invoiceNumber: formData.get('invoiceNumber'),
+            issueDate: formData.get('issueDate'),
+            dueDate: formData.get('dueDate'),
+            notes: formData.get('notes'),
+            items,
+            subtotal,
+            gstTotal
+          });
           Utils.showToast('Tax invoice generated successfully.');
         }
 
@@ -714,11 +694,8 @@ const Accounting = (() => {
     });
   }
 
-  function markInvoicePaid(id) {
-    const inv = Store.getById(Store.COLLECTIONS.INVOICES, id);
-    if (!inv) return;
-    Store.update(Store.COLLECTIONS.INVOICES, id, { status: 'Paid', amountPaid: inv.total });
-    Utils.showToast('Invoice marked as fully paid.');
+  async function markInvoicePaid(id) {
+    await Invoicing.markPaid(id);
     renderSubTab();
   }
 
@@ -727,8 +704,8 @@ const Accounting = (() => {
       title: 'Delete Invoice',
       text: 'Are you sure you want to delete this invoice record from history?',
       confirmText: 'Delete Invoice',
-      onConfirm: () => {
-        Store.delete(Store.COLLECTIONS.INVOICES, id);
+      onConfirm: async () => {
+        await Invoicing.deleteInvoice(id);
         Utils.showToast('Invoice record deleted.', 'info');
         renderSubTab();
       }
