@@ -3710,7 +3710,7 @@ Payment of ${Utils.formatCurrency(amount)} via ${fd.get('paymentMethod')} record
             <div><span class="text-muted text-xs">Event:</span><div>${Utils.sanitizeHTML(proj.eventName || '—')}</div></div>
             <div><span class="text-muted text-xs">Event Date:</span><div>${proj.eventDate ? Utils.formatDate(proj.eventDate) : '—'}</div></div>
             <div><span class="text-muted text-xs">Total (ex-GST):</span><div class="font-mono font-bold">${Utils.formatCurrency(proj.totalPrice)}</div></div>
-            <div><span class="text-muted text-xs">Total (inc GST):</span><div class="font-mono font-bold text-gold">${Utils.formatCurrency(Math.round(proj.totalPrice * 1.10 * 100) / 100)}</div></div>
+            <div><span class="text-muted text-xs">Total (inc GST${invoice ? ' + shipping' : ''}):</span><div class="font-mono font-bold text-gold">${Utils.formatCurrency(invoice ? invoice.total : Math.round(proj.totalPrice * 1.10 * 100) / 100)}</div></div>
           </div>
           ${invoice ? `
             <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
