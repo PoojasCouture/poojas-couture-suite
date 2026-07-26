@@ -2445,14 +2445,16 @@ poojascouture.com.au`
       { name:'Final Handover', desc:'Quality inspection, steam press, bridal pack and boutique pickup.' }
     ];
 
-    const statusMap = { 'New':1,'In Design':2,'Fabric Sourced':3,'In Production':4,'Fitting':5,'Ready':6,'Shipped to Shashank':7,'At Shashank':8,'In Transit':9,'Awaiting Payment':9,'Cleared for Delivery':9,'Received in Australia':10,'Final Fitting':11,'Delivered':12 };
+    const statusMap = { 'New':1,'In Design':2,'Fabric Sourced':3,'In Production':4,'Fitting':5,'Ready':6,'Shipped to Shashank':7,'At Shashank':8,'In Transit':9,'Awaiting Payment':9,'Cleared for Delivery':9,'Received in Australia':10,'Final Fitting':11,'Delivered':12,'Completed':12 };
     const currentStage = orders.length>0 ? (statusMap[orders[0].status]||0) : 0;
 
     wrapper.innerHTML = `
       <div class="d-flex items-center justify-between mb-6" style="border-bottom:1px solid var(--pc-border);padding-bottom:var(--sp-4)">
         <div>
           <h3 class="font-display text-md text-gold">${Utils.sanitizeHTML(client.name)} — Journey</h3>
-          <p class="text-xs text-muted mt-1">${orders.length} garment${orders.length!==1?'s':''} tracked${(()=>{ if(!orders.length||!orders[0].projectId) return ''; const p=Store.getById(Store.COLLECTIONS.ORDER_PROJECTS,orders[0].projectId); return p?' · 📁 '+Utils.sanitizeHTML(p.projectName):''; })()}</p>
+          <p class="text-xs text-muted mt-1">${orders.length} garment${orders.length!==1?'s':''} tracked${(()=>{ if(!orders.length||!orders[0].projectId) return ''; const p=Store.getById(Store.COLLECTIONS.ORDER_PROJECTS,orders[0].projectId); return p?' · 📁 '+Utils.sanitizeHTML(p.projectName):''; })()}
+            ${orders.length > 0 ? ' · <a href="#" onclick="event.preventDefault();CRM.showOrderDetails(\''+orders[0].id+'\')" style="color:var(--pc-gold)">View this order →</a>' : ''}
+          </p>
         </div>
         <div class="d-flex items-center gap-3">
           <div class="text-right">
@@ -2480,7 +2482,7 @@ poojascouture.com.au`
         }).join('')}
       </div>
       ${orders.length > 1 ? (() => {
-        const rows = orders.map(o => { const pct = Math.round((statusMap[o.status]||0)/12*100); return '<div class="d-flex justify-between items-center p-2 rounded-md text-xs mb-1" style="background:rgba(255,255,255,0.02);border:1px solid var(--pc-border)"><div><div class="font-semibold">'+Utils.sanitizeHTML(o.title)+'</div>'+(o.orderCode?'<div class="font-mono text-xs" style="color:#a78bfa">'+Utils.sanitizeHTML(o.orderCode)+'</div>':'')+'</div><div class="text-right"><span class="badge badge-gold text-xs">'+o.status+'</span><div class="text-xs text-muted mt-1">'+pct+'%</div></div></div>'; }).join('');
+        const rows = orders.map(o => { const pct = Math.round((statusMap[o.status]||0)/12*100); return '<div class="d-flex justify-between items-center p-2 rounded-md text-xs mb-1" style="cursor:pointer;background:rgba(255,255,255,0.02);border:1px solid var(--pc-border)" onclick="CRM.showOrderDetails(\''+o.id+'\')"><div><div class="font-semibold">'+Utils.sanitizeHTML(o.title)+'</div>'+(o.orderCode?'<div class="font-mono text-xs" style="color:#a78bfa">'+Utils.sanitizeHTML(o.orderCode)+'</div>':'')+'</div><div class="text-right"><span class="badge badge-gold text-xs">'+o.status+'</span><div class="text-xs text-muted mt-1">'+pct+'%</div></div></div>'; }).join('');
         return '<div class="mt-4" style="border-top:1px solid var(--pc-border);padding-top:16px"><div class="text-xs font-semibold text-gold mb-2">Individual Garments</div>'+rows+'</div>';
       })() : ''}
     `;
