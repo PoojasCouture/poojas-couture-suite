@@ -1495,7 +1495,7 @@ div[style*="border:1px solid var(--pc-"] {
 .stat-card-value {
   font-family: var(--font-mono);
   font-size: var(--text-xl);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--pc-text-heading);
   line-height: 1.1;
   margin-bottom: var(--sp-1);

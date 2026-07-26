@@ -2731,7 +2731,7 @@ poojascouture.com.au`
           box-shadow: 0 6px 20px rgba(212,175,55,0.15);
         }
         .kpi-value {
-          font-size:17px;font-weight:800;
+          font-size:17px;font-weight:500;
           color:var(--pc-text);line-height:1.2;
           transition: color 0.2s;
         }

@@ -198,9 +198,12 @@ const App = (() => {
 
     const totalBrides = clients.filter(c => c.type === 'Bride').length;
     const activeOrders = orders.filter(o => o.status !== 'Delivered');
-    const pendingInvoices = invoices.filter(i => i.status === 'Sent' || i.status === 'Overdue');
+    const pendingInvoices = invoices.filter(i => ['Partially Paid', 'Sent', 'Draft'].includes(i.status));
     const upcomingAppts = appts.filter(a => a.status === 'Scheduled');
-    const totalOutstanding = pendingInvoices.reduce((sum, i) => sum + i.total, 0);
+    const totalOutstanding = pendingInvoices.reduce((sum, i) => {
+      const paid = (i.amountPaid != null && i.amountPaid !== '') ? parseFloat(i.amountPaid) : 0;
+      return sum + Math.max(0, (i.total || 0) - paid);
+    }, 0);
 
     container.innerHTML = `
       <div class="page-header animate-fade-in">
