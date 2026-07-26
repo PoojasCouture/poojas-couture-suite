@@ -17,6 +17,31 @@
 
 const Invoicing = (function () {
 
+  async function callBackend(action, params) {
+    const client = Store.getClient();
+    const { data: sessionData } = await client.auth.getSession();
+    const token = sessionData && sessionData.session ? sessionData.session.access_token : null;
+    if (!token) {
+      Utils.showToast('Your session has expired. Please log in again.', 'error');
+      return { ok: false, error: 'No session' };
+    }
+    try {
+      const res = await fetch('/api/invoicing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, token, ...params })
+      });
+      const result = await res.json();
+      if (!result.ok) {
+        Utils.showToast(result.error || 'Invoice update failed.', 'error');
+      }
+      return result;
+    } catch (e) {
+      Utils.showToast('Network error contacting invoicing service.', 'error');
+      return { ok: false, error: e.message };
+    }
+  }
+
   function r2(n) {
     return Math.round((n || 0) * 100) / 100;
   }
@@ -80,79 +105,37 @@ const Invoicing = (function () {
   // standalone order.
   // ------------------------------------------------------------
   async function createForProject(projectId, opts = {}) {
-    const subOrders = Store.query(Store.COLLECTIONS.ORDERS, x => x.projectId === projectId);
-    if (!subOrders.length) return null;
-
-    const subtotal = r2(subOrders.reduce((s, x) => s + (x.price || 0), 0));
-    const gstTotal = r2(subtotal * 0.10);
-    const shipping = r2(opts.shipping || 0);
-    const total = r2(subtotal + gstTotal + shipping);
-
-    const items = subOrders.map(x => ({
-      description: `${x.orderCode ? x.orderCode + ' — ' : ''}${x.title}`,
-      quantity: 1,
-      unitPrice: r2(x.price),
-      gst: r2(x.price * 0.10),
-      amount: r2(x.price * 1.10)
-    }));
-
-    const invoiceData = {
+    const result = await callBackend('createForProject', {
       projectId,
-      clientId: opts.clientId || null,
-      clientName: opts.clientName || '',
-      invoiceNumber: opts.invoiceNumber,
-      issueDate: opts.issueDate || new Date().toISOString().slice(0, 10),
-      dueDate: opts.dueDate || null,
-      items, subtotal, gstTotal, shipping, total,
-      status: 'Draft',
-      amountPaid: 0,
-      milestones: opts.useMilestones === false ? [] : buildMilestones(total, null),
-      notes: opts.notes || ''
-    };
-
-    const created = await Store.create(Store.COLLECTIONS.INVOICES, invoiceData);
-    return created;
+      clientId: opts.clientId, clientName: opts.clientName,
+      invoiceNumber: opts.invoiceNumber, issueDate: opts.issueDate, dueDate: opts.dueDate,
+      notes: opts.notes, shipping: opts.shipping, useMilestones: opts.useMilestones
+    });
+    if (!result.ok) return null;
+    await Store.refresh(Store.COLLECTIONS.INVOICES);
+    return result.invoice;
   }
 
   async function createForOrder(orderId, opts = {}) {
-    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
-    if (!o) return null;
-
-    const subtotal = r2(o.price || 0);
-    const gstTotal = r2(subtotal * 0.10);
-    const total = r2(subtotal + gstTotal);
-
-    const invoiceData = {
+    const result = await callBackend('createForOrder', {
       orderId,
-      clientId: opts.clientId || null,
-      clientName: opts.clientName || '',
-      invoiceNumber: opts.invoiceNumber,
-      issueDate: opts.issueDate || new Date().toISOString().slice(0, 10),
-      dueDate: opts.dueDate || null,
-      items: [{ description: o.title, quantity: 1, unitPrice: subtotal, gst: gstTotal, amount: total }],
-      subtotal, gstTotal, total,
-      status: 'Draft',
-      amountPaid: 0,
-      notes: opts.notes || ''
-    };
-
-    const created = await Store.create(Store.COLLECTIONS.INVOICES, invoiceData);
-    return created;
+      clientId: opts.clientId, clientName: opts.clientName,
+      invoiceNumber: opts.invoiceNumber, issueDate: opts.issueDate, dueDate: opts.dueDate,
+      notes: opts.notes
+    });
+    if (!result.ok) return null;
+    await Store.refresh(Store.COLLECTIONS.INVOICES);
+    return result.invoice;
   }
 
   // Manual, blank-invoice creation from the Accounting tab's "+ Create
   // Invoice" form — not tied to an order/project. items/subtotal/gstTotal
   // come pre-computed from the form's line items.
   async function createManual(data) {
-    const total = r2((data.subtotal || 0) + (data.gstTotal || 0));
-    return Store.create(Store.COLLECTIONS.INVOICES, {
-      ...data,
-      subtotal: r2(data.subtotal || 0),
-      gstTotal: r2(data.gstTotal || 0),
-      total,
-      status: 'Draft',
-      amountPaid: 0
-    });
+    const result = await callBackend('createManual', { data });
+    if (!result.ok) return null;
+    await Store.refresh(Store.COLLECTIONS.INVOICES);
+    return result.invoice;
   }
 
   // ------------------------------------------------------------
@@ -163,61 +146,17 @@ const Invoicing = (function () {
     const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
     if (!o) return false;
 
-    if (o.projectId) {
-      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0];
-      if (!assertNotLocked(invoice)) return false;
-      const subOrders = Store.query(Store.COLLECTIONS.ORDERS, x => x.projectId === o.projectId);
-      if (!invoice || !subOrders.length) return false;
+    const invoice = o.projectId
+      ? Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === o.projectId)[0]
+      : Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
+    if (!assertNotLocked(invoice)) return false;
 
-      const newExGST = r2(subOrders.reduce((s, x) => s + (x.price || 0), 0));
-      const newGST = r2(newExGST * 0.10);
-      const shipping = r2(invoice.shipping || 0);
-      const newTotal = r2(newExGST + newGST + shipping);
-      const paid = paidSoFar(invoice);
-
-      const items = subOrders.map(x => ({
-        description: `${x.orderCode ? x.orderCode + ' — ' : ''}${x.title}`,
-        quantity: 1, unitPrice: r2(x.price), gst: r2(x.price * 0.10), amount: r2(x.price * 1.10)
-      }));
-
-      const milestones = (invoice.milestones && invoice.milestones.length)
-        ? buildMilestones(newTotal, invoice.milestones)
-        : invoice.milestones;
-
-      await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-        items, subtotal: newExGST, gstTotal: newGST, shipping, total: newTotal,
-        status: statusFor(newTotal, paid),
-        milestones
-      });
-      await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, o.projectId, { totalPrice: newExGST });
-      Utils.showToast('Invoice synced from current order prices.', 'info');
-      return true;
-    } else {
-      const invoice = Store.query(Store.COLLECTIONS.INVOICES, i => i.orderId === orderId)[0];
-      if (!assertNotLocked(invoice)) return false;
-      if (!invoice) return false;
-
-      const newSub = r2(o.price || 0);
-      const newGst = r2(newSub * 0.10);
-      const garmentTotal = r2(newSub + newGst);
-      const items = (invoice.items || []).slice();
-      if (items.length > 0) {
-        items[0] = { ...items[0], description: o.title, unitPrice: newSub, gst: newGst, amount: garmentTotal };
-      } else {
-        items.push({ description: o.title, quantity: 1, unitPrice: newSub, gst: newGst, amount: garmentTotal });
-      }
-      const extraLines = items.slice(1);
-      const subtotal = r2(newSub + extraLines.reduce((s, it) => s + (it.unitPrice || 0), 0));
-      const gstTotal = r2(newGst + extraLines.reduce((s, it) => s + (it.gst || 0), 0));
-      const total = r2(subtotal + gstTotal);
-      const paid = paidSoFar(invoice);
-
-      await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-        items, subtotal, gstTotal, total, status: statusFor(total, paid)
-      });
-      Utils.showToast('Invoice synced from current order price.', 'info');
-      return true;
-    }
+    const result = await callBackend('syncFromOrders', { orderId });
+    if (!result.ok) return false;
+    await Store.refresh(Store.COLLECTIONS.INVOICES);
+    if (o.projectId) await Store.refresh(Store.COLLECTIONS.ORDER_PROJECTS);
+    Utils.showToast('Invoice synced from current order prices.', 'info');
+    return true;
   }
 
   // ------------------------------------------------------------
@@ -230,26 +169,10 @@ const Invoicing = (function () {
     if (!invoice) return false;
     if (!assertNotLocked(invoice)) return false;
 
-    const already = (invoice.items || []).some(it => it.isShipping);
-    if (already) return true; // idempotent — already added, nothing to do
-
-    const share = r2(shareAmount);
-    const lineGst = r2(share * gstRate);
-    const lineTotal = r2(share + lineGst);
-
-    const items = (invoice.items || []).slice();
-    items.push({ description, quantity: 1, unitPrice: share, gst: lineGst, amount: lineTotal, isShipping: true });
-
-    const newSubtotal = r2((invoice.subtotal || 0) + share);
-    const newGstTotal = r2((invoice.gstTotal || 0) + lineGst);
-    const newTotal = r2((invoice.total || 0) + lineTotal);
-    const paid = paidSoFar(invoice);
-
-    await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-      items, subtotal: newSubtotal, gstTotal: newGstTotal, total: newTotal,
-      status: statusFor(newTotal, paid)
-    });
-    Utils.showToast('Shipping ' + Utils.formatCurrency(lineTotal) + ' (inc GST) added to invoice.', 'info');
+    const result = await callBackend('addShippingLine', { invoiceId, description, shareAmount, gstRate });
+    if (!result.ok) return false;
+    await Store.refresh(Store.COLLECTIONS.INVOICES);
+    Utils.showToast('Shipping added to invoice.', 'info');
     return true;
   }
 
@@ -259,59 +182,24 @@ const Invoicing = (function () {
   // an unpaid shortfall on this milestone rolls into the next one.
   // ------------------------------------------------------------
   async function recordMilestonePayment(invoiceId, milestoneIndex, amount, method, dateStr) {
-    const invoice = Store.getById(Store.COLLECTIONS.INVOICES, invoiceId);
-    if (!invoice) return false;
-    const milestones = invoice.milestones || [];
-    const m = milestones[milestoneIndex];
-    if (!m) return false;
-
     const amt = r2(amount);
     if (amt <= 0) { Utils.showToast('Enter a payment amount greater than zero.', 'error'); return false; }
 
-    const shortfall = Math.max(0, r2((m.amount - (m.paidAmount || 0)) - amt));
-    const updated = milestones.map((ms, idx) => {
-      if (idx === milestoneIndex) {
-        const newPaidAmount = r2((ms.paidAmount || 0) + amt);
-        return { ...ms, paidAmount: newPaidAmount, paid: newPaidAmount >= ms.amount };
-      }
-      if (idx === milestoneIndex + 1 && shortfall > 0) {
-        return { ...ms, amount: r2(ms.amount + shortfall), rollover: r2((ms.rollover || 0) + shortfall) };
-      }
-      return ms;
-    });
-
-    const newTotalPaid = r2(paidSoFar(invoice) + amt);
-    const newStatus = statusFor(invoice.total, newTotalPaid);
-    const note = m.label + ': ' + Utils.formatCurrency(amt) + ' via ' + (method || 'Unspecified') +
-      ' on ' + (dateStr || new Date().toLocaleDateString('en-AU')) + '.';
-
-    await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-      amountPaid: newTotalPaid,
-      status: newStatus,
-      milestones: updated,
-      notes: (invoice.notes || '') + '\n' + note
-    });
-    Utils.showToast('Payment of ' + Utils.formatCurrency(amt) + ' recorded for ' + m.label + '.', 'success');
+    const result = await callBackend('recordMilestonePayment', { invoiceId, milestoneIndex, amount: amt, method, dateStr });
+    if (!result.ok) return false;
+    await Store.refresh(Store.COLLECTIONS.INVOICES);
+    Utils.showToast('Payment of ' + Utils.formatCurrency(amt) + ' recorded.', 'success');
     return true;
   }
 
   // Generic, non-milestone payment — usable at any pipeline stage.
   async function recordAdditionalPayment(invoiceId, amount, method, dateStr) {
-    const invoice = Store.getById(Store.COLLECTIONS.INVOICES, invoiceId);
-    if (!invoice) return false;
     const amt = r2(amount);
     if (amt <= 0) { Utils.showToast('Enter a payment amount greater than zero.', 'error'); return false; }
 
-    const newTotalPaid = r2(paidSoFar(invoice) + amt);
-    const newStatus = statusFor(invoice.total, newTotalPaid);
-    const note = 'Payment: ' + Utils.formatCurrency(amt) + ' via ' + (method || 'Unspecified') +
-      ' on ' + (dateStr || new Date().toLocaleDateString('en-AU')) + '.';
-
-    await Store.update(Store.COLLECTIONS.INVOICES, invoice.id, {
-      amountPaid: newTotalPaid,
-      status: newStatus,
-      notes: (invoice.notes || '') + '\n' + note
-    });
+    const result = await callBackend('recordAdditionalPayment', { invoiceId, amount: amt, method, dateStr });
+    if (!result.ok) return false;
+    await Store.refresh(Store.COLLECTIONS.INVOICES);
     Utils.showToast('Payment of ' + Utils.formatCurrency(amt) + ' recorded.', 'success');
     return true;
   }
@@ -320,14 +208,9 @@ const Invoicing = (function () {
   // gap where accounting.js used to set status=Paid while leaving
   // milestones showing unpaid.
   async function markPaid(invoiceId) {
-    const invoice = Store.getById(Store.COLLECTIONS.INVOICES, invoiceId);
-    if (!invoice) return false;
-    const milestones = (invoice.milestones || []).map(ms => ({ ...ms, paid: true, paidAmount: ms.amount }));
-    await Store.update(Store.COLLECTIONS.INVOICES, invoiceId, {
-      status: 'Paid',
-      amountPaid: invoice.total,
-      milestones
-    });
+    const result = await callBackend('markPaid', { invoiceId });
+    if (!result.ok) return false;
+    await Store.refresh(Store.COLLECTIONS.INVOICES);
     Utils.showToast('Invoice marked as fully paid.', 'success');
     return true;
   }
@@ -336,27 +219,21 @@ const Invoicing = (function () {
   // EDIT DIRECT — the one explicit, user-confirmed override path
   // that IS allowed to touch a Paid invoice. Caller's UI must ask
   // for confirmation before calling this on a locked invoice.
+  // Restricted server-side to admin/operations roles only.
   // ------------------------------------------------------------
   async function editDirect(invoiceId, { items, shipping, amountPaid, status }) {
-    const invoice = Store.getById(Store.COLLECTIONS.INVOICES, invoiceId);
-    if (!invoice) return false;
-
-    const subtotal = r2(items.reduce((s, it) => s + (it.unitPrice || 0) * (it.quantity || 1), 0));
-    const gstTotal = r2(items.reduce((s, it) => s + (it.gst || 0), 0));
-    const ship = r2(shipping || 0);
-    const total = r2(subtotal + gstTotal + ship);
-    const paid = r2(amountPaid != null ? amountPaid : paidSoFar(invoice));
-    const finalStatus = status || statusFor(total, paid);
-
-    await Store.update(Store.COLLECTIONS.INVOICES, invoiceId, {
-      items, subtotal, gstTotal, shipping: ship, total, amountPaid: paid, status: finalStatus
-    });
+    const result = await callBackend('editDirect', { invoiceId, items, shipping, amountPaid, status });
+    if (!result.ok) return false;
+    await Store.refresh(Store.COLLECTIONS.INVOICES);
     Utils.showToast('Invoice updated.', 'success');
     return true;
   }
 
   async function deleteInvoice(invoiceId) {
-    return Store.delete(Store.COLLECTIONS.INVOICES, invoiceId);
+    const result = await callBackend('deleteInvoice', { invoiceId });
+    if (!result.ok) return false;
+    await Store.refresh(Store.COLLECTIONS.INVOICES);
+    return true;
   }
 
   return {

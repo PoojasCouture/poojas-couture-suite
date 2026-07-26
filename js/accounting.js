@@ -595,8 +595,13 @@ const Accounting = (() => {
               <span style="color: #666;">Total GST (10%):</span>
               <span style="font-family: monospace;">${Utils.formatCurrency(inv.gstTotal)}</span>
             </div>
+            ${inv.shipping > 0 ? `
+            <div class="d-flex justify-between" style="padding: 4px 0; border-bottom: 1px solid #eee;">
+              <span style="color: #666;">Shipping:</span>
+              <span style="font-family: monospace;">${Utils.formatCurrency(inv.shipping)}</span>
+            </div>` : ''}
             <div class="d-flex justify-between" style="padding: 8px 0; font-weight: bold; font-size: 15px; color: #ECB676;">
-              <span>Total (inc GST):</span>
+              <span>Total (inc GST${inv.shipping > 0 ? ' + shipping' : ''}):</span>
               <span style="font-family: monospace;">${Utils.formatCurrency(inv.total)}</span>
             </div>
             <div class="d-flex justify-between" style="padding: 4px 0; color: #10B981;">
@@ -617,7 +622,7 @@ const Accounting = (() => {
             <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eee;">
               <div><div style="font-weight:600;">${Utils.sanitizeHTML(m.label)}</div></div>
               <div style="text-align:right;">
-                <div style="font-family:monospace; font-weight:bold;">${Utils.formatCurrency(m.amount)}</div>
+                <div style="font-family:monospace; font-weight:bold;">${Utils.formatCurrency(m.paid ? (m.paidAmount || m.amount) : m.amount)}</div>
                 <div style="font-size:10px; color:${m.paid ? '#10B981' : '#F59E0B'};">${m.paid ? '✓ Paid' : 'Pending'}</div>
               </div>
             </div>`).join('')}

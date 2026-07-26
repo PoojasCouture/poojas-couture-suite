@@ -3997,22 +3997,6 @@ poojascouture.com.au`
     }, 100);
   }
 
-  // RETIRED — this function used to recalculate invoice totals without
-  // including shipping, and had no check preventing it from overwriting a
-  // Paid/locked invoice. That combination is what wiped Sanjana & Rishi's
-  // shipping figure and clobbered a settled invoice. All UI buttons now
-  // call syncInvoiceFromOrders() instead, which includes shipping and
-  // refuses to run on a Paid invoice. This redirect exists only in case
-  // a stale cached page still references the old name.
-  function updateProjectInvoice(projectId) {
-    const subOrders = Store.query(Store.COLLECTIONS.ORDERS, o => o.projectId === projectId);
-    if (subOrders.length === 0) {
-      Utils.showToast('No garments in this project to invoice.', 'error');
-      return;
-    }
-    return syncInvoiceFromOrders(subOrders[0].id);
-  }
-
   function quickEmailClient(clientId) {
     showComposeModal(clientId, 'custom', {});
   }
@@ -4177,7 +4161,6 @@ poojascouture.com.au`
     showProjectModal,
     createProjectInvoice,
     showKPIReport,
-    updateProjectInvoice,
     recordMilestonePayment,
     logClientChange,
     requestPhotos,
