@@ -289,25 +289,27 @@ poojascouture.com.au`
     Utils.showToast('Client list exported as CSV.');
   }
 
-  function showClientModal(clientId = null) {
+  function showClientModal(clientId = null, prefill = null, linkAppointmentId = null) {
     const isEdit = !!clientId;
     const client = isEdit ? Store.getById(Store.COLLECTIONS.CLIENTS, clientId) : null;
+    const pf = prefill || {};
     App.showModal({
-      title: isEdit ? 'Edit Client' : 'Add New Client',
+      title: isEdit ? 'Edit Client' : (linkAppointmentId ? 'Create Client from Booking' : 'Add New Client'),
       content: `
         <form id="client-form" class="animate-fade-in-scale">
+          ${linkAppointmentId ? `<div class="text-xs text-muted mb-3">Creating a client record for this booking. It will be linked back to the appointment automatically.</div>` : ''}
           <div class="form-group">
             <label class="form-label">Client Name <span class="required">*</span></label>
-            <input type="text" name="name" class="form-input" required value="${client?Utils.sanitizeHTML(client.name):''}">
+            <input type="text" name="name" class="form-input" required value="${client?Utils.sanitizeHTML(client.name):Utils.sanitizeHTML(pf.name||'')}">
           </div>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Email <span class="required">*</span></label>
-              <input type="email" name="email" class="form-input" required value="${client?Utils.sanitizeHTML(client.email):''}">
+              <input type="email" name="email" class="form-input" required value="${client?Utils.sanitizeHTML(client.email):Utils.sanitizeHTML(pf.email||'')}">
             </div>
             <div class="form-group">
               <label class="form-label">Phone <span class="required">*</span></label>
-              <input type="text" name="phone" class="form-input" required value="${client?Utils.sanitizeHTML(client.phone):''}">
+              <input type="text" name="phone" class="form-input" required value="${client?Utils.sanitizeHTML(client.phone):Utils.sanitizeHTML(pf.phone||'')}">
             </div>
           </div>
           <div class="form-row">
@@ -331,11 +333,11 @@ poojascouture.com.au`
           </div>
           <div class="form-group m-0">
             <label class="form-label">Notes & Specifications</label>
-            <textarea name="notes" class="form-textarea" placeholder="Color palettes, measurements, design preferences...">${client?Utils.sanitizeHTML(client.notes||''):''}</textarea>
+            <textarea name="notes" class="form-textarea" placeholder="Color palettes, measurements, design preferences...">${client?Utils.sanitizeHTML(client.notes||''):Utils.sanitizeHTML(pf.notes||'')}</textarea>
           </div>
         </form>`,
-      submitText: isEdit ? 'Save Changes' : 'Add Client',
-      onSubmit: (modalEl) => {
+      submitText: isEdit ? 'Save Changes' : (linkAppointmentId ? 'Create & Link' : 'Add Client'),
+      onSubmit: async (modalEl) => {
         const form = Utils.$('#client-form', modalEl);
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
@@ -349,13 +351,37 @@ poojascouture.com.au`
           Store.update(Store.COLLECTIONS.CLIENTS, clientId, clientData);
           Utils.showToast('Client updated.');
         } else {
-          Store.create(Store.COLLECTIONS.CLIENTS, clientData);
-          Utils.showToast('Client registered.');
+          const created = await Store.create(Store.COLLECTIONS.CLIENTS, clientData);
+          if (linkAppointmentId && created) {
+            await Store.update(Store.COLLECTIONS.APPOINTMENTS, linkAppointmentId, {
+              clientId: created.id, clientName: created.name
+            });
+            Utils.showToast('Client created and linked to the booking.');
+          } else {
+            Utils.showToast('Client registered.');
+          }
         }
         renderSubTab();
         return true;
       }
     });
+  }
+
+  // Parses "Email: x | Phone: y | Source: TidyCal" (the exact format
+  // tidycal-sync.js writes into appointment notes) to pre-fill the new
+  // client form, so staff aren't retyping contact info that's already there.
+  function createClientFromBooking(apptId) {
+    const appt = Store.getById(Store.COLLECTIONS.APPOINTMENTS, apptId);
+    if (!appt) return;
+    const notes = appt.notes || '';
+    const emailMatch = notes.match(/Email:\s*([^|]+)/i);
+    const phoneMatch = notes.match(/Phone:\s*([^|]+)/i);
+    showClientModal(null, {
+      name: appt.clientName || '',
+      email: emailMatch ? emailMatch[1].trim() : '',
+      phone: phoneMatch ? phoneMatch[1].trim() : '',
+      notes: 'Created from booking on ' + Utils.formatDateShort(appt.date) + '.'
+    }, apptId);
   }
 
   function showClientDetailsModal(clientId) {
@@ -569,6 +595,7 @@ poojascouture.com.au`
           <td class="text-muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${Utils.sanitizeHTML(a.notes||'—')}</td>
           <td>
             <div class="table-actions justify-end">
+              ${!a.clientId ? `<button class="btn btn-icon btn-ghost sm" title="Create Client from this booking" onclick="CRM.createClientFromBooking('${a.id}')">👤➕</button>` : ''}
               ${a.status==='Scheduled'?`<button class="btn btn-icon btn-ghost sm" title="Send Reminder" onclick="CRM.sendFittingReminder('${a.id}')">✉️</button>`:''}
               ${a.status==='Scheduled'?`<button class="btn btn-icon btn-ghost sm" title="Mark Complete" onclick="CRM.completeAppointment('${a.id}')">✓</button>`:''}
               <button class="btn btn-icon btn-ghost sm" title="Edit" onclick="CRM.editAppointment('${a.id}')">✏️</button>
@@ -4137,6 +4164,7 @@ poojascouture.com.au`
   return {
     init,
     editClient,
+    createClientFromBooking,
     deleteClient,
     quickEmailClient,
     completeAppointment,
