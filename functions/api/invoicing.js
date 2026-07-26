@@ -112,54 +112,76 @@ export async function onRequest(context) {
   const canUpdateOnly = canWrite || role === 'logistics';
   if (!canUpdateOnly) return fail('Not authorized to modify invoices', 403);
 
+  // --- naming-convention bridge ---
+  // The app's JS objects use camelCase (amountPaid, projectId, orderCode...)
+  // but the actual Postgres columns are snake_case (amount_paid, project_id,
+  // order_code...) — exactly like Store.rowToApp/appToRow do on the client.
+  // Every REST call below MUST go through these, or PostgREST rejects the
+  // request outright (unknown column) — which is exactly what was happening.
+  function toCamel(s) { return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase()); }
+  function toSnake(s) { return s.replace(/[A-Z]/g, c => '_' + c.toLowerCase()); }
+  function rowToApp(row) {
+    if (!row || typeof row !== 'object') return row;
+    const out = {};
+    for (const k in row) out[toCamel(k)] = row[k];
+    return out;
+  }
+  function appToRow(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    const out = {};
+    for (const k in obj) out[toSnake(k)] = obj[k];
+    return out;
+  }
+
   // --- helpers against Supabase REST ---
   async function getInvoiceById(id) {
     const res = await fetch(SB + '/rest/v1/invoices?id=eq.' + id + '&select=*', { headers: svcHeaders });
     const rows = res.ok ? await res.json() : [];
-    return rows[0] || null;
+    return rows[0] ? rowToApp(rows[0]) : null;
   }
   async function getOrderById(id) {
     const res = await fetch(SB + '/rest/v1/orders?id=eq.' + id + '&select=*', { headers: svcHeaders });
     const rows = res.ok ? await res.json() : [];
-    return rows[0] || null;
+    return rows[0] ? rowToApp(rows[0]) : null;
   }
   async function getOrdersByProject(projectId) {
-    const res = await fetch(SB + '/rest/v1/orders?projectId=eq.' + projectId + '&select=*', { headers: svcHeaders });
-    return res.ok ? await res.json() : [];
+    const res = await fetch(SB + '/rest/v1/orders?project_id=eq.' + projectId + '&select=*', { headers: svcHeaders });
+    const rows = res.ok ? await res.json() : [];
+    return rows.map(rowToApp);
   }
   async function getInvoiceByProject(projectId) {
-    const res = await fetch(SB + '/rest/v1/invoices?projectId=eq.' + projectId + '&select=*', { headers: svcHeaders });
+    const res = await fetch(SB + '/rest/v1/invoices?project_id=eq.' + projectId + '&select=*', { headers: svcHeaders });
     const rows = res.ok ? await res.json() : [];
-    return rows[0] || null;
+    return rows[0] ? rowToApp(rows[0]) : null;
   }
   async function getInvoiceByOrder(orderId) {
-    const res = await fetch(SB + '/rest/v1/invoices?orderId=eq.' + orderId + '&select=*', { headers: svcHeaders });
+    const res = await fetch(SB + '/rest/v1/invoices?order_id=eq.' + orderId + '&select=*', { headers: svcHeaders });
     const rows = res.ok ? await res.json() : [];
-    return rows[0] || null;
+    return rows[0] ? rowToApp(rows[0]) : null;
   }
   async function patchInvoice(id, patch) {
     const res = await fetch(SB + '/rest/v1/invoices?id=eq.' + id, {
       method: 'PATCH',
       headers: { ...svcHeaders, 'Prefer': 'return=representation' },
-      body: JSON.stringify(patch)
+      body: JSON.stringify(appToRow(patch))
     });
     if (!res.ok) throw new Error('Invoice update failed: ' + res.status + ' ' + (await res.text()).slice(0, 300));
     const rows = await res.json();
-    return rows[0];
+    return rowToApp(rows[0]);
   }
   async function insertInvoice(data) {
     const res = await fetch(SB + '/rest/v1/invoices', {
       method: 'POST',
       headers: { ...svcHeaders, 'Prefer': 'return=representation' },
-      body: JSON.stringify(data)
+      body: JSON.stringify(appToRow(data))
     });
     if (!res.ok) throw new Error('Invoice create failed: ' + res.status + ' ' + (await res.text()).slice(0, 300));
     const rows = await res.json();
-    return rows[0];
+    return rowToApp(rows[0]);
   }
   async function patchProject(id, patch) {
     await fetch(SB + '/rest/v1/order_projects?id=eq.' + id, {
-      method: 'PATCH', headers: svcHeaders, body: JSON.stringify(patch)
+      method: 'PATCH', headers: svcHeaders, body: JSON.stringify(appToRow(patch))
     });
   }
 
