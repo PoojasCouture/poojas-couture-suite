@@ -33,43 +33,11 @@ const App = (() => {
     }
 
     startClock();
-    setupTheme();
     setupNavigation();
     setupMobileSidebar();
     Utils.$('#btn-notifications').addEventListener('click', showNotificationsSummary);
     setupAuthListeners();
     await checkAuthSession();
-  }
-
-  function setupTheme() {
-    var saved = null;
-    try { saved = localStorage.getItem('pc_theme'); } catch(e) {}
-    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var theme = saved || (prefersDark ? 'dark' : 'light');
-    applyTheme(theme);
-
-    var btn = document.getElementById('btn-theme-toggle');
-    if (btn) {
-      btn.addEventListener('click', function() {
-        var current = document.documentElement.getAttribute('data-theme') || 'dark';
-        applyTheme(current === 'dark' ? 'light' : 'dark');
-      });
-    }
-
-    if (window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-        var stored = null;
-        try { stored = localStorage.getItem('pc_theme'); } catch(err) {}
-        if (!stored) applyTheme(e.matches ? 'dark' : 'light');
-      });
-    }
-  }
-
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    try { localStorage.setItem('pc_theme', theme); } catch(e) {}
-    var btn = document.getElementById('btn-theme-toggle');
-    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
   }
 
   function startClock() {

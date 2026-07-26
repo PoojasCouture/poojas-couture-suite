@@ -6,27 +6,8 @@
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // ---- Theme (shared with main app via pc_theme localStorage key) ----
-  function initTheme() {
-    var saved = null;
-    try { saved = localStorage.getItem('pc_theme'); } catch(e) {}
-    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var theme = saved || (prefersDark ? 'dark' : 'light');
-    document.documentElement.setAttribute('data-theme', theme);
-    var btn = document.getElementById('btn-theme-toggle');
-    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
-  }
-  initTheme();
-  var themeBtn = document.getElementById('btn-theme-toggle');
-  if (themeBtn) {
-    themeBtn.addEventListener('click', function() {
-      var current = document.documentElement.getAttribute('data-theme') || 'dark';
-      var next = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      try { localStorage.setItem('pc_theme', next); } catch(e) {}
-      themeBtn.textContent = next === 'dark' ? '☀️' : '🌙';
-    });
-  }
+  // Theme handling moved to the shared js/theme.js (loaded in index.html) —
+  // it was previously duplicated here independently.
 
   let currentUser = null;
   let activeTab = 'orders';
