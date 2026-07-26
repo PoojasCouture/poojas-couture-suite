@@ -46,10 +46,6 @@ const Invoicing = (function () {
     return Math.round((n || 0) * 100) / 100;
   }
 
-  function paidSoFar(invoice) {
-    return (invoice.amountPaid != null && invoice.amountPaid !== '') ? parseFloat(invoice.amountPaid) : 0;
-  }
-
   function statusFor(total, paid) {
     if (total > 0 && paid >= total) return 'Paid';
     if (paid > 0) return 'Partially Paid';

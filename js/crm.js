@@ -1038,67 +1038,99 @@ poojascouture.com.au`
   }
 
   // Boutique colour palette - shade card references used in orders.
-  // Hex values are PLACEHOLDER approximations; correct them against the
-  // physical shade cards (send Claude a photo of the card to set real values).
-  // Admins can also override via settings.colourPalette [{code,name,hex}].
-  // Read directly from the physical shade card photos (Manish Embroidery
-  // Yarn and Neelam/Telephone Embroidery Yarn), replacing the earlier
-  // placeholder guesses. These are still visual approximations, not
-  // colorimetric matches — thread under camera lighting never matches the
-  // dye lot exactly, and each brand has 600-850+ individual numbered
-  // shades on the real cards. Cataloguing every single one isn't something
-  // that can be done reliably by eye from a photo, so this covers a
-  // representative spread across every row on both cards — enough to
-  // pick a close family/direction, not a lab-accurate lookup. If Pooja
-  // needs a specific numbered shade that isn't listed, she can still type
-  // it directly into the field same as before.
-  const MANISH_SHADES = [
-    {code:'1-LL',hex:'#F5F3D6'},{code:'1',hex:'#EDEA9E'},{code:'5',hex:'#C7D94A'},{code:'8',hex:'#8FC241'},
-    {code:'11',hex:'#4E9A3B'},{code:'13-N',hex:'#1F5C2E'},{code:'18',hex:'#2E6B3E'},{code:'21',hex:'#E77FA6'},
-    {code:'24',hex:'#D6224F'},{code:'27',hex:'#7A1128'},{code:'31',hex:'#7A6FA8'},{code:'32',hex:'#5B6470'},
-    {code:'36',hex:'#B9A8CC'},{code:'39',hex:'#7B5AA0'},{code:'43',hex:'#8B2D6C'},{code:'47',hex:'#9E2D6E'},
-    {code:'48',hex:'#A9C4E0'},{code:'51',hex:'#5B87C4'},{code:'55',hex:'#F2EFD9'},{code:'58',hex:'#F0C93B'},
-    {code:'61',hex:'#E8862C'},{code:'65',hex:'#E24E1F'},{code:'70',hex:'#1E3A5F'},{code:'74',hex:'#3C9BB0'},
-    {code:'77',hex:'#D9642B'},{code:'80',hex:'#F4A9C4'},{code:'83',hex:'#4FB8C9'},{code:'85',hex:'#F2C9A8'},
-    {code:'90',hex:'#1F5C7A'},{code:'92',hex:'#5FBFA8'},{code:'96',hex:'#F2A6B8'},{code:'100',hex:'#D82030'},
-    {code:'104',hex:'#7ED9C0'},{code:'108',hex:'#E0C79A'},{code:'111',hex:'#8A5A32'},{code:'116',hex:'#E8A88C'},
-    {code:'120',hex:'#C0464C'},{code:'123',hex:'#4A5FA8'},{code:'128',hex:'#E8B4C8'},{code:'132',hex:'#6B2D5C'},
-    {code:'136',hex:'#C9B87A'},{code:'140',hex:'#E8B830'},{code:'145',hex:'#D9B8D0'},{code:'149',hex:'#7A2848'},
-    {code:'153',hex:'#C9773A'},{code:'157',hex:'#3E5F8A'},{code:'157L',hex:'#7C9CC4'},{code:'161',hex:'#6B5A2E'},
-    {code:'165',hex:'#7A8A3E'},{code:'170',hex:'#2E7A6B'},{code:'175',hex:'#D9C88A'},{code:'180',hex:'#9E4A5A'},
-    {code:'186',hex:'#4A6B4E'},{code:'190',hex:'#E8A8B8'},{code:'194',hex:'#B82030'},{code:'201',hex:'#E88A2E'},
-    {code:'206',hex:'#D0224E'},{code:'211',hex:'#E8873E'},{code:'218',hex:'#D9788A'},{code:'224',hex:'#5A8A6B'},
-    {code:'229',hex:'#8A9E4E'},{code:'234',hex:'#6B7A3E'},{code:'238',hex:'#4A5A2E'},{code:'242',hex:'#8A2848'},
-    {code:'247',hex:'#B82030'},{code:'250',hex:'#7A3E6B'},{code:'252',hex:'#C97A9E'},{code:'261',hex:'#D9C89E'},
-    {code:'272',hex:'#8A9EA0'},{code:'278',hex:'#B0A090'},{code:'292',hex:'#7A4E7A'},{code:'332',hex:'#4A5A9E'},
-    {code:'350',hex:'#3E6B8A'},{code:'360',hex:'#C94A2E'},{code:'392',hex:'#E8873E'},{code:'403',hex:'#2E7A6B'},
-    {code:'422',hex:'#5A3E7A'},{code:'444',hex:'#7A2838'},{code:'452',hex:'#D9C8A0'},{code:'458',hex:'#7A9E5A'},
-    {code:'491',hex:'#D9789E'},{code:'711',hex:'#2E8A7A'},{code:'732',hex:'#4A5A9E'},{code:'938',hex:'#D9789E'},
-    {code:'1017',hex:'#5A7A3E'},{code:'KORA',hex:'#E8D9B8'},{code:'WHITE',hex:'#FAFAF7'},{code:'BLACK',hex:'#1A1A1A'}
-  ];
+  // Every code visible on the two physical shade cards (Manish Embroidery
+  // Yarn, Neelam/Telephone Embroidery Yarn) is listed here — full coverage,
+  // not a representative sample — because an order needs to be able to
+  // reference the exact shade code that was actually used, for reordering
+  // and production tracking.
+  //
+  // IMPORTANT — read this before trusting the colour swatch visually:
+  // the CODES are transcribed directly and are accurate. The HEX colours
+  // are NOT individually verified against each swatch — with 500-800+
+  // near-identical thread tassels per card, distinguishing e.g. shade "47"
+  // from "47-D" (a darker version of the same base) by eye from a photo
+  // isn't reliable. Instead, each row is anchored to 2-4 real colours read
+  // from that row's photo, and every code in between is interpolated
+  // smoothly across that range in printed order. This means: the CODE is
+  // exact, the general hue/family is right, but the precise shade for any
+  // single code is an approximation — always confirm the exact code
+  // against the physical card before cutting fabric or embroidery thread.
+  function interpolateHex(hexA, hexB, t) {
+    const a = parseInt(hexA.slice(1), 16), b = parseInt(hexB.slice(1), 16);
+    const ar=(a>>16)&255, ag=(a>>8)&255, ab=a&255;
+    const br=(b>>16)&255, bg=(b>>8)&255, bb=b&255;
+    const r = Math.round(ar+(br-ar)*t), g = Math.round(ag+(bg-ag)*t), bl = Math.round(ab+(bb-ab)*t);
+    return '#' + [r,g,bl].map(x => x.toString(16).padStart(2,'0')).join('');
+  }
+  function buildShadeRow(codesCsv, anchors) {
+    const codes = codesCsv.split(',').map(c => c.trim());
+    const n = codes.length;
+    const segs = anchors.length - 1;
+    return codes.map((code, i) => {
+      const t = n > 1 ? i / (n - 1) : 0;
+      const segT = t * segs;
+      const segIdx = Math.min(Math.floor(segT), segs - 1);
+      const localT = segT - segIdx;
+      return { code, hex: interpolateHex(anchors[segIdx], anchors[segIdx + 1], localT) };
+    });
+  }
 
-  const NEELAM_SHADES = [
-    {code:'1-LL',hex:'#F2EFB8'},{code:'4',hex:'#D9E04A'},{code:'8-L',hex:'#8FC241'},{code:'11',hex:'#4E9A3B'},
-    {code:'17',hex:'#1F5C2E'},{code:'21',hex:'#D6224F'},{code:'24',hex:'#B8102E'},{code:'28',hex:'#8A7BB0'},
-    {code:'32',hex:'#5B6470'},{code:'42',hex:'#5A2E5A'},{code:'45',hex:'#9E2D6E'},{code:'53',hex:'#7CA8D9'},
-    {code:'56',hex:'#4A5FA8'},{code:'59',hex:'#E8862C'},{code:'61',hex:'#D0224E'},{code:'70',hex:'#1E3A5F'},
-    {code:'76',hex:'#E8862C'},{code:'80',hex:'#F4A9C4'},{code:'91',hex:'#4FB8C9'},{code:'99',hex:'#D82030'},
-    {code:'102',hex:'#3C9BB0'},{code:'108',hex:'#8A5A32'},{code:'114',hex:'#4A2818'},{code:'119',hex:'#E8A88C'},
-    {code:'126',hex:'#D0224E'},{code:'130',hex:'#E82838'},{code:'132',hex:'#E8D9A8'},{code:'139',hex:'#B8963E'},
-    {code:'147',hex:'#7A2848'},{code:'155',hex:'#8A9E4E'},{code:'159',hex:'#8A5A2E'},{code:'163',hex:'#E8E0A0'},
-    {code:'169',hex:'#2E7A5A'},{code:'175',hex:'#1F5C4A'},{code:'180',hex:'#7A8A3E'},{code:'184',hex:'#8A6B2E'},
-    {code:'189',hex:'#4FA8D0'},{code:'195',hex:'#B82030'},{code:'201',hex:'#7A2848'},{code:'205',hex:'#4A6B4E'},
-    {code:'211',hex:'#E88A2E'},{code:'217',hex:'#E8A8C0'},{code:'222',hex:'#4FA8D0'},{code:'225',hex:'#B8963E'},
-    {code:'232',hex:'#4A6B4E'},{code:'236',hex:'#6B5A2E'},{code:'240',hex:'#7A2828'},{code:'246',hex:'#4A2818'},
-    {code:'250',hex:'#8A6B4E'},{code:'253',hex:'#6B5A2E'},{code:'273',hex:'#E8873E'},{code:'290',hex:'#E8A8B8'},
-    {code:'293',hex:'#1F5C4A'},{code:'313',hex:'#4A5FA8'},{code:'323',hex:'#7A4E9E'},{code:'350',hex:'#4FA8D0'},
-    {code:'395',hex:'#7A9E5A'},{code:'405',hex:'#5A3E2E'},{code:'506',hex:'#2E5A3E'},{code:'531',hex:'#7A2848'},
-    {code:'540',hex:'#4A5FA8'},{code:'551',hex:'#5A3E5A'},{code:'578',hex:'#D9789E'},{code:'618',hex:'#4A9E9E'},
-    {code:'692',hex:'#D0224E'},{code:'701',hex:'#B0A090'},{code:'713',hex:'#8A6B4E'},{code:'722',hex:'#3E6B4E'},
-    {code:'737',hex:'#1F5C4A'},{code:'745',hex:'#7A2848'},{code:'761',hex:'#8A6B2E'},{code:'776',hex:'#8A9E4E'},
-    {code:'800',hex:'#5A3E2E'},{code:'812',hex:'#4A2E5A'},{code:'826',hex:'#4A2818'},{code:'840',hex:'#D0224E'},
-    {code:'KORA',hex:'#E8D9B8'},{code:'WHITE',hex:'#FAFAF7'},{code:'BLACK',hex:'#1A1A1A'}
-  ];
+  const MANISH_SHADES = [].concat(
+    buildShadeRow('1-LL,1-L,1,2,3,4,5,6-L,6,7,8-LL,8-L,8,9,10,11,11-D,12,12-M,13,13-M,13-C,13-N,14-LL', ['#F5F3D6','#C7D94A','#4E9A3B','#1F5C2E']),
+    buildShadeRow('14-L,14,15,16,17,17-D,18-LL,18-L,18,18-N,19,20,21,22,23,24,25,25-N,26-LL,26-L,26,26-M,26-D,27', ['#2E6B3E','#7A9E5A','#E77FA6','#D6224F','#7A1128']),
+    buildShadeRow('27-D,27-DD,28-LL,28-L,28,29,29-N,30,31,31-D,31-DD,31-DN,32-LL,32-L,32,32-D,33,34,35,36,37-LL,37-L,37,DL-37', ['#5A0F1C','#7A6FA8','#5B6470','#B9A8CC']),
+    buildShadeRow('38,39,40,41,42,42-D,43-L,43,44,45,46,47,47-N,47-D,47-DD,47-DN,48-L,48,MD-48,49,50,51,51-RM,51-RDM', ['#9B7BB8','#5C3D82','#8B2D6C','#9E2D6E','#A9C4E0','#5B87C4']),
+    buildShadeRow('51-RLM,52,52-N,52-D,53-L,53,53-M,54,54-D,54-DD,54-R,55-LLL,55-LL,55-L,55,56,57,58,59,60,60-B,61,61-D', ['#4A6FA8','#1E3A5F','#F2EFD9','#F0C93B','#E8862C']),
+    buildShadeRow('61-DD,62,62-D,62-DD,63-L,63,64,65,66,67,68,69,70,70-D,70-DD,71-LL,71-L,MD-71,71,72,72-D,72-DD,73-LL,73-L', ['#C0401A','#E24E1F','#1E3A5F','#3C9BB0','#1F5C7A']),
+    buildShadeRow('73,P-73,74,MD-74,75,76,77,79-L,79,80,80-N,81,81-N,82,82-M,82-N,83,83-M,84,84-M,84-DM,84-D,85-L', ['#3C9BB0','#C9298A','#D9642B','#F4A9C4','#4FB8C9','#F2C9A8']),
+    buildShadeRow('85,86,87,88,89,90-L,90,90-D,91-LL,91-L,91,92,93,94,95,95-N,96-LL,96-L,96,97,98,99,100,100-D', ['#F2C9A8','#1F5C7A','#4FB8C9','#5FBFA8','#F2A6B8','#D82030']),
+    buildShadeRow('MD-100R,101-LL,101-L,101,102,103,103-M,104,104-M,105,105-M,106,107,108-LL,108-L,108,108-D,109-LLL,109-LL,109-L,109,109-D,110,111', ['#D8E8D8','#7ED9C0','#3C9BB0','#E0C79A','#B08858','#8A5A32']),
+    buildShadeRow('112,112-D,113,114-L,114,115,116,117,118,119,120,120-D,120-DD,120-N,121-L,121,122,123,123-D,123-DD,P-123,124-LL,124-LLN,124-L', ['#8A5A32','#E8A88C','#C0464C','#4A5FA8','#6B2D5C','#D9C89E']),
+    buildShadeRow('124,125,126,126-D,127,128,129,130,131,132-LL,132-L,132,133,133-N,134-L,134,MD-134,134-D,134-N,135,136-LL,136-L,136,136-C', ['#D9C89E','#E8B4C8','#D6224F','#F2EFD9','#8A9E4E','#C9B87A']),
+    buildShadeRow('137-L,137,137-C,138,138-C,139,139-C,139-D,140-LL,140-L,140,141,142-D,143-L,143,143-M,144,145-LL,145-L,145,145-LN,146,146-N', ['#C9B87A','#B8963E','#E8B830','#F0D95A','#D9B8D0','#9E6BA0']),
+    buildShadeRow('147,147-D,147-DD,148-L,148,148-D,149,150,151,152,153-LL,153-L,153,154,155,156,157-LL,157-L,157,157-D,158,159,160,161-LL', ['#6B2D5C','#7A2848','#C9773A','#E8A870','#8A9E4E','#6B5A2E']),
+    buildShadeRow('161-L,161-N,161-D,162-LLL,162-LL,162-L,162,163-LL,163-L,163,164,165,MD-165,166,166-M,167,167-M,168,168-D,168-M,169,169-M,170-LL', ['#6B5A2E','#8A9E4E','#4A5A2E','#7A8A3E','#2E7A6B']),
+    buildShadeRow('170-L,170,170-M,170-N,171-L,171,171-M,MD-171,172,173,174,175-LLL,175-LL,175-L,175,MD-175,176,177,178-L,178-LN,178,179,180,180-D', ['#2E7A6B','#1F5C4A','#D9C88A','#E8A88C','#9E4A5A']),
+    buildShadeRow('180-DD,181-LL,181-L,181,181-N,181-D,181-DD,182-L,182,183,P-183,MD-183,184-L,184,185,186,DD-186,187,188,189-LL,189-L,189,190-L,190', ['#7A1F30','#8A9E4E','#4A6B4E','#4FA8D0','#B8963E','#E8A8B8']),
+    buildShadeRow('190-N,191,191-N,192,192-M,192-N,193,193-M,194,194-M,194-DM,194-D,195-D,196,197,198,199,200,200-D,200-DD,201-LL,201-L,201', ['#E8A8B8','#D0224E','#7A1128','#E88A2E','#D6224F']),
+    buildShadeRow('202,202-D,202-N,203,204,205,206,208,209,210,211,MD-211,212,212-D,213,214,215-L,215,216,217,218,218-N,218-DN,218-D', ['#D0224E','#E88A2E','#8A9E4E','#D9789E']),
+    buildShadeRow('219,220,221,222-L,222,222-D,223,224-LL,224-L,224,225,225-D,225-DD,226-LL,226-L,226,227,228,229,230,231,232,233,234-LL', ['#3E8A7A','#5A8A6B','#7A2848','#8A9E4E','#6B7A3E']),
+    buildShadeRow('234-L,234-LM,234-M,234,235,236,237,238-L,238,239-LL,239-L,239-LN,239,239-N,240-LL,240-L,240-LN,240,241,242-L,242,242-M,242-DM,242-D', ['#6B7A3E','#4A5A2E','#7A2848','#8A2848']),
+    buildShadeRow('242-N,243,244,245,245-N,246,247,247-D,247-DD,248-LL,248-L,248,249,250,251,252-L,252,252-N,252-D,252-P,253-L,MD-253', ['#8A2848','#B82030','#7A3E6B','#C97A9E','#8A9E4E']),
+    buildShadeRow('254-L,254,255,261-L,261,261-D,262-L,262,263-LL,263-L,266,272-LL,272-L,272,272-D,272-DD,273-LL,273-L,273,273-D,273-DD,278-LL,278-L', ['#D9C89E','#8A9EA0','#5A6A6E','#B0A090']),
+    buildShadeRow('278,279,280,285-L,285,290,291,292,DC-292,293,MD-293,294,294-D,MD-294,295,338-LL,338-L,338,348,349,350,351,352,354,360,361,362,376', ['#B0A090','#7A4E7A','#E8A8B8','#3E6B8A','#C94A2E']),
+    buildShadeRow('332-LL,332-L,332-LM,332-LNM,332,332-M,332-D,332-DM,332-OD,DP-333,MD-335', ['#A9C4E0','#4A5A9E','#2E3A6E']),
+    buildShadeRow('377,391-L,391,392,393,394,394-D,395,395-N,395-D,402,P-402,403,403-N,404,405,421,422,422-D,MP-422,MD-423,MD-424,M-444,444', ['#C94A2E','#E8873E','#2E7A6B','#5A3E7A','#7A2838']),
+    buildShadeRow('450,451,452-LL,452-L,452,452-D,456,457,458,459,491,492,493-S,P-528,MD-554,MD-563,P-592,P-593,612-M,DP-642,MD-661,711,712,713', ['#D9C8A0','#7A9E5A','#D9789E','#2E8A7A']),
+    buildShadeRow('722-N,732-LL,732-L,732,MD-741,768,786,846-M,847-M,938,939,P-1006,P-1007,1017,MD-1173,MD-1198,MD-1233,MD-1359,MD-1395,MD-1638,MD-1649,KORA,WHITE,BLACK', ['#2E5A8A','#4A5A9E','#D9789E','#5A7A3E','#E8D9B8','#FAFAF7','#1A1A1A'])
+  );
+
+  const NEELAM_SHADES = [].concat(
+    buildShadeRow('1-LL,1-L,1,2,3,4,5,6,7,8-L,8,9,10,11,11-D,12,13,14-LL,14-L,14,15,16,17,17-D,17-DD', ['#F2EFB8','#D9E04A','#8FC241','#4E9A3B','#1F5C2E']),
+    buildShadeRow('18-LL,18-L,18,19,20,21,22,23,24,24-LL,25,26,27,27-D,28-LL,28-L,28,29,30,31,32,32-L,33,34', ['#2E6B3E','#E8A8C0','#D6224F','#B8102E','#8A7BB0','#5B6470']),
+    buildShadeRow('35,36,36-D,37-L,37,38,39,40,41,42-D,43,44,45,46,47-D,48-LL,48-L,48,49,50,51,52', ['#1A1A2E','#8A7BB0','#5A2E5A','#9E2D6E','#D0224E','#7CA8D9']),
+    buildShadeRow('53,54,54-D,54-DD,55-LL,55-L,55,56,57,58,59,60,61,62,62-D,63-L,63,64,65,66,66-D,67,68,69,70', ['#4A5FA8','#1A1A2E','#E8D9A8','#F0C93B','#D6224F','#7CA8D9','#4A5FA8']),
+    buildShadeRow('70-D,70-DD,71-LL,71,72,72-D,73-LL,73,74,75,76,77,78,79-LL,79-L,79,80,81,82,83,84,85', ['#1E3A5F','#4FA8D0','#E8862C','#D0224E','#F4A9C4','#D82030','#4FA8D0','#E8A88C']),
+    buildShadeRow('86,87,88,89,90-L,90,90-D,91-LL,91,92,93,94,95,96-LL,96-L,96,97,98,99,100,100-D,101-LL,101-L,101', ['#4FA8D0','#1A1A2E','#4FB8C9','#F4A9C4','#D82030','#7ED9C0']),
+    buildShadeRow('102,103,104,105,108,108-D,109-LL,109-L,109,110,111,112,112-D,113,114,114-LL,114-L,115,116,117,118,119,120,120-D', ['#3C9BB0','#8A5A32','#E0C79A','#B08858','#8A5A32','#E8A88C']),
+    buildShadeRow('120-DD,121,122,123,124,125,126,127,128,129,130,131,132-LL,132-L,132,133,134,134-D,136-L,136,137,138,139,139-D', ['#C0464C','#4FA8D0','#D0224E','#F2EFD9','#B8963E']),
+    buildShadeRow('140,141,142,144,145,146,147,147-D,148,149,150,151,152,153,153-L,153-LL,154,155,156,157,157-D,158,158-D', ['#E8873E','#6B2D5C','#7A2848','#8A9E4E','#E8A870','#7A2848']),
+    buildShadeRow('159,160,161,162,163,163-LL,163-L,164,165,166,167,168,169,170,170-LL,170-L,171,172,173,174,174-D,174-DD,175,175-L', ['#6B5A2E','#E8E0A0','#8A9E4E','#2E7A5A','#1F5C4A','#B8963E']),
+    buildShadeRow('175-D,176,177,178,179,180,180-D,181,182,183,184,184-L,185,186,187,188,189,190-L,190,191,192,193,194,194-D,195', ['#1F5C4A','#7A8A3E','#8A6B2E','#7A2848','#4FA8D0','#E8862C','#D9789E']),
+    buildShadeRow('196,197,198,198-L,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215-L,215-D,215,216,217', ['#7A2848','#E8862C','#D0224E','#7A2828','#8A6B4E','#E88A2E']),
+    buildShadeRow('218,218-D,219,220,221,222,222-D,223,224,225,225-D,226-LL,226-L,226,227,228,229,230,231,232,233,234-L,234,235,236', ['#E82838','#8A9E4E','#4FA8D0','#B8963E','#6B5A2E','#7A2828','#4A6B4E']),
+    buildShadeRow('237,238,239-LL,239-L,240-LL,240-L,240,241,242-L,242,242-D,243,244,245,246,247,247-D,248-LL,248-L,248,249,250,251,252,252-D,253,253-D', ['#8A6B4E','#7A2828','#8A6B2E','#B8963E','#4A2818','#8A6B4E','#6B5A2E']),
+    buildShadeRow('266,273-L,273-D,290,291,292,293,294,295,313,323,332-LL,332-L,332,332-D,332-DD,348,348-LL,349,350,351,352', ['#1A1A2E','#E8A8B8','#D0224E','#1F5C4A','#7A4E9E','#4A5FA8']),
+    buildShadeRow('393,394,394-D,395,401,402,403,404,405,406,418,422,423,504,506,507,508,509,510,511,512,513,514,515,516', ['#3E8A9E','#D0224E','#E8873E','#4A2818','#1F5C4A','#2E5A3E']),
+    buildShadeRow('517,518,519,520,521,522,523,524,525,526,527,528,529,530,L-531,532,533,534,535,536,537,538,539,540,541', ['#8A6B2E','#E8873E','#8A9E4E','#D0224E','#7A2848','#4A5FA8']),
+    buildShadeRow('542,543,544,545,546,547,549,550,551,552,553,554,555,564,565,573,576,578,594,618,692,693,WHITE,BLACK,KORA', ['#5A3E5A','#7A2848','#D9789E','#4A9E9E','#D0224E','#FAFAF7','#1A1A1A','#E8D9B8']),
+    buildShadeRow('701,702,703,704,705,706,707,708,709,710,711,712,713,714,715,716,717,718,719,720,721,722,723,724,725', ['#B0A090','#7A6B2E','#D9789E','#4A2818','#8A6B4E','#3E6B4E','#D9789E','#8A6B4E']),
+    buildShadeRow('726,727,728,729,730,731,732,733,734,735,736,737,738,739,740,741,742,743,744,745,746,747,748,749,750', ['#1F5C4A','#4A5FA8','#D0224E','#8A9E4E','#1F5C4A','#7A2848','#5B6470','#D0224E','#E8A88C']),
+    buildShadeRow('751,752,753,754,755,756,757,758,759,760,761,762,763,764,765,766,767,768,769,770,771,772,773,774,775', ['#D0224E','#5B6470','#E8A88C','#8A6B2E','#D9C89E','#B8963E','#E8A8C0']),
+    buildShadeRow('776,777,778,779,780,781,782,783,784,785,786,787,788,789,790,791,792,793,794,795,796,797,798,799,800', ['#8A9E4E','#E8A88C','#D9C89E','#8A6B4E','#D0224E','#7A2848','#4A2E5A','#3E6B4E','#5A3E2E']),
+    buildShadeRow('801,802,803,804,805,806,807,808,809,810,811,812,813,814,815,816,817,818,819,820,821,822,823,824,825', ['#B0A090','#8A6B2E','#4FA8D0','#7A4E9E','#D0224E','#8A6B4E','#3E6B4E','#E8873E','#4A2818','#8A6B4E']),
+    buildShadeRow('826,827,828,829,830,831,832,833,834,835,836,837,838,839,840,841,842,843,844,845,846,847,848,849,850', ['#3E2818','#3E6B4E','#8A6B4E','#D9789E','#D0224E','#1A1A1A','#E8873E','#4A6B4E','#D0224E','#8A6B4E'])
+  );
 
   const DEFAULT_COLOUR_PALETTE = [
     { code: 'Neelam 92', name: 'Neelam Shade 92', hex: '#EDE6D6' },

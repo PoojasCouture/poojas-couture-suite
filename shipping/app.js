@@ -95,19 +95,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ── styles ────────────────────────────────────────────────
-  function fieldStyle() { return ''; }
-  function labelStyle() { return 'display:block;font-size:11px;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;font-weight:600;'; }
-  function rowStyle()   { return 'display:flex;gap:14px;margin-bottom:14px;'; }
   function halfStyle()  { return 'flex:1;min-width:0;'; }
   function fullStyle()  { return 'margin-bottom:14px;'; }
   function sectionHeadStyle() { return 'font-size:11px;font-weight:700;color:var(--pc-gold,#d4af37);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--pc-border);padding-bottom:6px;margin:16px 0 12px;'; }
   function metricBoxStyle(bg) { return 'background:' + bg + ';color:#fff;border-radius:10px;padding:16px 24px;min-width:140px;text-align:center;'; }
-  function sectionCardStyle() { return 'background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:var(--radius-lg,12px);overflow:hidden;margin-bottom:24px;'; }
-  function cardHeaderStyle() { return 'display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:var(--pc-bg-sidebar);font-weight:700;font-size:14px;color:var(--pc-gold,#d4af37);border-bottom:1px solid var(--pc-border);'; }
-  function tableStyle() { return 'width:100%;border-collapse:collapse;font-size:13px;'; }
   function thStyle()   { return 'text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--pc-text-muted);background:var(--pc-bg-dark);border-bottom:1px solid var(--pc-border);'; }
   function tdStyle(idx) { return 'padding:10px 14px;border-bottom:1px solid var(--pc-border);background:' + (idx%2===0 ? 'var(--pc-bg-card)' : 'var(--pc-bg-dark)') + ';vertical-align:top;'; }
-  function btnStyle(bg, color) { return 'padding:6px 14px;border-radius:6px;border:none;background:' + bg + ';color:' + (color||'#1a1a2e') + ';font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;'; }
   function badgeStyle(bg) { return 'display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:' + bg + ';color:#fff;'; }
   function tabStyle(active) {
     return 'font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;cursor:pointer;border:none;' +
