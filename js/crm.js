@@ -2557,7 +2557,7 @@ poojascouture.com.au`
         ).join('') + '</tbody></table></div>';
     } else if (type === 'overdue') {
       title = '⚠️ Overdue Orders';
-      const od = allOrders.filter(o=>o.status!=='Delivered'&&o.deadline&&new Date(o.deadline)<now).sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));
+      const od = allOrders.filter(o=>!['Delivered','Completed'].includes(o.status)&&o.deadline&&new Date(o.deadline)<now).sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));
       content = od.length===0 ? '<div class="text-center p-6 text-success font-semibold">No overdue orders!</div>' :
         '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Stage</th><th>Deadline</th><th>Days Over</th></tr></thead><tbody>' +
         od.map(o => {
@@ -2568,6 +2568,25 @@ poojascouture.com.au`
             '<td class="text-xs text-danger">' + Utils.formatDate(o.deadline) + '</td>' +
             '<td class="font-mono font-bold text-danger text-xs">' + days + 'd</td></tr>';
         }).join('') + '</tbody></table></div>';
+    } else if (type === 'workshop' || type === 'transit' || type === 'awaiting') {
+      const groups = {
+        workshop: { title: '🧵 In Workshop', statuses: ['New','In Design','Fabric Sourced','In Production','Fitting'] },
+        transit:  { title: '🚚 In Transit / Ready', statuses: ['Ready','Shipped to Shashank','At Shashank','In Transit'] },
+        awaiting: { title: '⏳ Awaiting Action', statuses: ['Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery'] }
+      };
+      const g = groups[type];
+      title = g.title;
+      const list = allOrders.filter(o => g.statuses.includes(o.status)).sort((a,b)=>new Date(a.deadline||0)-new Date(b.deadline||0));
+      content = list.length===0 ? '<div class="text-center p-6 text-muted text-xs">No orders in this stage right now.</div>' :
+        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Garment</th><th>Stage</th><th>Deadline</th></tr></thead><tbody>' +
+        list.map(o =>
+          '<tr style="cursor:pointer" onclick="App.closeModal();setTimeout(()=>CRM.showOrderDetails(\'' + o.id + '\'),200)">' +
+          '<td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(o.orderCode||'—') + '</td>' +
+          '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
+          '<td class="text-xs">' + Utils.sanitizeHTML(o.title) + '</td>' +
+          '<td><span class="badge badge-gold text-xs">' + Utils.sanitizeHTML(o.status) + '</span></td>' +
+          '<td class="text-xs">' + Utils.formatDateShort(o.deadline) + '</td></tr>'
+        ).join('') + '</tbody></table></div>';
     } else if (type === 'clients') {
       title = '👥 All Clients';
       content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Client</th><th>Type</th><th>Orders</th><th>Contact</th></tr></thead><tbody>' +
@@ -2610,6 +2629,31 @@ poojascouture.com.au`
 
     App.showModal({
       title, content: '<div style="max-height:60vh;overflow-y:auto;">' + content + '</div>',
+      submitText: 'Close', hideCancel: true, onSubmit: () => true, modalSize: 'modal-lg'
+    });
+  }
+
+  const typeLabelsGlobal = { BLS: 'Bridal Lehenga', SAR: 'Saree', SAL: 'Salwar Suit', SHE: 'Sherwani', BSN: 'Bridal Sneakers', GEN: 'Other' };
+
+  function showGarmentTypeOrders(type) {
+    const allOrders = Store.getAll(Store.COLLECTIONS.ORDERS);
+    const list = allOrders.filter(o => (o.productType || 'GEN') === type)
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    const label = typeLabelsGlobal[type] || type;
+    const content = list.length === 0 ? '<div class="text-center p-6 text-muted text-xs">No orders of this type.</div>' :
+      '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Garment</th><th>Stage</th><th>Value</th></tr></thead><tbody>' +
+      list.map(o =>
+        '<tr style="cursor:pointer" onclick="App.closeModal();setTimeout(()=>CRM.showOrderDetails(\'' + o.id + '\'),200)">' +
+        '<td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(o.orderCode || '—') + '</td>' +
+        '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
+        '<td class="text-xs">' + Utils.sanitizeHTML(o.title) + '</td>' +
+        '<td><span class="badge badge-gold text-xs">' + Utils.sanitizeHTML(o.status) + '</span></td>' +
+        '<td class="font-mono text-xs">' + Utils.formatCurrency(o.price || 0) + '</td></tr>'
+      ).join('') + '</tbody></table></div>';
+
+    App.showModal({
+      title: '🧵 ' + label + ' Orders',
+      content: '<div style="max-height:60vh;overflow-y:auto;">' + content + '</div>',
       submitText: 'Close', hideCancel: true, onSubmit: () => true, modalSize: 'modal-lg'
     });
   }
@@ -2763,24 +2807,24 @@ poojascouture.com.au`
       <div class="card p-4 mb-4 animate-fade-in stagger-3">
         <div class="card-title mb-3">📋 Pipeline Health</div>
         <div class="d-grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
-          <div class="p-3 rounded-md text-center" style="background:rgba(139,92,246,0.08);border:1px solid var(--pc-border)">
+          <div class="p-3 rounded-md text-center" style="cursor:pointer;background:rgba(139,92,246,0.08);border:1px solid var(--pc-border)" onclick="CRM.showKPIReport('workshop')">
             <div class="text-lg font-bold" style="color:#a78bfa">${inWorkshop}</div>
             <div class="text-xs text-muted mt-1">In Workshop</div>
           </div>
-          <div class="p-3 rounded-md text-center" style="background:rgba(59,130,246,0.08);border:1px solid var(--pc-border)">
+          <div class="p-3 rounded-md text-center" style="cursor:pointer;background:rgba(59,130,246,0.08);border:1px solid var(--pc-border)" onclick="CRM.showKPIReport('transit')">
             <div class="text-lg font-bold" style="color:#60a5fa">${inTransit}</div>
             <div class="text-xs text-muted mt-1">In Transit / Ready</div>
           </div>
-          <div class="p-3 rounded-md text-center" style="background:rgba(236,182,118,0.08);border:1px solid var(--pc-border)">
+          <div class="p-3 rounded-md text-center" style="cursor:pointer;background:rgba(236,182,118,0.08);border:1px solid var(--pc-border)" onclick="CRM.showKPIReport('awaiting')">
             <div class="text-lg font-bold text-gold">${awaitingAct}</div>
             <div class="text-xs text-muted mt-1">Awaiting Action</div>
           </div>
-          <div class="p-3 rounded-md text-center" style="background:rgba(16,185,129,0.08);border:1px solid var(--pc-border)">
+          <div class="p-3 rounded-md text-center" style="cursor:pointer;background:rgba(16,185,129,0.08);border:1px solid var(--pc-border)" onclick="CRM.showKPIReport('delivered')">
             <div class="text-lg font-bold text-success">${deliveredOrders.length}</div>
             <div class="text-xs text-muted mt-1">Delivered</div>
           </div>
           ${overdue.length > 0 ? `
-          <div class="p-3 rounded-md text-center" style="background:rgba(220,38,38,0.08);border:1px solid var(--pc-danger)">
+          <div class="p-3 rounded-md text-center" style="cursor:pointer;background:rgba(220,38,38,0.08);border:1px solid var(--pc-danger)" onclick="CRM.showKPIReport('overdue')">
             <div class="text-lg font-bold text-danger">${overdue.length}</div>
             <div class="text-xs text-muted mt-1">Overdue</div>
           </div>` : ''}
@@ -2814,7 +2858,7 @@ poojascouture.com.au`
             Object.entries(revenueByType).sort((a, b) => b[1].revenue - a[1].revenue).map(([type, data]) => {
               const totalRev2 = Object.values(revenueByType).reduce((s, d) => s + d.revenue, 0) || 1;
               const pct = Math.round((data.revenue / totalRev2) * 100);
-              return '<div class="mb-3">' +
+              return '<div class="mb-3" style="cursor:pointer" onclick="CRM.showGarmentTypeOrders(\'' + type + '\')">' +
                 '<div class="d-flex justify-between text-xs mb-1">' +
                   '<span class="font-semibold">' + (typeLabels[type] || type) + '</span>' +
                   '<span class="text-muted">' + data.count + ' orders · ' + Utils.formatCurrency(data.revenue) + ' (' + pct + '%)</span>' +
@@ -2833,7 +2877,7 @@ poojascouture.com.au`
           <div class="card-title mb-4">🏆 Top Clients by Lifetime Value</div>
           ${topClients.length === 0 ? '<div class="text-xs text-muted text-center p-4">No orders yet.</div>' :
             topClients.map(([clientId, data], idx) =>
-              '<div class="d-flex justify-between items-center p-2 rounded-md mb-2" style="background:rgba(255,255,255,0.02);border:1px solid var(--pc-border)">' +
+              '<div class="d-flex justify-between items-center p-2 rounded-md mb-2" style="cursor:pointer;background:rgba(255,255,255,0.02);border:1px solid var(--pc-border)" onclick="CRM.showClientDetailsModal(\'' + clientId + '\')">' +
                 '<div class="d-flex items-center gap-2">' +
                   '<span class="font-mono text-xs text-muted">#' + (idx+1) + '</span>' +
                   '<div class="avatar avatar-sm" style="background:' + Utils.getAvatarColor(data.name) + ';color:var(--pc-text-inverse);width:26px;height:26px;font-size:10px">' + Utils.getInitials(data.name) + '</div>' +
@@ -2856,7 +2900,7 @@ poojascouture.com.au`
             upcoming.map(o => {
               const days = Utils.daysFromNow(o.deadline);
               const cls  = days <= 3 ? 'text-danger font-semibold' : days <= 7 ? 'text-warning' : 'text-muted';
-              return '<tr>' +
+              return '<tr style="cursor:pointer" onclick="CRM.showOrderDetails(\'' + o.id + '\')">' +
                 '<td class="font-medium">' + Utils.sanitizeHTML(o.orderCode || o.title) + '</td>' +
                 '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
                 '<td><span class="badge badge-gold text-xs">' + o.status + '</span></td>' +
@@ -4194,6 +4238,8 @@ poojascouture.com.au`
     showProjectModal,
     createProjectInvoice,
     showKPIReport,
+    showClientDetailsModal,
+    showGarmentTypeOrders,
     recordMilestonePayment,
     logClientChange,
     requestPhotos,
