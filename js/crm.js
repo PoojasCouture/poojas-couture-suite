@@ -1134,19 +1134,11 @@ poojascouture.com.au`
   }
 
   function renderColourSwatches(inputName) {
-    const chips = getColourPalette().map(p => `
-      <button type="button" class="colour-swatch-chip" data-target="${inputName}" data-code="${Utils.sanitizeHTML(p.code)}"
-        title="${Utils.sanitizeHTML(p.name)} (placeholder colour - verify against shade card)"
-        style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px 3px 4px;border:1px solid var(--pc-border);border-radius:999px;background:rgba(255,255,255,0.03);cursor:pointer;font-size:11px;color:var(--pc-text);">
-        <span style="width:16px;height:16px;border-radius:50%;background:${p.hex};border:1px solid rgba(0,0,0,0.25);display:inline-block;"></span>
-        ${Utils.sanitizeHTML(p.code)}
-      </button>`).join('');
-    return `<div class="d-flex flex-wrap gap-2 mt-2" data-swatch-row="${inputName}">${chips}</div>
-      <div class="d-flex gap-2 mt-2">
+    return `<div class="d-flex gap-2 mt-2">
         <button type="button" class="btn btn-secondary btn-sm shade-card-btn" data-target="${inputName}" data-brand="manish">🧵 Manish Shade Card</button>
         <button type="button" class="btn btn-secondary btn-sm shade-card-btn" data-target="${inputName}" data-brand="neelam">🧵 Neelam Shade Card</button>
       </div>
-      <div class="text-xs text-muted mt-1">Tap a swatch to add it, or open a full shade card for more options. Type freely for anything not listed.</div>`;
+      <div class="text-xs text-muted mt-1">Open a shade card to pick a colour, or type freely for anything not listed.</div>`;
   }
 
   function showShadeCardPicker(brand, inputName, modalEl) {
@@ -1194,17 +1186,6 @@ poojascouture.com.au`
   }
 
   function wireColourSwatches(modalEl) {
-    Utils.$$('.colour-swatch-chip', modalEl).forEach(btn => {
-      btn.addEventListener('click', () => {
-        const input = modalEl.querySelector(`[name="${btn.dataset.target}"]`);
-        if (!input) return;
-        const code = btn.dataset.code;
-        const cur = input.value.trim();
-        if (cur && cur.toLowerCase().includes(code.toLowerCase())) return;
-        input.value = cur ? cur + ', ' + code : code;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-      });
-    });
     Utils.$$('.shade-card-btn', modalEl).forEach(btn => {
       btn.addEventListener('click', () => showShadeCardPicker(btn.dataset.brand, btn.dataset.target, modalEl));
     });
