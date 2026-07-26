@@ -396,9 +396,21 @@ const Accounting = (() => {
     const isEdit = !!invoiceId;
     const inv = isEdit ? Store.getById(Store.COLLECTIONS.INVOICES, invoiceId) : null;
     const clients = Store.getAll(Store.COLLECTIONS.CLIENTS);
+    let uploadedInvoiceDocId = null;
 
     const modalHTML = `
       <form id="invoice-form" class="animate-fade-in-scale">
+        ${!isEdit ? `
+        <div class="form-group p-3 rounded-md" style="background:rgba(139,92,246,0.06);border:1px solid var(--pc-border)">
+          <label class="form-label">📎 Reference Document (optional)</label>
+          <div class="text-xs text-muted mb-2">Upload an old invoice or scope-of-work PDF/photo — Claude can read it and pre-fill line items for you to review.</div>
+          <input type="file" id="invoice-doc-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" class="form-input">
+          <div class="d-flex gap-2 mt-2">
+            <button type="button" class="btn btn-secondary btn-sm" id="invoice-doc-upload-btn">Upload</button>
+            <button type="button" class="btn btn-primary btn-sm d-none" id="invoice-doc-extract-btn">✨ Auto-fill from Document</button>
+          </div>
+          <div class="text-xs mt-2" id="invoice-doc-status"></div>
+        </div>` : ''}
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Select Client <span class="required">*</span></label>
@@ -485,7 +497,7 @@ const Accounting = (() => {
             status: inv.status
           });
         } else {
-          await Invoicing.createManual({
+          const created = await Invoicing.createManual({
             clientId: selClientId,
             clientName: selectedClient ? selectedClient.name : 'Unknown Client',
             invoiceNumber: formData.get('invoiceNumber'),
@@ -496,6 +508,9 @@ const Accounting = (() => {
             subtotal,
             gstTotal
           });
+          if (uploadedInvoiceDocId && created) {
+            await CRM.linkIntakeDocument(uploadedInvoiceDocId, null, created.id);
+          }
           Utils.showToast('Tax invoice generated successfully.');
         }
 
@@ -521,6 +536,61 @@ const Accounting = (() => {
     }
 
     Utils.$('#btn-add-item-row').addEventListener('click', () => addRow());
+
+    if (!isEdit) {
+      const fileInput = document.getElementById('invoice-doc-file');
+      const uploadBtn = document.getElementById('invoice-doc-upload-btn');
+      const extractBtn = document.getElementById('invoice-doc-extract-btn');
+      const statusEl = document.getElementById('invoice-doc-status');
+
+      if (fileInput && uploadBtn) {
+        uploadBtn.addEventListener('click', async () => {
+          const file = fileInput.files[0];
+          if (!file) { Utils.showToast('Choose a file first.', 'error'); return; }
+          uploadBtn.disabled = true;
+          statusEl.textContent = 'Uploading…';
+          const doc = await CRM.uploadIntakeDocument('invoice', file);
+          uploadBtn.disabled = false;
+          if (!doc) { statusEl.textContent = 'Upload failed.'; return; }
+          uploadedInvoiceDocId = doc.id;
+          const isPdfOrImage = /^(application\/pdf|image\/)/.test(file.type);
+          statusEl.textContent = '✓ Uploaded: ' + file.name;
+          if (isPdfOrImage) {
+            extractBtn.classList.remove('d-none');
+          } else {
+            statusEl.textContent += ' (attached as reference — Word docs can\'t be auto-read; convert to PDF for auto-fill)';
+          }
+        });
+
+        extractBtn.addEventListener('click', async () => {
+          if (!uploadedInvoiceDocId) return;
+          extractBtn.disabled = true;
+          statusEl.textContent = 'Reading document…';
+          const data = await CRM.extractIntakeDocument(uploadedInvoiceDocId);
+          extractBtn.disabled = false;
+          if (!data) { statusEl.textContent = 'Extraction failed — fill in manually.'; return; }
+
+          const form = document.getElementById('invoice-form');
+          if (data.invoiceNumber) form.querySelector('[name="invoiceNumber"]').value = data.invoiceNumber;
+          if (data.issueDate) form.querySelector('[name="issueDate"]').value = data.issueDate;
+          if (data.clientName) {
+            const clientSelect = form.querySelector('[name="clientId"]');
+            const match = Array.from(clientSelect.options).find(o =>
+              o.textContent.toLowerCase().includes(data.clientName.toLowerCase().split(' ')[0]));
+            if (match) clientSelect.value = match.value;
+          }
+          if (Array.isArray(data.items) && data.items.length > 0) {
+            itemsList.innerHTML = '';
+            data.items.forEach(it => addRow({ description: it.description, quantity: 1, unitPrice: it.unitPrice, gst: it.gst }));
+          }
+          if (data.notes) {
+            const notesField = form.querySelector('[name="notes"]');
+            notesField.value = (notesField.value ? notesField.value + '\n' : '') + 'From document: ' + data.notes;
+          }
+          statusEl.textContent = '✓ Fields pre-filled — please review before saving.';
+        });
+      }
+    }
 
     if (inv && inv.items) {
       inv.items.forEach(item => addRow(item));

@@ -968,6 +968,62 @@ poojascouture.com.au`
 
   // Generate next sequential order code for a product-type prefix.
   // e.g. BLS-000001. Reads the highest existing code for that prefix and +1.
+  // ==========================================
+  // DOCUMENT INTAKE — shared helpers
+  // Upload a reference document (PDF/image/Word) against an order or
+  // invoice, optionally have Claude extract structured fields from it.
+  // Used by both the order form (below) and the invoice form (accounting.js
+  // calls these via CRM.uploadIntakeDocument / CRM.extractIntakeDocument).
+  // ==========================================
+  async function callDocumentIntake(action, params) {
+    const client = Store.getClient();
+    const { data: sessionData } = await client.auth.getSession();
+    const token = sessionData && sessionData.session ? sessionData.session.access_token : null;
+    if (!token) { Utils.showToast('Your session has expired. Please log in again.', 'error'); return { ok: false }; }
+    try {
+      const res = await fetch('/api/document-intake', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, token, ...params })
+      });
+      const result = await res.json();
+      if (!result.ok) Utils.showToast(result.error || 'Document action failed.', 'error');
+      return result;
+    } catch (e) {
+      Utils.showToast('Network error contacting document service.', 'error');
+      return { ok: false, error: e.message };
+    }
+  }
+
+  function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function uploadIntakeDocument(kind, file) {
+    if (file.size > 13 * 1024 * 1024) { Utils.showToast('File too large (max ~13MB).', 'error'); return null; }
+    const fileBase64 = await readFileAsBase64(file);
+    const result = await callDocumentIntake('upload', { kind, fileBase64, fileName: file.name, mimeType: file.type });
+    return result.ok ? result.document : null;
+  }
+
+  async function extractIntakeDocument(documentId) {
+    const result = await callDocumentIntake('extract', { documentId });
+    return result.ok ? result.extracted : null;
+  }
+
+  async function linkIntakeDocument(documentId, orderId, invoiceId) {
+    return callDocumentIntake('link', { documentId, orderId, invoiceId });
+  }
+
+  async function listIntakeDocuments(orderId, invoiceId) {
+    const result = await callDocumentIntake('list', { orderId, invoiceId });
+    return result.ok ? result.documents : [];
+  }
+
   function generateOrderCode(prefix) {
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
     let maxNum = 0;
@@ -985,6 +1041,65 @@ poojascouture.com.au`
   // Hex values are PLACEHOLDER approximations; correct them against the
   // physical shade cards (send Claude a photo of the card to set real values).
   // Admins can also override via settings.colourPalette [{code,name,hex}].
+  // Read directly from the physical shade card photos (Manish Embroidery
+  // Yarn and Neelam/Telephone Embroidery Yarn), replacing the earlier
+  // placeholder guesses. These are still visual approximations, not
+  // colorimetric matches — thread under camera lighting never matches the
+  // dye lot exactly, and each brand has 600-850+ individual numbered
+  // shades on the real cards. Cataloguing every single one isn't something
+  // that can be done reliably by eye from a photo, so this covers a
+  // representative spread across every row on both cards — enough to
+  // pick a close family/direction, not a lab-accurate lookup. If Pooja
+  // needs a specific numbered shade that isn't listed, she can still type
+  // it directly into the field same as before.
+  const MANISH_SHADES = [
+    {code:'1-LL',hex:'#F5F3D6'},{code:'1',hex:'#EDEA9E'},{code:'5',hex:'#C7D94A'},{code:'8',hex:'#8FC241'},
+    {code:'11',hex:'#4E9A3B'},{code:'13-N',hex:'#1F5C2E'},{code:'18',hex:'#2E6B3E'},{code:'21',hex:'#E77FA6'},
+    {code:'24',hex:'#D6224F'},{code:'27',hex:'#7A1128'},{code:'31',hex:'#7A6FA8'},{code:'32',hex:'#5B6470'},
+    {code:'36',hex:'#B9A8CC'},{code:'39',hex:'#7B5AA0'},{code:'43',hex:'#8B2D6C'},{code:'47',hex:'#9E2D6E'},
+    {code:'48',hex:'#A9C4E0'},{code:'51',hex:'#5B87C4'},{code:'55',hex:'#F2EFD9'},{code:'58',hex:'#F0C93B'},
+    {code:'61',hex:'#E8862C'},{code:'65',hex:'#E24E1F'},{code:'70',hex:'#1E3A5F'},{code:'74',hex:'#3C9BB0'},
+    {code:'77',hex:'#D9642B'},{code:'80',hex:'#F4A9C4'},{code:'83',hex:'#4FB8C9'},{code:'85',hex:'#F2C9A8'},
+    {code:'90',hex:'#1F5C7A'},{code:'92',hex:'#5FBFA8'},{code:'96',hex:'#F2A6B8'},{code:'100',hex:'#D82030'},
+    {code:'104',hex:'#7ED9C0'},{code:'108',hex:'#E0C79A'},{code:'111',hex:'#8A5A32'},{code:'116',hex:'#E8A88C'},
+    {code:'120',hex:'#C0464C'},{code:'123',hex:'#4A5FA8'},{code:'128',hex:'#E8B4C8'},{code:'132',hex:'#6B2D5C'},
+    {code:'136',hex:'#C9B87A'},{code:'140',hex:'#E8B830'},{code:'145',hex:'#D9B8D0'},{code:'149',hex:'#7A2848'},
+    {code:'153',hex:'#C9773A'},{code:'157',hex:'#3E5F8A'},{code:'157L',hex:'#7C9CC4'},{code:'161',hex:'#6B5A2E'},
+    {code:'165',hex:'#7A8A3E'},{code:'170',hex:'#2E7A6B'},{code:'175',hex:'#D9C88A'},{code:'180',hex:'#9E4A5A'},
+    {code:'186',hex:'#4A6B4E'},{code:'190',hex:'#E8A8B8'},{code:'194',hex:'#B82030'},{code:'201',hex:'#E88A2E'},
+    {code:'206',hex:'#D0224E'},{code:'211',hex:'#E8873E'},{code:'218',hex:'#D9788A'},{code:'224',hex:'#5A8A6B'},
+    {code:'229',hex:'#8A9E4E'},{code:'234',hex:'#6B7A3E'},{code:'238',hex:'#4A5A2E'},{code:'242',hex:'#8A2848'},
+    {code:'247',hex:'#B82030'},{code:'250',hex:'#7A3E6B'},{code:'252',hex:'#C97A9E'},{code:'261',hex:'#D9C89E'},
+    {code:'272',hex:'#8A9EA0'},{code:'278',hex:'#B0A090'},{code:'292',hex:'#7A4E7A'},{code:'332',hex:'#4A5A9E'},
+    {code:'350',hex:'#3E6B8A'},{code:'360',hex:'#C94A2E'},{code:'392',hex:'#E8873E'},{code:'403',hex:'#2E7A6B'},
+    {code:'422',hex:'#5A3E7A'},{code:'444',hex:'#7A2838'},{code:'452',hex:'#D9C8A0'},{code:'458',hex:'#7A9E5A'},
+    {code:'491',hex:'#D9789E'},{code:'711',hex:'#2E8A7A'},{code:'732',hex:'#4A5A9E'},{code:'938',hex:'#D9789E'},
+    {code:'1017',hex:'#5A7A3E'},{code:'KORA',hex:'#E8D9B8'},{code:'WHITE',hex:'#FAFAF7'},{code:'BLACK',hex:'#1A1A1A'}
+  ];
+
+  const NEELAM_SHADES = [
+    {code:'1-LL',hex:'#F2EFB8'},{code:'4',hex:'#D9E04A'},{code:'8-L',hex:'#8FC241'},{code:'11',hex:'#4E9A3B'},
+    {code:'17',hex:'#1F5C2E'},{code:'21',hex:'#D6224F'},{code:'24',hex:'#B8102E'},{code:'28',hex:'#8A7BB0'},
+    {code:'32',hex:'#5B6470'},{code:'42',hex:'#5A2E5A'},{code:'45',hex:'#9E2D6E'},{code:'53',hex:'#7CA8D9'},
+    {code:'56',hex:'#4A5FA8'},{code:'59',hex:'#E8862C'},{code:'61',hex:'#D0224E'},{code:'70',hex:'#1E3A5F'},
+    {code:'76',hex:'#E8862C'},{code:'80',hex:'#F4A9C4'},{code:'91',hex:'#4FB8C9'},{code:'99',hex:'#D82030'},
+    {code:'102',hex:'#3C9BB0'},{code:'108',hex:'#8A5A32'},{code:'114',hex:'#4A2818'},{code:'119',hex:'#E8A88C'},
+    {code:'126',hex:'#D0224E'},{code:'130',hex:'#E82838'},{code:'132',hex:'#E8D9A8'},{code:'139',hex:'#B8963E'},
+    {code:'147',hex:'#7A2848'},{code:'155',hex:'#8A9E4E'},{code:'159',hex:'#8A5A2E'},{code:'163',hex:'#E8E0A0'},
+    {code:'169',hex:'#2E7A5A'},{code:'175',hex:'#1F5C4A'},{code:'180',hex:'#7A8A3E'},{code:'184',hex:'#8A6B2E'},
+    {code:'189',hex:'#4FA8D0'},{code:'195',hex:'#B82030'},{code:'201',hex:'#7A2848'},{code:'205',hex:'#4A6B4E'},
+    {code:'211',hex:'#E88A2E'},{code:'217',hex:'#E8A8C0'},{code:'222',hex:'#4FA8D0'},{code:'225',hex:'#B8963E'},
+    {code:'232',hex:'#4A6B4E'},{code:'236',hex:'#6B5A2E'},{code:'240',hex:'#7A2828'},{code:'246',hex:'#4A2818'},
+    {code:'250',hex:'#8A6B4E'},{code:'253',hex:'#6B5A2E'},{code:'273',hex:'#E8873E'},{code:'290',hex:'#E8A8B8'},
+    {code:'293',hex:'#1F5C4A'},{code:'313',hex:'#4A5FA8'},{code:'323',hex:'#7A4E9E'},{code:'350',hex:'#4FA8D0'},
+    {code:'395',hex:'#7A9E5A'},{code:'405',hex:'#5A3E2E'},{code:'506',hex:'#2E5A3E'},{code:'531',hex:'#7A2848'},
+    {code:'540',hex:'#4A5FA8'},{code:'551',hex:'#5A3E5A'},{code:'578',hex:'#D9789E'},{code:'618',hex:'#4A9E9E'},
+    {code:'692',hex:'#D0224E'},{code:'701',hex:'#B0A090'},{code:'713',hex:'#8A6B4E'},{code:'722',hex:'#3E6B4E'},
+    {code:'737',hex:'#1F5C4A'},{code:'745',hex:'#7A2848'},{code:'761',hex:'#8A6B2E'},{code:'776',hex:'#8A9E4E'},
+    {code:'800',hex:'#5A3E2E'},{code:'812',hex:'#4A2E5A'},{code:'826',hex:'#4A2818'},{code:'840',hex:'#D0224E'},
+    {code:'KORA',hex:'#E8D9B8'},{code:'WHITE',hex:'#FAFAF7'},{code:'BLACK',hex:'#1A1A1A'}
+  ];
+
   const DEFAULT_COLOUR_PALETTE = [
     { code: 'Neelam 92', name: 'Neelam Shade 92', hex: '#EDE6D6' },
     { code: '26',        name: 'Shade 26 (Bridal)', hex: '#8B0E1F' },
@@ -1027,7 +1142,55 @@ poojascouture.com.au`
         ${Utils.sanitizeHTML(p.code)}
       </button>`).join('');
     return `<div class="d-flex flex-wrap gap-2 mt-2" data-swatch-row="${inputName}">${chips}</div>
-      <div class="text-xs text-muted mt-1">Tap a swatch to add it. Type freely for anything not on the card.</div>`;
+      <div class="d-flex gap-2 mt-2">
+        <button type="button" class="btn btn-secondary btn-sm shade-card-btn" data-target="${inputName}" data-brand="manish">🧵 Manish Shade Card</button>
+        <button type="button" class="btn btn-secondary btn-sm shade-card-btn" data-target="${inputName}" data-brand="neelam">🧵 Neelam Shade Card</button>
+      </div>
+      <div class="text-xs text-muted mt-1">Tap a swatch to add it, or open a full shade card for more options. Type freely for anything not listed.</div>`;
+  }
+
+  function showShadeCardPicker(brand, inputName, modalEl) {
+    const shades = brand === 'manish' ? MANISH_SHADES : NEELAM_SHADES;
+    const brandLabel = brand === 'manish' ? 'Manish Embroidery Yarn' : 'Neelam (Telephone) Embroidery Yarn';
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:var(--radius-lg);max-width:720px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:var(--pc-shadow-xl);">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--pc-border);flex-shrink:0;">
+          <div style="font-weight:600;color:var(--pc-gold);font-family:var(--font-display)">${brandLabel} — Shade Card</div>
+          <button type="button" class="shade-picker-close" style="background:none;border:none;color:var(--pc-text-muted);font-size:20px;cursor:pointer;line-height:1;">✕</button>
+        </div>
+        <div style="padding:16px 20px;overflow-y:auto;flex:1;">
+          <div class="text-xs text-muted mb-3">Colours are a visual read of the physical shade card photo, not a lab-accurate match — the real card has many more numbered shades than shown here. Tap one to select it, or check the physical card for the exact number and type it in directly.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:10px;">
+            ${shades.map(s => `
+              <button type="button" class="shade-swatch-btn" data-code="${Utils.sanitizeHTML(s.code)}" title="${Utils.sanitizeHTML(s.code)}"
+                style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px;border:1px solid var(--pc-border);border-radius:8px;background:rgba(255,255,255,0.02);cursor:pointer;">
+                <span style="width:34px;height:34px;border-radius:6px;background:${s.hex};border:1px solid rgba(0,0,0,0.25);display:block;"></span>
+                <span style="font-size:9px;color:var(--pc-text-muted);white-space:nowrap;">${Utils.sanitizeHTML(s.code)}</span>
+              </button>`).join('')}
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.querySelector('.shade-picker-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelectorAll('.shade-swatch-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = modalEl.querySelector(`[name="${inputName}"]`);
+        if (input) {
+          const label = (brand === 'manish' ? 'Manish ' : 'Neelam ') + btn.dataset.code;
+          const cur = input.value.trim();
+          if (!cur || !cur.toLowerCase().includes(label.toLowerCase())) {
+            input.value = cur ? cur + ', ' + label : label;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+        close();
+      });
+    });
   }
 
   function wireColourSwatches(modalEl) {
@@ -1042,16 +1205,31 @@ poojascouture.com.au`
         input.dispatchEvent(new Event('input', { bubbles: true }));
       });
     });
+    Utils.$$('.shade-card-btn', modalEl).forEach(btn => {
+      btn.addEventListener('click', () => showShadeCardPicker(btn.dataset.brand, btn.dataset.target, modalEl));
+    });
   }
 
   function showOrderModal(orderId = null) {
     const isEdit = !!orderId;
     const order = isEdit ? Store.getById(Store.COLLECTIONS.ORDERS, orderId) : null;
     const clients = Store.getAll(Store.COLLECTIONS.CLIENTS);
+    let uploadedDocId = null;
     App.showModal({
       title: isEdit ? 'Edit Order' : 'New Custom Order',
       content: `
         <form id="order-form" class="animate-fade-in-scale">
+          ${!isEdit ? `
+          <div class="form-group p-3 rounded-md" style="background:rgba(139,92,246,0.06);border:1px solid var(--pc-border)">
+            <label class="form-label">📎 Reference Document (optional)</label>
+            <div class="text-xs text-muted mb-2">Upload a scope-of-work PDF, scanned invoice, or photo — Claude can read it and pre-fill the fields below for you to review.</div>
+            <input type="file" id="order-doc-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" class="form-input">
+            <div class="d-flex gap-2 mt-2">
+              <button type="button" class="btn btn-secondary btn-sm" id="order-doc-upload-btn">Upload</button>
+              <button type="button" class="btn btn-primary btn-sm d-none" id="order-doc-extract-btn">✨ Auto-fill from Document</button>
+            </div>
+            <div class="text-xs mt-2" id="order-doc-status"></div>
+          </div>` : ''}
           <div class="form-group">
             <label class="form-label">Client <span class="required">*</span></label>
             <select name="clientId" class="form-select" required>
@@ -1360,6 +1538,9 @@ poojascouture.com.au`
           // Assign a human-facing order code (UUID stays the primary key).
           orderData.orderCode = generateOrderCode(productType);
           const createdOrder = await Store.create(Store.COLLECTIONS.ORDERS, orderData);
+          if (uploadedDocId && createdOrder) {
+            await linkIntakeDocument(uploadedDocId, createdOrder.id, null);
+          }
           const depositPaid = parseFloat((fd.get('depositPaid') || '').replace(',', '.')) || 0;
           if (!createdOrder) { Utils.showToast('Order created, but invoice could not be generated.', 'error'); return true; }
 
@@ -1389,6 +1570,61 @@ poojascouture.com.au`
         return true;
       }
     });
+
+    // Document intake — upload + AI-assisted pre-fill (new orders only).
+    if (!isEdit) {
+      setTimeout(() => {
+        const fileInput = document.getElementById('order-doc-file');
+        const uploadBtn = document.getElementById('order-doc-upload-btn');
+        const extractBtn = document.getElementById('order-doc-extract-btn');
+        const statusEl = document.getElementById('order-doc-status');
+        if (!fileInput || !uploadBtn) return;
+
+        uploadBtn.addEventListener('click', async () => {
+          const file = fileInput.files[0];
+          if (!file) { Utils.showToast('Choose a file first.', 'error'); return; }
+          uploadBtn.disabled = true;
+          statusEl.textContent = 'Uploading…';
+          const doc = await uploadIntakeDocument('order', file);
+          uploadBtn.disabled = false;
+          if (!doc) { statusEl.textContent = 'Upload failed.'; return; }
+          uploadedDocId = doc.id;
+          const isPdfOrImage = /^(application\/pdf|image\/)/.test(file.type);
+          statusEl.textContent = '✓ Uploaded: ' + file.name;
+          if (isPdfOrImage) {
+            extractBtn.classList.remove('d-none');
+          } else {
+            statusEl.textContent += ' (attached as reference — Word docs can\'t be auto-read; convert to PDF for auto-fill)';
+          }
+        });
+
+        extractBtn.addEventListener('click', async () => {
+          if (!uploadedDocId) return;
+          extractBtn.disabled = true;
+          statusEl.textContent = 'Reading document…';
+          const data = await extractIntakeDocument(uploadedDocId);
+          extractBtn.disabled = false;
+          if (!data) { statusEl.textContent = 'Extraction failed — fill in manually.'; return; }
+
+          const form = document.getElementById('order-form');
+          if (data.garmentTitle) form.querySelector('[name="title"]').value = data.garmentTitle;
+          if (data.price != null) form.querySelector('[name="price"]').value = data.price;
+          if (data.deadline) form.querySelector('[name="deadline"]').value = data.deadline;
+          if (data.eventDate) form.querySelector('[name="eventDate"]').value = data.eventDate;
+          if (data.notes) {
+            const notesField = document.getElementById('order-notes-field');
+            notesField.value = (notesField.value ? notesField.value + '\n' : '') + 'From document: ' + data.notes;
+          }
+          if (data.clientName) {
+            const clientSelect = form.querySelector('[name="clientId"]');
+            const match = Array.from(clientSelect.options).find(o =>
+              o.textContent.toLowerCase().includes(data.clientName.toLowerCase().split(' ')[0]));
+            if (match) clientSelect.value = match.value;
+          }
+          statusEl.textContent = '✓ Fields pre-filled — please review before saving.';
+        });
+      }, 50);
+    }
 
     // Auto-fill order specs from the selected client's notes.
     setTimeout(() => {
@@ -1495,6 +1731,7 @@ poojascouture.com.au`
             <h3 class="font-display text-lg">${Utils.sanitizeHTML(o.title)}</h3>
             <div class="text-sm font-semibold text-gold mt-1">${Utils.sanitizeHTML(o.clientName)}</div>
             ${o.orderCode?`<div class="font-mono text-xs text-muted mt-1">${o.orderCode}</div>`:''}
+            <div id="order-docs-list-${o.id}" class="text-xs text-muted mt-2"></div>
             ${(()=>{
               if (!o.projectId) return '';
               const proj = Store.getById(Store.COLLECTIONS.ORDER_PROJECTS, o.projectId);
@@ -1657,6 +1894,19 @@ poojascouture.com.au`
         </div>`,
       hideCancel: true, submitText: 'Close', onSubmit: () => true
     });
+
+    // Reference documents load asynchronously — they live in a separate
+    // table accessed only via the document-intake backend, not the local
+    // Store cache, so they can't be rendered synchronously above.
+    setTimeout(async () => {
+      const holder = document.getElementById('order-docs-list-' + o.id);
+      if (!holder) return;
+      const docs = await listIntakeDocuments(o.id, null);
+      if (!docs.length) return;
+      holder.innerHTML = '📎 ' + docs.map(d =>
+        '<a href="' + d.fileUrl + '" target="_blank" rel="noopener" style="color:var(--pc-gold)">' + Utils.sanitizeHTML(d.fileName) + '</a>'
+      ).join(', ');
+    }, 100);
   }
 
 
@@ -4264,6 +4514,10 @@ poojascouture.com.au`
     logClientChange,
     requestPhotos,
     showOrderDetails,
+    uploadIntakeDocument,
+    extractIntakeDocument,
+    linkIntakeDocument,
+    listIntakeDocuments,
     deletePhoto,
     sendPhotosToClient,
     logClientReply
