@@ -3083,17 +3083,21 @@ div[style*="border:1px solid var(--pc-"] {
 }
 
 .portal-ai-team .sidebar-brand-logo {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .portal-ai-team .sidebar-brand-logo img {
   width: 100%;
   height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
   filter:
     drop-shadow(0 1px 1px rgba(0,0,0,0.55))
@@ -3180,6 +3184,7 @@ div[style*="border:1px solid var(--pc-"] {
   border-radius: var(--radius-md);
   box-shadow: var(--pc-shadow-sm);
   width: calc(100% - var(--sp-6));
+  box-sizing: border-box;
   text-align: left;
   color: var(--pc-text-muted);
   font-size: var(--text-sm);
@@ -3205,15 +3210,17 @@ div[style*="border:1px solid var(--pc-"] {
 }
 
 .portal-ai-team .avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-md);
+  font-size: var(--text-base);
   flex-shrink: 0;
   border: 1px solid var(--pc-border);
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .portal-ai-team .member-info { flex: 1; min-width: 0; }
