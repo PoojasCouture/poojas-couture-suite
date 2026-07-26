@@ -9,6 +9,7 @@
   border: 1px solid var(--pc-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: var(--pc-shadow-sm);
   transition: all var(--transition-base);
   position: relative;
 }
@@ -65,6 +66,7 @@
   padding: var(--sp-6);
   position: relative;
   overflow: hidden;
+  box-shadow: var(--pc-shadow-sm);
   transition: all var(--transition-base);
 }
 
