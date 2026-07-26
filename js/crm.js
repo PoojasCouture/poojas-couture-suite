@@ -2478,7 +2478,7 @@ poojascouture.com.au`
     const invoices    = Store.getAll(Store.COLLECTIONS.INVOICES);
     const appointments = Store.getAll(Store.COLLECTIONS.APPOINTMENTS);
     const paidInvoices = invoices.filter(i => i.status === 'Paid');
-    const deliveredOrders = allOrders.filter(o => o.status === 'Delivered');
+    const deliveredOrders = allOrders.filter(o => ['Delivered', 'Completed'].includes(o.status));
     const now = new Date();
     let title = '', content = '';
 
@@ -2631,8 +2631,13 @@ poojascouture.com.au`
     }, 0);
 
     // ── Order metrics ──
-    const deliveredOrders = allOrders.filter(o => o.status === 'Delivered');
-    const activeOrders    = allOrders.filter(o => o.status !== 'Delivered');
+    // "Delivered" here means "reached the customer" — that includes
+    // orders sitting in 'Delivered' right now AND ones that have since
+    // progressed to their final 'Completed' state. Checking only the
+    // literal 'Delivered' status missed every finished order, since
+    // every order moves past 'Delivered' into 'Completed' eventually.
+    const deliveredOrders = allOrders.filter(o => ['Delivered', 'Completed'].includes(o.status));
+    const activeOrders    = allOrders.filter(o => !['Delivered', 'Completed'].includes(o.status));
     const avgOrderValue   = deliveredOrders.length > 0
       ? Math.round((deliveredOrders.reduce((s, o) => s + (o.price || 0), 0) / deliveredOrders.length) * 100) / 100 : 0;
 
@@ -2696,9 +2701,9 @@ poojascouture.com.au`
 
     // ── Upcoming + overdue ──
     const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const upcoming = allOrders.filter(o => o.status !== 'Delivered' && o.deadline && new Date(o.deadline) <= in30 && new Date(o.deadline) >= now)
+    const upcoming = allOrders.filter(o => !['Delivered', 'Completed'].includes(o.status) && o.deadline && new Date(o.deadline) <= in30 && new Date(o.deadline) >= now)
       .sort((a, b) => new Date(a.deadline) - new Date(b.deadline)).slice(0, 5);
-    const overdue = allOrders.filter(o => o.status !== 'Delivered' && o.deadline && new Date(o.deadline) < now)
+    const overdue = allOrders.filter(o => !['Delivered', 'Completed'].includes(o.status) && o.deadline && new Date(o.deadline) < now)
       .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
 
     const typeLabels = { BLS: 'Bridal Lehenga', SAR: 'Saree', SAL: 'Salwar Suit', SHE: 'Sherwani', BSN: 'Bridal Sneakers', GEN: 'Other' };
