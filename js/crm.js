@@ -1062,7 +1062,34 @@ poojascouture.com.au`
     const r = Math.round(ar+(br-ar)*t), g = Math.round(ag+(bg-ag)*t), bl = Math.round(ab+(bb-ab)*t);
     return '#' + [r,g,bl].map(x => x.toString(16).padStart(2,'0')).join('');
   }
-  function buildShadeRow(codesCsv, anchors) {
+  function shadeHex(hex, pct) {
+    // pct > 0 lightens toward white, pct < 0 darkens toward black
+    const n = parseInt(hex.slice(1), 16);
+    const r = (n>>16)&255, g = (n>>8)&255, b = n&255;
+    const f = pct < 0 ? 0 : 255, p = Math.abs(pct);
+    const mix = (c) => Math.round(c + (f - c) * p);
+    return '#' + [mix(r), mix(g), mix(b)].map(x => Math.max(0,Math.min(255,x)).toString(16).padStart(2,'0')).join('');
+  }
+  // Builds a CSS background that reads as a bundled thread tassel rather
+  // than a flat colour chip: thin vertical strand lines (a repeating
+  // gradient) for texture, plus a subtle top-sheen/bottom-shadow so it
+  // has some dimension, similar to how the thread sits on the real card.
+  function threadTassleCss(hex) {
+    const light = shadeHex(hex, 0.22);
+    const dark = shadeHex(hex, -0.18);
+    return `background: repeating-linear-gradient(90deg, ${dark} 0px, ${hex} 1.5px, ${light} 3px, ${hex} 4.5px);` +
+      `box-shadow: inset 0 3px 4px rgba(255,255,255,0.3), inset 0 -4px 6px rgba(0,0,0,0.3), inset 2px 0 2px rgba(0,0,0,0.15);`;
+  }
+  // Variegated threads (code starts with V- or VD-) are genuinely
+  // multi-coloured along the strand — a flat gradient would misrepresent
+  // them, so these get a diagonal multi-hue stripe instead.
+  function isVariegatedCode(code) { return /^VD?-/i.test(code); }
+  function variegatedTassleCss(hex) {
+    const c1 = shadeHex(hex, 0.15), c2 = hex, c3 = shadeHex(hex, -0.2), c4 = shadeHex(hex, 0.35);
+    return `background: repeating-linear-gradient(35deg, ${c1} 0px, ${c2} 3px, ${c3} 6px, ${c4} 9px, ${c2} 12px);` +
+      `box-shadow: inset 0 3px 4px rgba(255,255,255,0.25), inset 0 -4px 6px rgba(0,0,0,0.3);`;
+  }
+  function buildShadeRow(row, codesCsv, anchors) {
     const codes = codesCsv.split(',').map(c => c.trim());
     const n = codes.length;
     const segs = anchors.length - 1;
@@ -1071,65 +1098,70 @@ poojascouture.com.au`
       const segT = t * segs;
       const segIdx = Math.min(Math.floor(segT), segs - 1);
       const localT = segT - segIdx;
-      return { code, hex: interpolateHex(anchors[segIdx], anchors[segIdx + 1], localT) };
+      return { code, row, hex: interpolateHex(anchors[segIdx], anchors[segIdx + 1], localT) };
     });
   }
 
   const MANISH_SHADES = [].concat(
-    buildShadeRow('1-LL,1-L,1,2,3,4,5,6-L,6,7,8-LL,8-L,8,9,10,11,11-D,12,12-M,13,13-M,13-C,13-N,14-LL', ['#F5F3D6','#C7D94A','#4E9A3B','#1F5C2E']),
-    buildShadeRow('14-L,14,15,16,17,17-D,18-LL,18-L,18,18-N,19,20,21,22,23,24,25,25-N,26-LL,26-L,26,26-M,26-D,27', ['#2E6B3E','#7A9E5A','#E77FA6','#D6224F','#7A1128']),
-    buildShadeRow('27-D,27-DD,28-LL,28-L,28,29,29-N,30,31,31-D,31-DD,31-DN,32-LL,32-L,32,32-D,33,34,35,36,37-LL,37-L,37,DL-37', ['#5A0F1C','#7A6FA8','#5B6470','#B9A8CC']),
-    buildShadeRow('38,39,40,41,42,42-D,43-L,43,44,45,46,47,47-N,47-D,47-DD,47-DN,48-L,48,MD-48,49,50,51,51-RM,51-RDM', ['#9B7BB8','#5C3D82','#8B2D6C','#9E2D6E','#A9C4E0','#5B87C4']),
-    buildShadeRow('51-RLM,52,52-N,52-D,53-L,53,53-M,54,54-D,54-DD,54-R,55-LLL,55-LL,55-L,55,56,57,58,59,60,60-B,61,61-D', ['#4A6FA8','#1E3A5F','#F2EFD9','#F0C93B','#E8862C']),
-    buildShadeRow('61-DD,62,62-D,62-DD,63-L,63,64,65,66,67,68,69,70,70-D,70-DD,71-LL,71-L,MD-71,71,72,72-D,72-DD,73-LL,73-L', ['#C0401A','#E24E1F','#1E3A5F','#3C9BB0','#1F5C7A']),
-    buildShadeRow('73,P-73,74,MD-74,75,76,77,79-L,79,80,80-N,81,81-N,82,82-M,82-N,83,83-M,84,84-M,84-DM,84-D,85-L', ['#3C9BB0','#C9298A','#D9642B','#F4A9C4','#4FB8C9','#F2C9A8']),
-    buildShadeRow('85,86,87,88,89,90-L,90,90-D,91-LL,91-L,91,92,93,94,95,95-N,96-LL,96-L,96,97,98,99,100,100-D', ['#F2C9A8','#1F5C7A','#4FB8C9','#5FBFA8','#F2A6B8','#D82030']),
-    buildShadeRow('MD-100R,101-LL,101-L,101,102,103,103-M,104,104-M,105,105-M,106,107,108-LL,108-L,108,108-D,109-LLL,109-LL,109-L,109,109-D,110,111', ['#D8E8D8','#7ED9C0','#3C9BB0','#E0C79A','#B08858','#8A5A32']),
-    buildShadeRow('112,112-D,113,114-L,114,115,116,117,118,119,120,120-D,120-DD,120-N,121-L,121,122,123,123-D,123-DD,P-123,124-LL,124-LLN,124-L', ['#8A5A32','#E8A88C','#C0464C','#4A5FA8','#6B2D5C','#D9C89E']),
-    buildShadeRow('124,125,126,126-D,127,128,129,130,131,132-LL,132-L,132,133,133-N,134-L,134,MD-134,134-D,134-N,135,136-LL,136-L,136,136-C', ['#D9C89E','#E8B4C8','#D6224F','#F2EFD9','#8A9E4E','#C9B87A']),
-    buildShadeRow('137-L,137,137-C,138,138-C,139,139-C,139-D,140-LL,140-L,140,141,142-D,143-L,143,143-M,144,145-LL,145-L,145,145-LN,146,146-N', ['#C9B87A','#B8963E','#E8B830','#F0D95A','#D9B8D0','#9E6BA0']),
-    buildShadeRow('147,147-D,147-DD,148-L,148,148-D,149,150,151,152,153-LL,153-L,153,154,155,156,157-LL,157-L,157,157-D,158,159,160,161-LL', ['#6B2D5C','#7A2848','#C9773A','#E8A870','#8A9E4E','#6B5A2E']),
-    buildShadeRow('161-L,161-N,161-D,162-LLL,162-LL,162-L,162,163-LL,163-L,163,164,165,MD-165,166,166-M,167,167-M,168,168-D,168-M,169,169-M,170-LL', ['#6B5A2E','#8A9E4E','#4A5A2E','#7A8A3E','#2E7A6B']),
-    buildShadeRow('170-L,170,170-M,170-N,171-L,171,171-M,MD-171,172,173,174,175-LLL,175-LL,175-L,175,MD-175,176,177,178-L,178-LN,178,179,180,180-D', ['#2E7A6B','#1F5C4A','#D9C88A','#E8A88C','#9E4A5A']),
-    buildShadeRow('180-DD,181-LL,181-L,181,181-N,181-D,181-DD,182-L,182,183,P-183,MD-183,184-L,184,185,186,DD-186,187,188,189-LL,189-L,189,190-L,190', ['#7A1F30','#8A9E4E','#4A6B4E','#4FA8D0','#B8963E','#E8A8B8']),
-    buildShadeRow('190-N,191,191-N,192,192-M,192-N,193,193-M,194,194-M,194-DM,194-D,195-D,196,197,198,199,200,200-D,200-DD,201-LL,201-L,201', ['#E8A8B8','#D0224E','#7A1128','#E88A2E','#D6224F']),
-    buildShadeRow('202,202-D,202-N,203,204,205,206,208,209,210,211,MD-211,212,212-D,213,214,215-L,215,216,217,218,218-N,218-DN,218-D', ['#D0224E','#E88A2E','#8A9E4E','#D9789E']),
-    buildShadeRow('219,220,221,222-L,222,222-D,223,224-LL,224-L,224,225,225-D,225-DD,226-LL,226-L,226,227,228,229,230,231,232,233,234-LL', ['#3E8A7A','#5A8A6B','#7A2848','#8A9E4E','#6B7A3E']),
-    buildShadeRow('234-L,234-LM,234-M,234,235,236,237,238-L,238,239-LL,239-L,239-LN,239,239-N,240-LL,240-L,240-LN,240,241,242-L,242,242-M,242-DM,242-D', ['#6B7A3E','#4A5A2E','#7A2848','#8A2848']),
-    buildShadeRow('242-N,243,244,245,245-N,246,247,247-D,247-DD,248-LL,248-L,248,249,250,251,252-L,252,252-N,252-D,252-P,253-L,MD-253', ['#8A2848','#B82030','#7A3E6B','#C97A9E','#8A9E4E']),
-    buildShadeRow('254-L,254,255,261-L,261,261-D,262-L,262,263-LL,263-L,266,272-LL,272-L,272,272-D,272-DD,273-LL,273-L,273,273-D,273-DD,278-LL,278-L', ['#D9C89E','#8A9EA0','#5A6A6E','#B0A090']),
-    buildShadeRow('278,279,280,285-L,285,290,291,292,DC-292,293,MD-293,294,294-D,MD-294,295,338-LL,338-L,338,348,349,350,351,352,354,360,361,362,376', ['#B0A090','#7A4E7A','#E8A8B8','#3E6B8A','#C94A2E']),
-    buildShadeRow('332-LL,332-L,332-LM,332-LNM,332,332-M,332-D,332-DM,332-OD,DP-333,MD-335', ['#A9C4E0','#4A5A9E','#2E3A6E']),
-    buildShadeRow('377,391-L,391,392,393,394,394-D,395,395-N,395-D,402,P-402,403,403-N,404,405,421,422,422-D,MP-422,MD-423,MD-424,M-444,444', ['#C94A2E','#E8873E','#2E7A6B','#5A3E7A','#7A2838']),
-    buildShadeRow('450,451,452-LL,452-L,452,452-D,456,457,458,459,491,492,493-S,P-528,MD-554,MD-563,P-592,P-593,612-M,DP-642,MD-661,711,712,713', ['#D9C8A0','#7A9E5A','#D9789E','#2E8A7A']),
-    buildShadeRow('722-N,732-LL,732-L,732,MD-741,768,786,846-M,847-M,938,939,P-1006,P-1007,1017,MD-1173,MD-1198,MD-1233,MD-1359,MD-1395,MD-1638,MD-1649,KORA,WHITE,BLACK', ['#2E5A8A','#4A5A9E','#D9789E','#5A7A3E','#E8D9B8','#FAFAF7','#1A1A1A'])
+    buildShadeRow(1, '1-LL,1-L,1,2,3,4,5,6-L,6,7,8-LL,8-L,8,9,10,11,11-D,12,12-M,13,13-M,13-C,13-N,14-LL', ['#F5F3D6','#C7D94A','#4E9A3B','#1F5C2E']),
+    buildShadeRow(2, '14-L,14,15,16,17,17-D,18-LL,18-L,18,18-N,19,20,21,22,23,24,25,25-N,26-LL,26-L,26,26-M,26-D,27', ['#2E6B3E','#7A9E5A','#E77FA6','#D6224F','#7A1128']),
+    buildShadeRow(3, '27-D,27-DD,28-LL,28-L,28,29,29-N,30,31,31-D,31-DD,31-DN,32-LL,32-L,32,32-D,33,34,35,36,37-LL,37-L,37,DL-37', ['#5A0F1C','#7A6FA8','#5B6470','#B9A8CC']),
+    buildShadeRow(4, '38,39,40,41,42,42-D,43-L,43,44,45,46,47,47-N,47-D,47-DD,47-DN,48-L,48,MD-48,49,50,51,51-RM,51-RDM', ['#9B7BB8','#5C3D82','#8B2D6C','#9E2D6E','#A9C4E0','#5B87C4']),
+    buildShadeRow(5, '51-RLM,52,52-N,52-D,53-L,53,53-M,54,54-D,54-DD,54-R,55-LLL,55-LL,55-L,55,56,57,58,59,60,60-B,61,61-D', ['#4A6FA8','#1E3A5F','#F2EFD9','#F0C93B','#E8862C']),
+    buildShadeRow(6, '61-DD,62,62-D,62-DD,63-L,63,64,65,66,67,68,69,70,70-D,70-DD,71-LL,71-L,MD-71,71,72,72-D,72-DD,73-LL,73-L', ['#C0401A','#E24E1F','#1E3A5F','#3C9BB0','#1F5C7A']),
+    buildShadeRow(7, '73,P-73,74,MD-74,75,76,77,79-L,79,80,80-N,81,81-N,82,82-M,82-N,83,83-M,84,84-M,84-DM,84-D,85-L', ['#3C9BB0','#C9298A','#D9642B','#F4A9C4','#4FB8C9','#F2C9A8']),
+    buildShadeRow(8, '85,86,87,88,89,90-L,90,90-D,91-LL,91-L,91,92,93,94,95,95-N,96-LL,96-L,96,97,98,99,100,100-D', ['#F2C9A8','#1F5C7A','#4FB8C9','#5FBFA8','#F2A6B8','#D82030']),
+    buildShadeRow(9, 'MD-100R,101-LL,101-L,101,102,103,103-M,104,104-M,105,105-M,106,107,108-LL,108-L,108,108-D,109-LLL,109-LL,109-L,109,109-D,110,111', ['#D8E8D8','#7ED9C0','#3C9BB0','#E0C79A','#B08858','#8A5A32']),
+    buildShadeRow(10, '112,112-D,113,114-L,114,115,116,117,118,119,120,120-D,120-DD,120-N,121-L,121,122,123,123-D,123-DD,P-123,124-LL,124-LLN,124-L', ['#8A5A32','#E8A88C','#C0464C','#4A5FA8','#6B2D5C','#D9C89E']),
+    buildShadeRow(11, '124,125,126,126-D,127,128,129,130,131,132-LL,132-L,132,133,133-N,134-L,134,MD-134,134-D,134-N,135,136-LL,136-L,136,136-C', ['#D9C89E','#E8B4C8','#D6224F','#F2EFD9','#8A9E4E','#C9B87A']),
+    buildShadeRow(12, '137-L,137,137-C,138,138-C,139,139-C,139-D,140-LL,140-L,140,141,142-D,143-L,143,143-M,144,145-LL,145-L,145,145-LN,146,146-N', ['#C9B87A','#B8963E','#E8B830','#F0D95A','#D9B8D0','#9E6BA0']),
+    buildShadeRow(13, '147,147-D,147-DD,148-L,148,148-D,149,150,151,152,153-LL,153-L,153,154,155,156,157-LL,157-L,157,157-D,158,159,160,161-LL', ['#6B2D5C','#7A2848','#C9773A','#E8A870','#8A9E4E','#6B5A2E']),
+    buildShadeRow(14, '161-L,161-N,161-D,162-LLL,162-LL,162-L,162,163-LL,163-L,163,164,165,MD-165,166,166-M,167,167-M,168,168-D,168-M,169,169-M,170-LL', ['#6B5A2E','#8A9E4E','#4A5A2E','#7A8A3E','#2E7A6B']),
+    buildShadeRow(15, '170-L,170,170-M,170-N,171-L,171,171-M,MD-171,172,173,174,175-LLL,175-LL,175-L,175,MD-175,176,177,178-L,178-LN,178,179,180,180-D', ['#2E7A6B','#1F5C4A','#D9C88A','#E8A88C','#9E4A5A']),
+    buildShadeRow(16, '180-DD,181-LL,181-L,181,181-N,181-D,181-DD,182-L,182,183,P-183,MD-183,184-L,184,185,186,DD-186,187,188,189-LL,189-L,189,190-L,190', ['#7A1F30','#8A9E4E','#4A6B4E','#4FA8D0','#B8963E','#E8A8B8']),
+    buildShadeRow(17, '190-N,191,191-N,192,192-M,192-N,193,193-M,194,194-M,194-DM,194-D,195-D,196,197,198,199,200,200-D,200-DD,201-LL,201-L,201', ['#E8A8B8','#D0224E','#7A1128','#E88A2E','#D6224F']),
+    buildShadeRow(18, '202,202-D,202-N,203,204,205,206,208,209,210,211,MD-211,212,212-D,213,214,215-L,215,216,217,218,218-N,218-DN,218-D', ['#D0224E','#E88A2E','#8A9E4E','#D9789E']),
+    buildShadeRow(19, '219,220,221,222-L,222,222-D,223,224-LL,224-L,224,225,225-D,225-DD,226-LL,226-L,226,227,228,229,230,231,232,233,234-LL', ['#3E8A7A','#5A8A6B','#7A2848','#8A9E4E','#6B7A3E']),
+    buildShadeRow(20, '234-L,234-LM,234-M,234,235,236,237,238-L,238,239-LL,239-L,239-LN,239,239-N,240-LL,240-L,240-LN,240,241,242-L,242,242-M,242-DM,242-D', ['#6B7A3E','#4A5A2E','#7A2848','#8A2848']),
+    buildShadeRow(21, '242-N,243,244,245,245-N,246,247,247-D,247-DD,248-LL,248-L,248,249,250,251,252-L,252,252-N,252-D,252-P,253-L,MD-253', ['#8A2848','#B82030','#7A3E6B','#C97A9E','#8A9E4E']),
+    buildShadeRow(22, '254-L,254,255,261-L,261,261-D,262-L,262,263-LL,263-L,266,272-LL,272-L,272,272-D,272-DD,273-LL,273-L,273,273-D,273-DD,278-LL,278-L', ['#D9C89E','#8A9EA0','#5A6A6E','#B0A090']),
+    buildShadeRow(23, '278,279,280,285-L,285,290,291,292,DC-292,293,MD-293,294,294-D,MD-294,295,338-LL,338-L,338,348,349,350,351,352,354,360,361,362,376', ['#B0A090','#7A4E7A','#E8A8B8','#3E6B8A','#C94A2E']),
+    buildShadeRow(24, '332-LL,332-L,332-LM,332-LNM,332,332-M,332-D,332-DM,332-OD,DP-333,MD-335', ['#A9C4E0','#4A5A9E','#2E3A6E']),
+    buildShadeRow(25, '377,391-L,391,392,393,394,394-D,395,395-N,395-D,402,P-402,403,403-N,404,405,421,422,422-D,MP-422,MD-423,MD-424,M-444,444', ['#C94A2E','#E8873E','#2E7A6B','#5A3E7A','#7A2838']),
+    buildShadeRow(26, '450,451,452-LL,452-L,452,452-D,456,457,458,459,491,492,493-S,P-528,MD-554,MD-563,P-592,P-593,612-M,DP-642,MD-661,711,712,713', ['#D9C8A0','#7A9E5A','#D9789E','#2E8A7A']),
+    buildShadeRow(27, '722-N,732-LL,732-L,732,MD-741,768,786,846-M,847-M,938,939,P-1006,P-1007,1017,MD-1173,MD-1198,MD-1233,MD-1359,MD-1395,MD-1638,MD-1649,KORA,WHITE,BLACK', ['#2E5A8A','#4A5A9E','#D9789E','#5A7A3E','#E8D9B8','#FAFAF7','#1A1A1A']),
+    // Row 28 — variegated (multi-colour-in-one-strand) threads. A single
+    // hex can't represent a variegated thread honestly; these get one
+    // representative mid-tone rather than a false single-colour claim —
+    // check the physical card directly for these specifically.
+    buildShadeRow(28, 'V-34ND,V-62D,V-81S,V-83S,V-83SND,V-96D,V-109LLS,V-109,V-109LA,V-135LA,V-135D,V-157LLAX,V-159PX,V-159LLX,VD-21AMT,V-218,V-218D,V-239L,V-239ND,VD-502,VD-622,VD-623,V-881AMT,V-96OS', ['#9E8A6B','#8A6B9E','#6B9E8A','#9E6B7A'])
   );
 
   const NEELAM_SHADES = [].concat(
-    buildShadeRow('1-LL,1-L,1,2,3,4,5,6,7,8-L,8,9,10,11,11-D,12,13,14-LL,14-L,14,15,16,17,17-D,17-DD', ['#F2EFB8','#D9E04A','#8FC241','#4E9A3B','#1F5C2E']),
-    buildShadeRow('18-LL,18-L,18,19,20,21,22,23,24,24-LL,25,26,27,27-D,28-LL,28-L,28,29,30,31,32,32-L,33,34', ['#2E6B3E','#E8A8C0','#D6224F','#B8102E','#8A7BB0','#5B6470']),
-    buildShadeRow('35,36,36-D,37-L,37,38,39,40,41,42-D,43,44,45,46,47-D,48-LL,48-L,48,49,50,51,52', ['#1A1A2E','#8A7BB0','#5A2E5A','#9E2D6E','#D0224E','#7CA8D9']),
-    buildShadeRow('53,54,54-D,54-DD,55-LL,55-L,55,56,57,58,59,60,61,62,62-D,63-L,63,64,65,66,66-D,67,68,69,70', ['#4A5FA8','#1A1A2E','#E8D9A8','#F0C93B','#D6224F','#7CA8D9','#4A5FA8']),
-    buildShadeRow('70-D,70-DD,71-LL,71,72,72-D,73-LL,73,74,75,76,77,78,79-LL,79-L,79,80,81,82,83,84,85', ['#1E3A5F','#4FA8D0','#E8862C','#D0224E','#F4A9C4','#D82030','#4FA8D0','#E8A88C']),
-    buildShadeRow('86,87,88,89,90-L,90,90-D,91-LL,91,92,93,94,95,96-LL,96-L,96,97,98,99,100,100-D,101-LL,101-L,101', ['#4FA8D0','#1A1A2E','#4FB8C9','#F4A9C4','#D82030','#7ED9C0']),
-    buildShadeRow('102,103,104,105,108,108-D,109-LL,109-L,109,110,111,112,112-D,113,114,114-LL,114-L,115,116,117,118,119,120,120-D', ['#3C9BB0','#8A5A32','#E0C79A','#B08858','#8A5A32','#E8A88C']),
-    buildShadeRow('120-DD,121,122,123,124,125,126,127,128,129,130,131,132-LL,132-L,132,133,134,134-D,136-L,136,137,138,139,139-D', ['#C0464C','#4FA8D0','#D0224E','#F2EFD9','#B8963E']),
-    buildShadeRow('140,141,142,144,145,146,147,147-D,148,149,150,151,152,153,153-L,153-LL,154,155,156,157,157-D,158,158-D', ['#E8873E','#6B2D5C','#7A2848','#8A9E4E','#E8A870','#7A2848']),
-    buildShadeRow('159,160,161,162,163,163-LL,163-L,164,165,166,167,168,169,170,170-LL,170-L,171,172,173,174,174-D,174-DD,175,175-L', ['#6B5A2E','#E8E0A0','#8A9E4E','#2E7A5A','#1F5C4A','#B8963E']),
-    buildShadeRow('175-D,176,177,178,179,180,180-D,181,182,183,184,184-L,185,186,187,188,189,190-L,190,191,192,193,194,194-D,195', ['#1F5C4A','#7A8A3E','#8A6B2E','#7A2848','#4FA8D0','#E8862C','#D9789E']),
-    buildShadeRow('196,197,198,198-L,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215-L,215-D,215,216,217', ['#7A2848','#E8862C','#D0224E','#7A2828','#8A6B4E','#E88A2E']),
-    buildShadeRow('218,218-D,219,220,221,222,222-D,223,224,225,225-D,226-LL,226-L,226,227,228,229,230,231,232,233,234-L,234,235,236', ['#E82838','#8A9E4E','#4FA8D0','#B8963E','#6B5A2E','#7A2828','#4A6B4E']),
-    buildShadeRow('237,238,239-LL,239-L,240-LL,240-L,240,241,242-L,242,242-D,243,244,245,246,247,247-D,248-LL,248-L,248,249,250,251,252,252-D,253,253-D', ['#8A6B4E','#7A2828','#8A6B2E','#B8963E','#4A2818','#8A6B4E','#6B5A2E']),
-    buildShadeRow('266,273-L,273-D,290,291,292,293,294,295,313,323,332-LL,332-L,332,332-D,332-DD,348,348-LL,349,350,351,352', ['#1A1A2E','#E8A8B8','#D0224E','#1F5C4A','#7A4E9E','#4A5FA8']),
-    buildShadeRow('393,394,394-D,395,401,402,403,404,405,406,418,422,423,504,506,507,508,509,510,511,512,513,514,515,516', ['#3E8A9E','#D0224E','#E8873E','#4A2818','#1F5C4A','#2E5A3E']),
-    buildShadeRow('517,518,519,520,521,522,523,524,525,526,527,528,529,530,L-531,532,533,534,535,536,537,538,539,540,541', ['#8A6B2E','#E8873E','#8A9E4E','#D0224E','#7A2848','#4A5FA8']),
-    buildShadeRow('542,543,544,545,546,547,549,550,551,552,553,554,555,564,565,573,576,578,594,618,692,693,WHITE,BLACK,KORA', ['#5A3E5A','#7A2848','#D9789E','#4A9E9E','#D0224E','#FAFAF7','#1A1A1A','#E8D9B8']),
-    buildShadeRow('701,702,703,704,705,706,707,708,709,710,711,712,713,714,715,716,717,718,719,720,721,722,723,724,725', ['#B0A090','#7A6B2E','#D9789E','#4A2818','#8A6B4E','#3E6B4E','#D9789E','#8A6B4E']),
-    buildShadeRow('726,727,728,729,730,731,732,733,734,735,736,737,738,739,740,741,742,743,744,745,746,747,748,749,750', ['#1F5C4A','#4A5FA8','#D0224E','#8A9E4E','#1F5C4A','#7A2848','#5B6470','#D0224E','#E8A88C']),
-    buildShadeRow('751,752,753,754,755,756,757,758,759,760,761,762,763,764,765,766,767,768,769,770,771,772,773,774,775', ['#D0224E','#5B6470','#E8A88C','#8A6B2E','#D9C89E','#B8963E','#E8A8C0']),
-    buildShadeRow('776,777,778,779,780,781,782,783,784,785,786,787,788,789,790,791,792,793,794,795,796,797,798,799,800', ['#8A9E4E','#E8A88C','#D9C89E','#8A6B4E','#D0224E','#7A2848','#4A2E5A','#3E6B4E','#5A3E2E']),
-    buildShadeRow('801,802,803,804,805,806,807,808,809,810,811,812,813,814,815,816,817,818,819,820,821,822,823,824,825', ['#B0A090','#8A6B2E','#4FA8D0','#7A4E9E','#D0224E','#8A6B4E','#3E6B4E','#E8873E','#4A2818','#8A6B4E']),
-    buildShadeRow('826,827,828,829,830,831,832,833,834,835,836,837,838,839,840,841,842,843,844,845,846,847,848,849,850', ['#3E2818','#3E6B4E','#8A6B4E','#D9789E','#D0224E','#1A1A1A','#E8873E','#4A6B4E','#D0224E','#8A6B4E'])
+    buildShadeRow(1, '1-LL,1-L,1,2,3,4,5,6,7,8-L,8,9,10,11,11-D,12,13,14-LL,14-L,14,15,16,17,17-D,17-DD', ['#F2EFB8','#D9E04A','#8FC241','#4E9A3B','#1F5C2E']),
+    buildShadeRow(2, '18-LL,18-L,18,19,20,21,22,23,24,24-LL,25,26,27,27-D,28-LL,28-L,28,29,30,31,32,32-L,33,34', ['#2E6B3E','#E8A8C0','#D6224F','#B8102E','#8A7BB0','#5B6470']),
+    buildShadeRow(3, '35,36,36-D,37-L,37,38,39,40,41,42-D,43,44,45,46,47-D,48-LL,48-L,48,49,50,51,52', ['#1A1A2E','#8A7BB0','#5A2E5A','#9E2D6E','#D0224E','#7CA8D9']),
+    buildShadeRow(4, '53,54,54-D,54-DD,55-LL,55-L,55,56,57,58,59,60,61,62,62-D,63-L,63,64,65,66,66-D,67,68,69,70', ['#4A5FA8','#1A1A2E','#E8D9A8','#F0C93B','#D6224F','#7CA8D9','#4A5FA8']),
+    buildShadeRow(5, '70-D,70-DD,71-LL,71,72,72-D,73-LL,73,74,75,76,77,78,79-LL,79-L,79,80,81,82,83,84,85', ['#1E3A5F','#4FA8D0','#E8862C','#D0224E','#F4A9C4','#D82030','#4FA8D0','#E8A88C']),
+    buildShadeRow(6, '86,87,88,89,90-L,90,90-D,91-LL,91,92,93,94,95,96-LL,96-L,96,97,98,99,100,100-D,101-LL,101-L,101', ['#4FA8D0','#1A1A2E','#4FB8C9','#F4A9C4','#D82030','#7ED9C0']),
+    buildShadeRow(7, '102,103,104,105,108,108-D,109-LL,109-L,109,110,111,112,112-D,113,114,114-LL,114-L,115,116,117,118,119,120,120-D', ['#3C9BB0','#8A5A32','#E0C79A','#B08858','#8A5A32','#E8A88C']),
+    buildShadeRow(8, '120-DD,121,122,123,124,125,126,127,128,129,130,131,132-LL,132-L,132,133,134,134-D,136-L,136,137,138,139,139-D', ['#C0464C','#4FA8D0','#D0224E','#F2EFD9','#B8963E']),
+    buildShadeRow(9, '140,141,142,144,145,146,147,147-D,148,149,150,151,152,153,153-L,153-LL,154,155,156,157,157-D,158,158-D', ['#E8873E','#6B2D5C','#7A2848','#8A9E4E','#E8A870','#7A2848']),
+    buildShadeRow(10, '159,160,161,162,163,163-LL,163-L,164,165,166,167,168,169,170,170-LL,170-L,171,172,173,174,174-D,174-DD,175,175-L', ['#6B5A2E','#E8E0A0','#8A9E4E','#2E7A5A','#1F5C4A','#B8963E']),
+    buildShadeRow(11, '175-D,176,177,178,179,180,180-D,181,182,183,184,184-L,185,186,187,188,189,190-L,190,191,192,193,194,194-D,195', ['#1F5C4A','#7A8A3E','#8A6B2E','#7A2848','#4FA8D0','#E8862C','#D9789E']),
+    buildShadeRow(12, '196,197,198,198-L,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215-L,215-D,215,216,217', ['#7A2848','#E8862C','#D0224E','#7A2828','#8A6B4E','#E88A2E']),
+    buildShadeRow(13, '218,218-D,219,220,221,222,222-D,223,224,225,225-D,226-LL,226-L,226,227,228,229,230,231,232,233,234-L,234,235,236', ['#E82838','#8A9E4E','#4FA8D0','#B8963E','#6B5A2E','#7A2828','#4A6B4E']),
+    buildShadeRow(14, '237,238,239-LL,239-L,240-LL,240-L,240,241,242-L,242,242-D,243,244,245,246,247,247-D,248-LL,248-L,248,249,250,251,252,252-D,253,253-D', ['#8A6B4E','#7A2828','#8A6B2E','#B8963E','#4A2818','#8A6B4E','#6B5A2E']),
+    buildShadeRow(15, '266,273-L,273-D,290,291,292,293,294,295,313,323,332-LL,332-L,332,332-D,332-DD,348,348-LL,349,350,351,352', ['#1A1A2E','#E8A8B8','#D0224E','#1F5C4A','#7A4E9E','#4A5FA8']),
+    buildShadeRow(16, '393,394,394-D,395,401,402,403,404,405,406,418,422,423,504,506,507,508,509,510,511,512,513,514,515,516', ['#3E8A9E','#D0224E','#E8873E','#4A2818','#1F5C4A','#2E5A3E']),
+    buildShadeRow(17, '517,518,519,520,521,522,523,524,525,526,527,528,529,530,L-531,532,533,534,535,536,537,538,539,540,541', ['#8A6B2E','#E8873E','#8A9E4E','#D0224E','#7A2848','#4A5FA8']),
+    buildShadeRow(18, '542,543,544,545,546,547,549,550,551,552,553,554,555,564,565,573,576,578,594,618,692,693,WHITE,BLACK,KORA', ['#5A3E5A','#7A2848','#D9789E','#4A9E9E','#D0224E','#FAFAF7','#1A1A1A','#E8D9B8']),
+    buildShadeRow(19, '701,702,703,704,705,706,707,708,709,710,711,712,713,714,715,716,717,718,719,720,721,722,723,724,725', ['#B0A090','#7A6B2E','#D9789E','#4A2818','#8A6B4E','#3E6B4E','#D9789E','#8A6B4E']),
+    buildShadeRow(20, '726,727,728,729,730,731,732,733,734,735,736,737,738,739,740,741,742,743,744,745,746,747,748,749,750', ['#1F5C4A','#4A5FA8','#D0224E','#8A9E4E','#1F5C4A','#7A2848','#5B6470','#D0224E','#E8A88C']),
+    buildShadeRow(21, '751,752,753,754,755,756,757,758,759,760,761,762,763,764,765,766,767,768,769,770,771,772,773,774,775', ['#D0224E','#5B6470','#E8A88C','#8A6B2E','#D9C89E','#B8963E','#E8A8C0']),
+    buildShadeRow(22, '776,777,778,779,780,781,782,783,784,785,786,787,788,789,790,791,792,793,794,795,796,797,798,799,800', ['#8A9E4E','#E8A88C','#D9C89E','#8A6B4E','#D0224E','#7A2848','#4A2E5A','#3E6B4E','#5A3E2E']),
+    buildShadeRow(23, '801,802,803,804,805,806,807,808,809,810,811,812,813,814,815,816,817,818,819,820,821,822,823,824,825', ['#B0A090','#8A6B2E','#4FA8D0','#7A4E9E','#D0224E','#8A6B4E','#3E6B4E','#E8873E','#4A2818','#8A6B4E']),
+    buildShadeRow(24, '826,827,828,829,830,831,832,833,834,835,836,837,838,839,840,841,842,843,844,845,846,847,848,849,850', ['#3E2818','#3E6B4E','#8A6B4E','#D9789E','#D0224E','#1A1A1A','#E8873E','#4A6B4E','#D0224E','#8A6B4E'])
   );
 
   const DEFAULT_COLOUR_PALETTE = [
@@ -1176,24 +1208,40 @@ poojascouture.com.au`
   function showShadeCardPicker(brand, inputName, modalEl) {
     const shades = brand === 'manish' ? MANISH_SHADES : NEELAM_SHADES;
     const brandLabel = brand === 'manish' ? 'Manish Embroidery Yarn' : 'Neelam (Telephone) Embroidery Yarn';
+
+    // Group by row, preserving each row's printed left-to-right order —
+    // matches how the physical card is actually laid out (numbered tabs
+    // down the left side, one row of tassels per tab), so this is a quick
+    // visual lookup against the real card rather than one long flat list.
+    const rows = {};
+    shades.forEach(s => { (rows[s.row] = rows[s.row] || []).push(s); });
+    const rowNumbers = Object.keys(rows).map(Number).sort((a, b) => a - b);
+
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.innerHTML = `
-      <div style="background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:var(--radius-lg);max-width:720px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:var(--pc-shadow-xl);">
+      <div style="background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:var(--radius-lg);max-width:820px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--pc-shadow-xl);">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--pc-border);flex-shrink:0;">
           <div style="font-weight:600;color:var(--pc-gold);font-family:var(--font-display)">${brandLabel} — Shade Card</div>
           <button type="button" class="shade-picker-close" style="background:none;border:none;color:var(--pc-text-muted);font-size:20px;cursor:pointer;line-height:1;">✕</button>
         </div>
         <div style="padding:16px 20px;overflow-y:auto;flex:1;">
-          <div class="text-xs text-muted mb-3">Colours are a visual read of the physical shade card photo, not a lab-accurate match — the real card has many more numbered shades than shown here. Tap one to select it, or check the physical card for the exact number and type it in directly.</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:10px;">
-            ${shades.map(s => `
-              <button type="button" class="shade-swatch-btn" data-code="${Utils.sanitizeHTML(s.code)}" title="${Utils.sanitizeHTML(s.code)}"
-                style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px;border:1px solid var(--pc-border);border-radius:8px;background:rgba(255,255,255,0.02);cursor:pointer;">
-                <span style="width:34px;height:34px;border-radius:6px;background:${s.hex};border:1px solid rgba(0,0,0,0.25);display:block;"></span>
-                <span style="font-size:9px;color:var(--pc-text-muted);white-space:nowrap;">${Utils.sanitizeHTML(s.code)}</span>
-              </button>`).join('')}
-          </div>
+          <div class="text-xs text-muted mb-3">Arranged row-by-row to match the physical card — colours are a visual read of the photo, not a lab-accurate match. Tap a swatch to select it, or check the physical card for the exact number and type it in directly.</div>
+          ${rowNumbers.map(rowNum => `
+            <div style="margin-bottom:14px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <span style="background:#1a1a1a;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;">${rowNum}</span>
+                <div style="flex:1;height:1px;background:var(--pc-border);"></div>
+              </div>
+              <div style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:4px;">
+                ${rows[rowNum].map(s => `
+                  <button type="button" class="shade-swatch-btn" data-code="${Utils.sanitizeHTML(s.code)}" title="${Utils.sanitizeHTML(s.code)}${isVariegatedCode(s.code) ? ' (variegated — check physical card)' : ''}"
+                    style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px 3px;width:34px;border:1px solid var(--pc-border);border-radius:6px;background:rgba(255,255,255,0.02);cursor:pointer;">
+                    <span style="width:16px;height:42px;border-radius:2px 2px 45% 45%;border:1px solid rgba(0,0,0,0.3);display:block;${isVariegatedCode(s.code) ? variegatedTassleCss(s.hex) : threadTassleCss(s.hex)}"></span>
+                    <span style="font-size:8px;color:var(--pc-text-muted);white-space:nowrap;">${Utils.sanitizeHTML(s.code)}</span>
+                  </button>`).join('')}
+              </div>
+            </div>`).join('')}
         </div>
       </div>`;
     document.body.appendChild(overlay);
