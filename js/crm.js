@@ -774,6 +774,26 @@ poojascouture.com.au`
     const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
     orders.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
 
+    // Consolidated filter groups — the 15 individual pipeline stages still
+    // exist underneath (used by the "Move to stage" dropdown on each card),
+    // but as a filter UI, 15 separate chips was too granular to scan at a
+    // glance. Grouped into the same 3 buckets already used elsewhere in the
+    // dashboard (Workshop / Transit / Awaiting), plus Delivered and
+    // Completed kept separate since they're meaningfully different stages
+    // to see at a glance in a live pipeline view.
+    const chipGroups = [
+      { id: 'all',       title: 'All',             icon: '🗂️', statuses: null },
+      { id: 'workshop',  title: 'In Workshop',      icon: '🧵', statuses: ['New','In Design','Fabric Sourced','In Production','Fitting'] },
+      { id: 'transit',   title: 'In Transit',       icon: '🚚', statuses: ['Ready','Shipped to Shashank','At Shashank','In Transit'] },
+      { id: 'awaiting',  title: 'Awaiting Action',  icon: '⏳', statuses: ['Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery'] },
+      { id: 'delivered', title: 'Delivered',        icon: '✅', statuses: ['Delivered'] },
+      { id: 'completed', title: 'Completed',        icon: '🏁', statuses: ['Completed'] }
+    ];
+    const groupCounts = chipGroups.reduce((acc, g) => {
+      acc[g.id] = g.statuses ? orders.filter(o => g.statuses.includes(o.status)).length : orders.length;
+      return acc;
+    }, {});
+
     const counts = stages.reduce((acc, s) => {
       acc[s.id] = orders.filter(o => o.status === s.id).length;
       return acc;
@@ -783,37 +803,34 @@ poojascouture.com.au`
     container.innerHTML = `
       <!-- Summary strip -->
       <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="document.querySelector('.order-filter-chip[data-stage=&quot;all&quot;]').click()">
           <div class="stat-card-header"><span class="stat-card-icon gold">🧵</span></div>
           <div class="stat-card-value">${orders.length}</div>
           <div class="stat-card-label">Total Orders</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="document.querySelector('.order-filter-chip[data-stage=&quot;all&quot;]').click()">
           <div class="stat-card-header"><span class="stat-card-icon blue">💰</span></div>
           <div class="stat-card-value">${Utils.formatCurrency(totalValue)}</div>
           <div class="stat-card-label">Pipeline Value</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="document.querySelector('.order-filter-chip[data-stage=&quot;delivered&quot;]').click()">
           <div class="stat-card-header"><span class="stat-card-icon green">✅</span></div>
           <div class="stat-card-value">${counts['Delivered'] || 0}</div>
           <div class="stat-card-label">Delivered</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="document.querySelector('.order-filter-chip[data-stage=&quot;workshop&quot;]').click()">
           <div class="stat-card-header"><span class="stat-card-icon purple">⚙️</span></div>
           <div class="stat-card-value">${(counts['In Design']||0)+(counts['Fabric Sourced']||0)+(counts['In Production']||0)+(counts['Fitting']||0)}</div>
           <div class="stat-card-label">In Workshop</div>
         </div>
       </div>
 
-      <!-- Filter chips -->
+      <!-- Filter chips — consolidated into 6 concise groups with icons -->
       <div class="card p-4 mb-4 animate-fade-in stagger-1" style="margin-top: 18px;">
         <div class="d-flex flex-wrap gap-2 items-center">
-          <button class="btn btn-sm btn-primary order-filter-chip" data-stage="all">
-            All <span class="badge badge-muted" style="margin-left:6px">${orders.length}</span>
-          </button>
-          ${stages.map(s => `
-            <button class="btn btn-sm btn-secondary order-filter-chip" data-stage="${s.id}">
-              ${s.title} <span class="badge badge-muted" style="margin-left:6px">${counts[s.id] || 0}</span>
+          ${chipGroups.map((g, idx) => `
+            <button class="btn btn-sm ${idx === 0 ? 'btn-primary' : 'btn-secondary'} order-filter-chip" data-stage="${g.id}">
+              ${g.icon} ${g.title} <span class="badge badge-muted" style="margin-left:6px">${groupCounts[g.id]}</span>
             </button>
           `).join('')}
         </div>
@@ -827,7 +844,8 @@ poojascouture.com.au`
     const grid = Utils.$('#orders-grid');
 
     const renderCards = (stageFilter) => {
-      const list = stageFilter === 'all' ? orders : orders.filter(o => o.status === stageFilter);
+      const group = chipGroups.find(g => g.id === stageFilter);
+      const list = (!group || !group.statuses) ? orders : orders.filter(o => group.statuses.includes(o.status));
       grid.innerHTML = '';
 
       if (list.length === 0) {
