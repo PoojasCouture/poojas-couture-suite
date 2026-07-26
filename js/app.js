@@ -793,7 +793,6 @@ const App = (() => {
   return {
     init,
     navigate,
-    applyTheme,
     showDashReport,
     quickRoute,
     showModal,
