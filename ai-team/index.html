@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pooja's Couture — AI Studio Team</title>
 <link rel="icon" type="image/png" href="../assets/logo-mark.png">
-<link rel="stylesheet" href="../css/app.css?v=20260726d">
+<link rel="stylesheet" href="../css/app.css?v=20260727">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0"></script>
 <script src="../js/config.js?v=20260724"></script>
 <script src="../js/theme.js?v=20260726"></script>
@@ -32,7 +32,13 @@
     <!-- SIDEBAR -->
     <div id="sidebar">
       <div class="brand">
-        <img src="../assets/logo-wordmark-light.png" alt="Pooja's Couture" class="sidebar-wordmark" onerror="this.style.display='none'">
+        <div class="brand-top-row">
+          <a href="../index.html" class="sidebar-brand-home" title="Back to main app">
+            <div class="sidebar-brand-logo"><img src="../assets/logo-mark.png" alt="Pooja's Couture"></div>
+            <img src="../assets/logo-wordmark-light.png" alt="Pooja's Couture" class="sidebar-wordmark" onerror="this.style.display='none'">
+          </a>
+          <button id="ai-sidebar-collapse-btn" class="sidebar-collapse-btn" title="Collapse sidebar">‹</button>
+        </div>
         <div class="brand-sub">AI Studio Team</div>
       </div>
 
@@ -159,6 +165,6 @@
     window.location.href = '../index.html';
   }
 </script>
-<script src="app.js?v=20260724"></script>
+<script src="app.js?v=20260727"></script>
 </body>
 </html>

@@ -796,3 +796,33 @@ function checkAccess(isRetry) {
 }
 
 document.addEventListener('DOMContentLoaded', () => checkAccess(false));
+
+// ── Sidebar collapse toggle ──
+// Reuses the same 'pc-sidebar-collapsed' key the main app uses, so
+// collapsing the sidebar here (or in the main app) stays consistent
+// everywhere rather than being a per-portal setting.
+(function setupSidebarCollapse() {
+  function init() {
+    const sidebar = document.getElementById('sidebar');
+    const btn = document.getElementById('ai-sidebar-collapse-btn');
+    if (!sidebar || !btn) return;
+
+    let saved = null;
+    try { saved = localStorage.getItem('pc-sidebar-collapsed'); } catch (e) {}
+    if (saved === 'true') {
+      sidebar.classList.add('collapsed');
+      btn.textContent = '›';
+    }
+
+    btn.addEventListener('click', () => {
+      const isCollapsed = sidebar.classList.toggle('collapsed');
+      try { localStorage.setItem('pc-sidebar-collapsed', isCollapsed); } catch (e) {}
+      btn.textContent = isCollapsed ? '›' : '‹';
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

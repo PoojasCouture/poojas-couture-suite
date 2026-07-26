@@ -3062,6 +3062,98 @@ div[style*="border:1px solid var(--pc-"] {
   font-weight: 600;
 }
 
+/* Logo + collapse toggle row (added for consistency with the main app's
+   sidebar, and so the logo can act as a "back to main app" link instead
+   of double-booking as the collapse trigger). */
+.portal-ai-team .brand-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.portal-ai-team .sidebar-brand-home {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  text-decoration: none;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.portal-ai-team .sidebar-brand-logo {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.portal-ai-team .sidebar-brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 1px 1px rgba(0,0,0,0.55))
+    drop-shadow(0 2px 4px rgba(0,0,0,0.35))
+    drop-shadow(0 0 1px rgba(236,182,118,0.5));
+}
+
+.portal-ai-team .sidebar-collapse-btn {
+  background: none;
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  color: var(--pc-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 8px;
+  flex-shrink: 0;
+  transition: all var(--transition-base);
+}
+
+.portal-ai-team .sidebar-collapse-btn:hover {
+  color: var(--pc-gold);
+  border-color: var(--pc-border-gold);
+}
+
+/* ── Collapsed state — same design language as the main app's
+   .sidebar.collapsed, applied to ai-team's own #sidebar element ── */
+.portal-ai-team #sidebar.collapsed {
+  width: var(--sidebar-collapsed, 72px);
+  min-width: var(--sidebar-collapsed, 72px);
+}
+
+.portal-ai-team #sidebar.collapsed .sidebar-wordmark,
+.portal-ai-team #sidebar.collapsed .brand-sub,
+.portal-ai-team #sidebar.collapsed .team-label,
+.portal-ai-team #sidebar.collapsed .member-info,
+.portal-ai-team #sidebar.collapsed .status-box {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s, width 0.2s;
+}
+
+.portal-ai-team #sidebar.collapsed .brand-top-row {
+  justify-content: center;
+}
+
+.portal-ai-team #sidebar.collapsed .sidebar-collapse-btn {
+  position: absolute;
+  right: 8px;
+  top: var(--sp-6);
+}
+
+.portal-ai-team #sidebar.collapsed .member-btn {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .portal-ai-team .team-label {
   font-size: var(--text-xs);
   font-weight: 600;
