@@ -378,15 +378,15 @@ const Admin = (() => {
 
     // 2. Fetch collection counts
     const collections = [
-      { name: 'Brides & Clients', count: Store.getAll(Store.COLLECTIONS.CLIENTS).length, icon: '👤', key: 'clients' },
-      { name: 'Consultations', count: Store.getAll(Store.COLLECTIONS.APPOINTMENTS).length, icon: '📅', key: 'appointments' },
-      { name: 'Custom Outfits Orders', count: Store.getAll(Store.COLLECTIONS.ORDERS).length, icon: '🧵', key: 'orders' },
-      { name: 'Staff Employees', count: Store.getAll(Store.COLLECTIONS.EMPLOYEES).length, icon: '👥', key: 'employees' },
-      { name: 'Absence Leaves', count: Store.getAll(Store.COLLECTIONS.LEAVES).length, icon: '✈️', key: 'leaves' },
-      { name: 'Wages Payrolls', count: Store.getAll(Store.COLLECTIONS.PAYROLL).length, icon: '📄', key: 'payroll' },
-      { name: 'Sales Invoices', count: Store.getAll(Store.COLLECTIONS.INVOICES).length, icon: '💰', key: 'invoices' },
-      { name: 'Wages & Material Expenses', count: Store.getAll(Store.COLLECTIONS.EXPENSES).length, icon: '💸', key: 'expenses' },
-      { name: 'Security Audit Logs', count: Store.getAll(Store.COLLECTIONS.AUDIT_LOGS).length, icon: '🔒', key: 'audit_logs' }
+      { name: 'Brides & Clients', count: Store.getAll(Store.COLLECTIONS.CLIENTS).length, icon: '👤', key: 'clients', route: 'crm', subtab: 'clients' },
+      { name: 'Consultations', count: Store.getAll(Store.COLLECTIONS.APPOINTMENTS).length, icon: '📅', key: 'appointments', route: 'crm', subtab: 'appointments' },
+      { name: 'Custom Outfits Orders', count: Store.getAll(Store.COLLECTIONS.ORDERS).length, icon: '🧵', key: 'orders', route: 'crm', subtab: 'orders' },
+      { name: 'Staff Employees', count: Store.getAll(Store.COLLECTIONS.EMPLOYEES).length, icon: '👥', key: 'employees', route: 'hrm', subtab: 'employees' },
+      { name: 'Absence Leaves', count: Store.getAll(Store.COLLECTIONS.LEAVES).length, icon: '✈️', key: 'leaves', route: 'hrm', subtab: 'leaves' },
+      { name: 'Wages Payrolls', count: Store.getAll(Store.COLLECTIONS.PAYROLL).length, icon: '📄', key: 'payroll', route: 'hrm', subtab: 'payroll' },
+      { name: 'Sales Invoices', count: Store.getAll(Store.COLLECTIONS.INVOICES).length, icon: '💰', key: 'invoices', route: 'accounting', subtab: 'invoices' },
+      { name: 'Wages & Material Expenses', count: Store.getAll(Store.COLLECTIONS.EXPENSES).length, icon: '💸', key: 'expenses', route: 'accounting', subtab: 'expenses' },
+      { name: 'Security Audit Logs', count: Store.getAll(Store.COLLECTIONS.AUDIT_LOGS).length, icon: '🔒', key: 'audit_logs', route: 'admin', subtab: 'logs' }
     ];
 
     container.innerHTML = `
@@ -434,7 +434,7 @@ const Admin = (() => {
           <div class="card-title mb-4">Sandbox Database Counts</div>
           <div class="d-grid gap-4" style="grid-template-columns: 1fr 1fr; grid-row-gap: var(--sp-4);">
             ${collections.map(c => `
-              <div class="d-flex items-center gap-3 p-3 rounded-md" style="background: rgba(255,255,255,0.01); border: 1px solid var(--pc-border);">
+              <div class="d-flex items-center gap-3 p-3 rounded-md" style="cursor:pointer;background: rgba(255,255,255,0.01); border: 1px solid var(--pc-border);" onclick="App.quickRoute('${c.route}','${c.subtab}')">
                 <div class="avatar avatar-sm badge-gold" style="font-size: 16px;">${c.icon}</div>
                 <div>
                   <div class="text-xs text-muted font-light">${c.name}</div>
