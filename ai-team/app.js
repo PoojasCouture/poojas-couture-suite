@@ -1,3 +1,13 @@
+// Derives a stronger-alpha glow color from a member's existing
+// rgba(...) background color, so the header avatar's glow always
+// matches whichever member is currently active without needing a
+// second color value maintained per member.
+function toGlow(rgbaStr) {
+  const match = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(rgbaStr || '');
+  if (!match) return 'transparent';
+  return `rgba(${match[1]},${match[2]},${match[3]},0.65)`;
+}
+
 const MEMBERS = {
   ceo: {
     name: 'Priya — Delivery Lead',
@@ -287,6 +297,7 @@ function switchToHistory() {
   document.getElementById('history-panel').style.flexDirection = 'column';
   document.getElementById('h-avatar').textContent = '🗂️';
   document.getElementById('h-avatar').style.background = 'rgba(100,140,200,0.15)';
+  document.getElementById('h-avatar').style.setProperty('--glow', 'rgba(100,140,200,0.65)');
   document.getElementById('h-name').textContent = 'Project History';
   document.getElementById('h-tag').textContent = 'All completed AI team projects';
   document.getElementById('delegate-toggle').classList.remove('visible');
@@ -400,6 +411,7 @@ function switchMember(id) {
   const m = MEMBERS[id];
   document.getElementById('h-avatar').textContent = m.emoji;
   document.getElementById('h-avatar').style.background = m.color;
+  document.getElementById('h-avatar').style.setProperty('--glow', toGlow(m.color));
   document.getElementById('h-name').textContent = m.name;
   document.getElementById('h-tag').textContent = m.tag;
 

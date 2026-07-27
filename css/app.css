@@ -764,7 +764,10 @@ p {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 8px var(--glow, transparent),
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
@@ -775,8 +778,12 @@ p {
 
 .sidebar-link:hover .sidebar-link-icon,
 .sidebar-link.active .sidebar-link-icon {
-  transform: scale(1.08);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05), 0 3px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: scale(1.12);
+  box-shadow:
+    0 0 18px var(--glow, transparent),
+    0 0 0 3px rgba(255, 255, 255, 0.06),
+    0 3px 10px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .sidebar-link-text {
@@ -3351,6 +3358,7 @@ div[style*="border:1px solid var(--pc-"] {
   font-size: var(--text-xl);
   border: 1px solid var(--pc-border);
   flex-shrink: 0;
+  box-shadow: 0 0 10px var(--glow, transparent), 0 2px 6px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .portal-ai-team .header-info .h-name {
