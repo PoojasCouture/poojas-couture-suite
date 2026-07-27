@@ -308,8 +308,10 @@ async function renderHistory() {
     return;
   }
   list.innerHTML = projects.map(p => {
-    const date = new Date(p.created_at).toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
-    const time = new Date(p.created_at).toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' });
+    const createdAt = p.created_at ? new Date(p.created_at) : null;
+    const dateValid = createdAt && !isNaN(createdAt.getTime());
+    const date = dateValid ? createdAt.toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' }) : '—';
+    const time = dateValid ? createdAt.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' }) : '';
     const agents = (p.agents_involved || []).map(a => MEMBERS[a]?.emoji || '').join(' ');
     const isDirectChat = (p.contributions || []).length === 0;
     const typeLabel = isDirectChat ? '💬 Direct Chat' : '🔀 Auto-Delegate';
@@ -318,7 +320,7 @@ async function renderHistory() {
         <div class="history-card-header">
           <div class="history-meta">
             <div class="history-title">${escapeHtml(p.title)}</div>
-            <div class="history-date">${date} · ${time} ${agents ? '· ' + agents : ''} · <span style="opacity:0.6">${typeLabel}</span></div>
+            <div class="history-date">${date}${dateValid ? ' · ' + time : ''} ${agents ? '· ' + agents : ''} · <span style="opacity:0.6">${typeLabel}</span></div>
           </div>
           <button class="history-delete-btn" onclick="confirmDeleteProject('${p.id}')" title="Delete">🗑️</button>
         </div>
