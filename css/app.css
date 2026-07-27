@@ -757,18 +757,26 @@ p {
 }
 
 .sidebar-link-icon {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-md);
   flex-shrink: 0;
-  opacity: 0.7;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+.sidebar-link-icon i {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.sidebar-link:hover .sidebar-link-icon,
 .sidebar-link.active .sidebar-link-icon {
-  opacity: 1;
+  transform: scale(1.08);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05), 0 3px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-link-text {
@@ -3213,6 +3221,14 @@ div[style*="border:1px solid var(--pc-"] {
   border: 1px solid var(--pc-border);
   overflow: hidden;
   box-sizing: border-box;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.member-btn:hover .avatar,
+.member-btn.active .avatar {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05), 0 3px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .portal-ai-team .member-info { flex: 1; min-width: 0; }
