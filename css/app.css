@@ -764,26 +764,25 @@ p {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: transparent;
   box-shadow:
-    0 0 8px var(--glow, transparent),
-    0 2px 6px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 0 6px var(--glow, transparent),
+    0 0 14px var(--glow, transparent);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .sidebar-link-icon i {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1;
 }
 
 .sidebar-link:hover .sidebar-link-icon,
 .sidebar-link.active .sidebar-link-icon {
-  transform: scale(1.12);
+  transform: scale(1.15);
   box-shadow:
-    0 0 18px var(--glow, transparent),
-    0 0 0 3px rgba(255, 255, 255, 0.06),
-    0 3px 10px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    0 0 8px var(--glow, transparent),
+    0 0 22px var(--glow, transparent),
+    0 0 34px var(--glow, transparent);
 }
 
 .sidebar-link-text {
@@ -3225,17 +3224,22 @@ div[style*="border:1px solid var(--pc-"] {
   justify-content: center;
   font-size: var(--text-base);
   flex-shrink: 0;
-  border: 1px solid var(--pc-border);
+  background: transparent;
   overflow: hidden;
   box-sizing: border-box;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 6px var(--glow, transparent),
+    0 0 14px var(--glow, transparent);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .member-btn:hover .avatar,
 .member-btn.active .avatar {
-  transform: scale(1.08);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05), 0 3px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: scale(1.15);
+  box-shadow:
+    0 0 8px var(--glow, transparent),
+    0 0 22px var(--glow, transparent),
+    0 0 34px var(--glow, transparent);
 }
 
 .portal-ai-team .member-info { flex: 1; min-width: 0; }
@@ -3356,9 +3360,11 @@ div[style*="border:1px solid var(--pc-"] {
   border-radius: var(--radius-full);
   display: flex; align-items: center; justify-content: center;
   font-size: var(--text-xl);
-  border: 1px solid var(--pc-border);
+  background: transparent;
   flex-shrink: 0;
-  box-shadow: 0 0 10px var(--glow, transparent), 0 2px 6px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 8px var(--glow, transparent),
+    0 0 18px var(--glow, transparent);
 }
 
 .portal-ai-team .header-info .h-name {
