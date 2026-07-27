@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pooja's Couture — AI Studio Team</title>
 <link rel="icon" type="image/png" href="../assets/logo-mark.png">
-<link rel="stylesheet" href="../css/app.css?v=20260727d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+<link rel="stylesheet" href="../css/app.css?v=20260727e">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0"></script>
 <script src="../js/config.js?v=20260724"></script>
 <script src="../js/theme.js?v=20260726"></script>
@@ -45,7 +49,7 @@
       <div class="team-label">Your Team</div>
 
       <button class="member-btn active" onclick="switchMember('ceo')" id="btn-ceo">
-        <div class="avatar" style="background:rgba(200,113,90,0.15)">👑</div>
+        <div class="avatar" style="background:rgba(200,113,90,0.15)"><i class="ph ph-crown-simple"></i></div>
         <div class="member-info">
           <div class="member-name">Priya</div>
           <div class="member-role">Delivery Lead</div>
@@ -54,7 +58,7 @@
       </button>
 
       <button class="member-btn" onclick="switchMember('coo')" id="btn-coo">
-        <div class="avatar" style="background:rgba(212,168,75,0.15)">⚙️</div>
+        <div class="avatar" style="background:rgba(212,168,75,0.15)"><i class="ph ph-gear-six"></i></div>
         <div class="member-info">
           <div class="member-name">Riya</div>
           <div class="member-role">Delivery Manager</div>
@@ -63,7 +67,7 @@
       </button>
 
       <button class="member-btn" onclick="switchMember('marketing')" id="btn-marketing">
-        <div class="avatar" style="background:rgba(120,100,180,0.15)">📣</div>
+        <div class="avatar" style="background:rgba(120,100,180,0.15)"><i class="ph ph-megaphone"></i></div>
         <div class="member-info">
           <div class="member-name">Meera</div>
           <div class="member-role">Marketing Manager</div>
@@ -72,7 +76,7 @@
       </button>
 
       <button class="member-btn" onclick="switchMember('writer')" id="btn-writer">
-        <div class="avatar" style="background:rgba(80,160,120,0.15)">✍️</div>
+        <div class="avatar" style="background:rgba(80,160,120,0.15)"><i class="ph ph-pen-nib"></i></div>
         <div class="member-info">
           <div class="member-name">Anika</div>
           <div class="member-role">Content Writer</div>
@@ -81,7 +85,7 @@
       </button>
 
       <button class="member-btn" onclick="switchMember('designer')" id="btn-designer">
-        <div class="avatar" style="background:rgba(180,120,160,0.15)">🎨</div>
+        <div class="avatar" style="background:rgba(180,120,160,0.15)"><i class="ph ph-palette"></i></div>
         <div class="member-info">
           <div class="member-name">Tara</div>
           <div class="member-role">Creative Designer</div>
@@ -90,7 +94,7 @@
       </button>
 
       <button class="member-btn" onclick="switchMember('creator')" id="btn-creator">
-        <div class="avatar" style="background:rgba(220,140,90,0.15)">🎬</div>
+        <div class="avatar" style="background:rgba(220,140,90,0.15)"><i class="ph ph-film-slate"></i></div>
         <div class="member-info">
           <div class="member-name">Dia</div>
           <div class="member-role">Content Creator</div>
@@ -101,7 +105,7 @@
       <!-- History -->
       <div class="team-label" style="margin-top:var(--sp-4)">Project History</div>
       <button class="member-btn" onclick="switchToHistory()" id="btn-history">
-        <div class="avatar" style="background:rgba(100,140,200,0.15)">🗂️</div>
+        <div class="avatar" style="background:rgba(100,140,200,0.15)"><i class="ph ph-clock-counter-clockwise"></i></div>
         <div class="member-info">
           <div class="member-name">History</div>
           <div class="member-role">All saved projects</div>
@@ -118,7 +122,7 @@
     <div id="main">
       <!-- Chat header -->
       <div id="chat-header">
-        <div class="header-avatar" id="h-avatar" style="background:rgba(200,113,90,0.15)">👑</div>
+        <div class="header-avatar" id="h-avatar" style="background:rgba(200,113,90,0.15)"><i class="ph ph-crown-simple"></i></div>
         <div class="header-info">
           <div class="h-name" id="h-name">Priya — Delivery Lead</div>
           <div class="h-tag" id="h-tag">Vision · Brand Strategy · Business Growth</div>
@@ -127,7 +131,7 @@
           <span class="dt-label">Auto-Delegate to Team</span>
           <div class="switch-track"><div class="switch-knob"></div></div>
         </div>
-        <button id="btn-theme-toggle" title="Toggle light/dark mode" style="font-size:16px;background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:6px;line-height:1;display:flex;align-items:center;justify-content:center;color:inherit">🌙</button>
+        <button id="btn-theme-toggle" title="Toggle light/dark mode" style="font-size:16px;background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:6px;line-height:1;display:flex;align-items:center;justify-content:center;color:inherit"><i class="ph ph-moon"></i></button>
         <button id="save-convo-btn" onclick="saveConversation()" style="display:none;align-items:center;gap:6px;padding:6px 12px;font-size:12px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:var(--muted);cursor:pointer;transition:all 0.2s;" onmouseover="if(!this.disabled)this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">Save Conversation</button>
         <button class="clear-btn" onclick="clearChat()">Clear Chat</button>
       </div>

@@ -52,7 +52,7 @@
 
   /* Text Colors */
   --pc-text: #E8E4DF;
-  --pc-text-secondary: #B0AAAO;
+  --pc-text-secondary: #B0AAA0;
   --pc-text-muted: #6B6780;
   --pc-text-heading: #F5F0EB;
   --pc-text-gold: #ECB676;
@@ -110,9 +110,9 @@
   --radius-xl: 24px;
   --radius-full: 9999px;
 
-  /* Typography */
-  --font-display: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Typography — Classic Elegant pairing (luxury/fashion) */
+  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'Segoe UI', 'Consolas', monospace;
 
   --text-xs: 0.6875rem;   /* 11px */

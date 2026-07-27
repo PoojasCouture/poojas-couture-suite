@@ -7,9 +7,17 @@
   <!-- SEO & Brand Metadata -->
   <meta name="description" content="Luxury internal operations management panel for Pooja's Couture. Clients, orders pipeline, bridal journeys, Australian payroll and accounting dashboard.">
   <link rel="icon" type="image/png" href="assets/logo-mark.png">
-  
+
+  <!-- Brand Typography: Playfair Display (display) + Inter (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Phosphor Icons (replaces emoji nav icons) -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+
   <!-- CSS Stylesheet (unified) -->
-  <link rel="stylesheet" href="css/app.css?v=20260727d">
+  <link rel="stylesheet" href="css/app.css?v=20260727e">
 </head>
 <body>
 
@@ -47,7 +55,7 @@
         <!-- Dashboard Section -->
         <div class="sidebar-section">
           <button class="sidebar-link active" data-route="dashboard">
-            <span class="sidebar-link-icon">📊</span>
+            <span class="sidebar-link-icon"><i class="ph ph-chart-line-up"></i></span>
             <span class="sidebar-link-text">Overview Dashboard</span>
           </button>
         </div>
@@ -56,7 +64,7 @@
         <div class="sidebar-section">
           <div class="sidebar-section-title">Client Relations</div>
           <button class="sidebar-link" data-route="crm">
-            <span class="sidebar-link-icon">👑</span>
+            <span class="sidebar-link-icon"><i class="ph ph-crown-simple"></i></span>
             <span class="sidebar-link-text">Sales Dashboard</span>
           </button>
         </div>
@@ -65,7 +73,7 @@
         <div class="sidebar-section">
           <div class="sidebar-section-title">Inventory</div>
           <button class="sidebar-link" data-route="products">
-            <span class="sidebar-link-icon">🛍️</span>
+            <span class="sidebar-link-icon"><i class="ph ph-shopping-bag"></i></span>
             <span class="sidebar-link-text">Stock & Inventory </span>
           </button>
         </div>        
@@ -74,7 +82,7 @@
         <div class="sidebar-section">
           <div class="sidebar-section-title">Ledger & Invoices</div>
           <button class="sidebar-link" data-route="accounting">
-            <span class="sidebar-link-icon">💰</span>
+            <span class="sidebar-link-icon"><i class="ph ph-coins"></i></span>
             <span class="sidebar-link-text">Accounting & Finance</span>
           </button>
         </div>        
@@ -83,7 +91,7 @@
         <div class="sidebar-section">
           <div class="sidebar-section-title">Staff Operations</div>
           <button class="sidebar-link" data-route="hrm">
-            <span class="sidebar-link-icon">👥</span>
+            <span class="sidebar-link-icon"><i class="ph ph-users-three"></i></span>
             <span class="sidebar-link-text">Human Capital</span>
           </button>
         </div>
@@ -92,7 +100,7 @@
         <div class="sidebar-section">
           <div class="sidebar-section-title">Social & Marketing</div>
           <button class="sidebar-link" data-route="ai-team">
-            <span class="sidebar-link-icon">🤖</span>
+            <span class="sidebar-link-icon"><i class="ph ph-sparkle"></i></span>
             <span class="sidebar-link-text">Social CRM Studio</span>
           </button>
         </div>
@@ -101,7 +109,7 @@
         <div class="sidebar-section" id="sidebar-admin-section">
           <div class="sidebar-section-title">Administration</div>
           <button class="sidebar-link" data-route="admin">
-            <span class="sidebar-link-icon">🔒</span>
+            <span class="sidebar-link-icon"><i class="ph ph-lock-key"></i></span>
             <span class="sidebar-link-text">Admin Center</span>
           </button>
         </div>
@@ -110,7 +118,7 @@
         <div class="sidebar-section">
           <div class="sidebar-section-title">Configuration</div>
           <button class="sidebar-link" data-route="settings">
-            <span class="sidebar-link-icon">⚙️</span>
+            <span class="sidebar-link-icon"><i class="ph ph-gear-six"></i></span>
             <span class="sidebar-link-text">Boutique Settings</span>
           </button>
         </div>
@@ -119,11 +127,11 @@
         <div class="sidebar-section">
           <div class="sidebar-section-title">India Workstations</div>
           <a class="sidebar-link" href="tailor/index.html" target="_blank">
-            <span class="sidebar-link-icon">🪡</span>
+            <span class="sidebar-link-icon"><i class="ph ph-needle"></i></span>
             <span class="sidebar-link-text">Tailor Portal</span>
           </a>
           <a class="sidebar-link" href="shipping/index.html" target="_blank">
-            <span class="sidebar-link-icon">✈️</span>
+            <span class="sidebar-link-icon"><i class="ph ph-airplane-tilt"></i></span>
             <span class="sidebar-link-text">Logistics Cargo</span>
           </a>
         </div>
@@ -150,7 +158,7 @@
       <!-- Top Header Bar -->
       <header class="topbar">
         <div class="topbar-left">
-          <button class="topbar-toggle" id="sidebar-toggle" aria-label="Toggle Sidebar">☰</button>
+          <button class="topbar-toggle" id="sidebar-toggle" aria-label="Toggle Sidebar"><i class="ph ph-list"></i></button>
           
           <div class="topbar-breadcrumb">
             <span class="topbar-breadcrumb-item">Pooja's Couture Suite</span>
@@ -164,11 +172,11 @@
           <div class="topbar-datetime" id="topbar-clock">22 May 2026, 12:00 PM</div>
           
           <!-- Theme Toggle -->
-          <button class="topbar-btn" id="btn-theme-toggle" title="Toggle light/dark mode">🌙</button>
+          <button class="topbar-btn" id="btn-theme-toggle" title="Toggle light/dark mode"><i class="ph ph-moon"></i></button>
 
           <!-- Actions & Notifications -->
           <button class="topbar-btn" id="btn-notifications" title="Notifications">
-            🔔
+            <i class="ph ph-bell"></i>
             <span class="topbar-btn-badge"></span>
           </button>
         </div>

@@ -31,7 +31,7 @@
     document.documentElement.setAttribute('data-theme', theme);
     setStoredTheme(theme);
     var btn = document.getElementById('btn-theme-toggle');
-    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    if (btn) btn.innerHTML = theme === 'dark' ? '<i class="ph ph-sun"></i>' : '<i class="ph ph-moon"></i>';
   }
 
   function initTheme() {
@@ -43,7 +43,7 @@
     document.documentElement.setAttribute('data-theme', theme);
     var btn = document.getElementById('btn-theme-toggle');
     if (btn) {
-      btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+      btn.innerHTML = theme === 'dark' ? '<i class="ph ph-sun"></i>' : '<i class="ph ph-moon"></i>';
       btn.addEventListener('click', function () {
         var current = document.documentElement.getAttribute('data-theme') || 'dark';
         applyTheme(current === 'dark' ? 'light' : 'dark');
@@ -59,7 +59,7 @@
         if (!getStoredTheme()) {
           document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
           var b = document.getElementById('btn-theme-toggle');
-          if (b) b.textContent = e.matches ? '☀️' : '🌙';
+          if (b) b.innerHTML = e.matches ? '<i class="ph ph-sun"></i>' : '<i class="ph ph-moon"></i>';
         }
       });
     }
