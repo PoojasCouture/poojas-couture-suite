@@ -1306,37 +1306,29 @@ p {
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
-/* Mobile — sidebar starts collapsed */
-@media (max-width: 768px) {
-  .sidebar {
-    width: var(--sidebar-collapsed, 72px);
-  }
-  .sidebar .sidebar-wordmark,
-  .sidebar .sidebar-brand-text,
-  .sidebar .sidebar-section-title,
-  .sidebar .sidebar-link-text {
-    opacity: 0;
-    width: 0;
-    overflow: hidden;
-    pointer-events: none;
-  }
-  .sidebar .sidebar-link {
-    justify-content: center;
-    padding-left: 0;
-    padding-right: 0;
-  }
-  .sidebar.expanded {
+/* ============================================================
+   UNIFIED MOBILE SIDEBAR CONTRACT
+   One behavior for every portal that has a sidebar:
+   - #sidebar-toggle (hamburger) shows/hides #sidebar via .open
+   - #sidebar-overlay dims the page and closes on click
+   - .collapsed (desktop icon-rail) is a DESKTOP-ONLY feature —
+     neutralized below so it can never combine with the mobile
+     off-canvas state (that combination previously left the
+     opened sidebar showing icon-only, with no text, on phones).
+   ============================================================ */
+@media (max-width: 1024px) {
+  .sidebar.collapsed {
     width: var(--sidebar-width, 260px);
   }
-  .sidebar.expanded .sidebar-wordmark,
-  .sidebar.expanded .sidebar-brand-text,
-  .sidebar.expanded .sidebar-section-title,
-  .sidebar.expanded .sidebar-link-text {
+  .sidebar.collapsed .sidebar-wordmark,
+  .sidebar.collapsed .sidebar-brand-text,
+  .sidebar.collapsed .sidebar-section-title,
+  .sidebar.collapsed .sidebar-link-text {
     opacity: 1;
     width: auto;
     pointer-events: all;
   }
-  .sidebar.expanded .sidebar-link {
+  .sidebar.collapsed .sidebar-link {
     justify-content: flex-start;
     padding-left: var(--sp-4);
     padding-right: var(--sp-4);
@@ -3727,16 +3719,38 @@ div[style*="border:1px solid var(--pc-"] {
 }
 .portal-ai-team #send-btn svg { color: var(--pc-text-inverse); }
 
-/* ── RESPONSIVE ── */
+/* ── RESPONSIVE ──
+   Desktop: #sidebar is a static flex child (intentionally different
+   from the main app's position:fixed sidebar — do not unify that part,
+   it would break this portal's two-column flex layout).
+   Mobile (≤1024px): switches to the SAME off-canvas contract used by
+   the main app and Files portal — fixed overlay panel, hidden by
+   default, opened via #sidebar-toggle, closed via #sidebar-overlay or
+   .open removal. This is the fix for the reported bug: previously the
+   sidebar was set to display:none below 480px with no toggle anywhere
+   in the markup to bring it back. */
+@media (max-width: 1024px) {
+  .portal-ai-team #sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: var(--z-sidebar, 1000);
+    transform: translateX(-100%);
+    transition: transform var(--transition-slow, 0.3s);
+  }
+  .portal-ai-team #sidebar.open {
+    transform: translateX(0);
+  }
+}
+
 @media (max-width: 768px) {
-.portal-ai-team #sidebar { width: 220px; min-width: 220px; }
 .portal-ai-team #messages { padding: var(--sp-5); }
 .portal-ai-team #chat-header { padding: 0 var(--sp-5); }
 .portal-ai-team #input-area { padding: var(--sp-3) var(--sp-5) var(--sp-4); }
 }
 
 @media (max-width: 480px) {
-.portal-ai-team #sidebar { display: none; }
 .portal-ai-team #messages { padding: var(--sp-4); }
 }
 

@@ -34,7 +34,6 @@ const App = (() => {
 
     startClock();
     setupNavigation();
-    setupMobileSidebar();
     Utils.$('#btn-notifications').addEventListener('click', showNotificationsSummary);
     setupAuthListeners();
     await checkAuthSession();
@@ -58,24 +57,6 @@ const App = (() => {
           Utils.$('#sidebar-overlay').classList.remove('active');
         }
       });
-    });
-  }
-
-  function setupMobileSidebar() {
-    document.addEventListener('click', (e) => {
-      const sidebar = Utils.$('#sidebar');
-      const overlay = Utils.$('#sidebar-overlay');
-      if (!sidebar) return;
-      if (e.target.closest('#sidebar-toggle')) {
-        e.preventDefault();
-        sidebar.classList.toggle('open');
-        if (overlay) overlay.classList.toggle('active');
-        return;
-      }
-      if (e.target.closest('#sidebar-overlay')) {
-        sidebar.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
-      }
     });
   }
 
