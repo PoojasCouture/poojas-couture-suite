@@ -38,6 +38,15 @@ export async function onRequest(context) {
       'Content-Type': 'application/json'
     };
 
+    // Storage API (unlike PostgREST) strictly parses the request body when
+    // Content-Type: application/json is present — and rejects an empty body
+    // with a 400. The storage DELETE call below sends no body at all, so it
+    // must NOT carry that header.
+    const sbHeadersNoBody = {
+      'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_KEY,
+      'apikey': env.SUPABASE_SERVICE_KEY
+    };
+
     // 1. Look up the row to get its storage_path
     const getRes = await fetch(
       env.SUPABASE_URL + '/rest/v1/job_photos?id=eq.' + encodeURIComponent(photoId) + '&select=storage_path',
@@ -57,7 +66,7 @@ export async function onRequest(context) {
     if (storagePath) {
       const delFileRes = await fetch(
         env.SUPABASE_URL + '/storage/v1/object/job-photos/' + storagePath,
-        { method: 'DELETE', headers: sbHeaders }
+        { method: 'DELETE', headers: sbHeadersNoBody }
       );
       // Don't hard-fail if the file is already gone (404) - still clean up the DB row
       if (!delFileRes.ok && delFileRes.status !== 404) {
