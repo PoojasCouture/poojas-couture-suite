@@ -6,8 +6,8 @@
 // Accepts: application/json (Forminator webhook default), multipart/form-data, or form-urlencoded
 //
 // Expected fields (case-insensitive, flexible naming):
-//   name, email, phone, appointment_type, who_for, budget,
-//   event, event_date, appointment_date, message, design (file, form-data only)
+// name, email, phone, appointment_type, who_for, budget,
+// event, event_date, appointment_date, message, design (file, form-data only)
 //
 // Creates a new row in `clients` with status = 'New Lead' / source = 'Website Form'.
 
@@ -43,6 +43,14 @@ export async function onRequestPost(context) {
     } else {
       // Be permissive: try JSON as a fallback instead of hard-rejecting.
       const raw = await request.text();
+
+      if (!raw || !raw.trim()) {
+        // Empty body, no content-type: this is almost certainly a webhook
+        // verification ping (e.g. Forminator's "Save" test request).
+        // Respond success so the integration can be saved.
+        return jsonResponse({ success: false, skipped: true, reason: "Empty body - likely a test ping" }, 200, CORS_HEADERS);
+      }
+
       try {
         const parsed = JSON.parse(raw);
         fields = flattenKeys(parsed);
@@ -71,7 +79,10 @@ export async function onRequestPost(context) {
     const message = get(["message"]);
 
     if (!name || !email) {
-      return jsonResponse({ error: "Missing required fields: name and email", received: Object.keys(fields) }, 400, CORS_HEADERS);
+      // Don't hard-error here: webhook setup UIs (Forminator included) send a test/verification
+      // ping with no real form data when you click Save, and expect a 200 back to accept the
+      // integration. Erroring here blocks saving the webhook entirely.
+      return jsonResponse({ success: false, skipped: true, reason: "Missing name/email - likely a test ping" }, 200, CORS_HEADERS);
     }
 
     const supabaseUrl = env.SUPABASE_URL;
@@ -147,6 +158,12 @@ export async function onRequestPost(context) {
   } catch (err) {
     return jsonResponse({ error: "Unexpected server error", detail: String(err) }, 500, CORS_HEADERS);
   }
+}
+
+export async function onRequestGet() {
+  return jsonResponse({ status: "ok" }, 200, {
+    "Access-Control-Allow-Origin": "*",
+  });
 }
 
 export async function onRequestOptions() {
