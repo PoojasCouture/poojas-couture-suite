@@ -1837,7 +1837,6 @@ poojascouture.com.au`
               <div class="d-flex gap-2 mt-3">
                 ${_invBalance>0?`<button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.recordAdditionalPayment('${o.id}'),200)">💳 Record Payment</button>`:''}
                 ${_invoice.status!=='Paid'?`<button class="btn btn-secondary btn-sm" onclick="CRM.syncInvoiceFromOrders('${o.id}')" title="Recalculate invoice from current order prices">🔄 Sync from Orders</button>`:''}
-                <button class="btn btn-secondary btn-sm" onclick="Accounting.viewInvoicePreview('${_invoice.id}')">🖨️ View / Print</button>
                 <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${_invoice.id}'),200)">✏️ Edit Invoice</button>
               </div>
               <div id="agreement-panel-${o.id}" class="mt-3" style="border-top:1px solid var(--pc-border);padding-top:10px">
@@ -4099,7 +4098,6 @@ poojascouture.com.au`
                 <div class="d-flex gap-2 items-center">
                   <span class="badge ${invoice.status === 'Paid' ? 'badge-success' : invoice.status === 'Partially Paid' ? 'badge-warning' : 'badge-muted'} text-xs">${invoice.status}</span>
                   ${invoice.status !== 'Paid' && subOrders.length > 0 ? `<button class="btn btn-secondary" style="font-size:10px;padding:3px 10px" onclick="CRM.syncInvoiceFromOrders('${subOrders[0].id}')" title="Recalculate invoice from current order prices">🔄 Sync</button>` : ''}
-                  <button class="btn btn-secondary" style="font-size:10px;padding:3px 10px" onclick="Accounting.viewInvoicePreview('${invoice.id}')">🖨️ View / Print</button>
                   <button class="btn btn-secondary" style="font-size:10px;padding:3px 10px" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${invoice.id}'),200)">✏️ Edit</button>
                 </div>
               </div>
@@ -4212,35 +4210,76 @@ poojascouture.com.au`
       return isNaN(n) ? 0 : n;
     };
 
+    const settings = Store.getSettings();
+
     App.showModal({
       title: `✏️ Edit Invoice — ${Utils.sanitizeHTML(invoice.invoiceNumber || '')}`,
       modalSize: 'modal-lg',
       content: `
-        <div class="d-flex flex-col gap-4 animate-fade-in">
-          <div class="text-xs text-muted">Every field here is a plain, directly-editable number. Nothing auto-recalculates from orders — what you save is exactly what's stored.</div>
-          <div>
-            <div class="d-flex justify-between items-center mb-2">
-              <label class="form-label m-0">Line Items</label>
-              <button type="button" class="btn btn-secondary btn-sm" id="ei-add-item">+ Add Line</button>
+        <div class="animate-fade-in" style="background:#fff;color:#111;border-radius:10px;padding:28px;font-family:sans-serif">
+
+          <div class="d-flex justify-between items-start" style="border-bottom:2px solid #ECB676;padding-bottom:16px;margin-bottom:20px">
+            <div>
+              <div style="font-size:16px;font-weight:bold;color:#111">${Utils.sanitizeHTML(settings.companyName || "Pooja's Couture")}</div>
+              <div style="font-size:11px;color:#666;margin-top:2px">ABN: ${Utils.sanitizeHTML(settings.abn || '')}</div>
+              <div style="font-size:11px;color:#666">${Utils.sanitizeHTML(settings.companyAddress || '')}</div>
             </div>
-            <div id="ei-items-container" class="d-flex flex-col gap-2"></div>
+            <div class="text-right">
+              <div style="font-size:14px;font-weight:bold;text-transform:uppercase;color:#ECB676">Tax Invoice</div>
+              <div style="font-size:13px;font-weight:bold;font-family:monospace;margin-top:4px">${Utils.sanitizeHTML(invoice.invoiceNumber || '')}</div>
+              <div style="font-size:11px;color:#666;margin-top:2px">Status: <span style="font-weight:bold;text-transform:uppercase;color:${invoice.status==='Paid'?'#10B981':'#F59E0B'}">${invoice.status}</span></div>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Shipping (AUD, no GST)</label>
-            <input type="text" inputmode="decimal" autocomplete="off" id="ei-shipping" class="form-input" value="${invoice.shipping != null ? invoice.shipping : 0}">
+
+          <div style="margin-bottom:20px">
+            <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:2px">Bill To</div>
+            <div style="font-size:14px;font-weight:bold;color:#111">${Utils.sanitizeHTML(invoice.clientName || '')}</div>
           </div>
-          <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
-            <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Subtotal (ex-GST):</span><span class="font-mono" id="ei-subtotal">${fmt(invoice.subtotal)}</span></div>
-            <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">GST Total:</span><span class="font-mono" id="ei-gsttotal">${fmt(invoice.gstTotal)}</span></div>
-            <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Shipping:</span><span class="font-mono" id="ei-shipping-display">${fmt(invoice.shipping || 0)}</span></div>
-            <div class="d-flex justify-between text-sm font-bold" style="border-top:1px solid var(--pc-border);padding-top:6px;margin-top:4px"><span>Invoice Total:</span><span class="font-mono" id="ei-total">${fmt(invoice.total)}</span></div>
+
+          <div class="d-flex justify-between items-center mb-2">
+            <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase">Line Items</div>
+            <button type="button" class="btn btn-secondary btn-sm" id="ei-add-item">+ Add Line</button>
           </div>
-          <div class="form-group">
-            <label class="form-label">Amount Paid (AUD)</label>
-            <input type="text" inputmode="decimal" autocomplete="off" id="ei-amount-paid" class="form-input" value="${invoice.amountPaid != null ? invoice.amountPaid : 0}">
+
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px">
+            <thead>
+              <tr style="background:#fdfaf6">
+                <th style="padding:8px;text-align:left;border-bottom:2px solid #ECB676;color:#111;font-size:11px;text-transform:uppercase">Description</th>
+                <th style="padding:8px;text-align:right;border-bottom:2px solid #ECB676;color:#111;font-size:11px;text-transform:uppercase;width:120px">Unit Rate</th>
+                <th style="padding:8px;text-align:center;border-bottom:2px solid #ECB676;color:#111;font-size:11px;text-transform:uppercase;width:80px">GST %</th>
+                <th style="padding:8px;text-align:right;border-bottom:2px solid #ECB676;color:#111;font-size:11px;text-transform:uppercase;width:90px">GST $</th>
+                <th style="padding:8px;text-align:center;border-bottom:2px solid #ECB676;width:36px"></th>
+              </tr>
+            </thead>
+            <tbody id="ei-items-container"></tbody>
+          </table>
+
+          <div class="d-flex justify-between items-center" style="padding:8px 0;border-bottom:1px solid #eee;margin-bottom:20px">
+            <span style="font-size:12px;color:#666">Shipping (AUD, no GST)</span>
+            <input type="text" inputmode="decimal" autocomplete="off" id="ei-shipping" value="${invoice.shipping != null ? invoice.shipping : 0}" style="width:120px;text-align:right;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:monospace">
           </div>
-          <div class="p-3 rounded-md text-sm font-bold" style="background:rgba(236,182,118,0.06);border:1px solid var(--pc-border)">
-            <div class="d-flex justify-between"><span>Balance Due:</span><span class="font-mono" id="ei-balance">—</span></div>
+
+          <div class="d-flex justify-end" style="margin-bottom:20px">
+            <div style="width:260px;font-size:13px">
+              <div class="d-flex justify-between" style="padding:4px 0"><span style="color:#666">Subtotal (ex-GST):</span><span class="font-mono" id="ei-subtotal">${fmt(invoice.subtotal)}</span></div>
+              <div class="d-flex justify-between" style="padding:4px 0;border-bottom:1px solid #eee"><span style="color:#666">GST Total:</span><span class="font-mono" id="ei-gsttotal">${fmt(invoice.gstTotal)}</span></div>
+              <div class="d-flex justify-between" style="padding:4px 0;border-bottom:1px solid #eee"><span style="color:#666">Shipping:</span><span class="font-mono" id="ei-shipping-display">${fmt(invoice.shipping || 0)}</span></div>
+              <div class="d-flex justify-between" style="padding:8px 0;font-weight:bold;font-size:15px;color:#ECB676"><span>Invoice Total:</span><span class="font-mono" id="ei-total">${fmt(invoice.total)}</span></div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-between items-center" style="padding:8px 0;border-top:1px solid #eee;margin-bottom:8px">
+            <span style="font-size:13px;color:#666">Amount Paid (AUD)</span>
+            <input type="text" inputmode="decimal" autocomplete="off" id="ei-amount-paid" value="${invoice.amountPaid != null ? invoice.amountPaid : 0}" style="width:140px;text-align:right;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:monospace;font-weight:bold">
+          </div>
+
+          <div class="d-flex justify-between items-center" style="padding:12px 14px;border-radius:8px;background:#fbf3e7;border:1px solid #ECB676;font-size:15px;font-weight:bold">
+            <span>Balance Due:</span>
+            <span class="font-mono" id="ei-balance">—</span>
+          </div>
+
+          <div style="font-size:11px;color:#999;margin-top:20px;padding-top:12px;border-top:1px solid #eee">
+            Every field here is directly editable — nothing auto-recalculates from orders. What you save is exactly what's stored.
           </div>
         </div>`,
       submitText: 'Save Invoice',
@@ -4303,17 +4342,25 @@ poojascouture.com.au`
         const gstOption = (rate, current) => `<option value="${rate}" ${Math.abs(current - rate) < 0.001 ? 'selected' : ''}>${Math.round(rate * 100)}%</option>`;
 
         container.innerHTML = items.map((it, idx) => `
-          <div class="d-flex gap-2 items-start" data-row="${idx}">
-            <input type="text" class="form-input ei-desc" data-idx="${idx}" placeholder="Description" value="${Utils.sanitizeHTML(it.description)}" style="flex:2">
-            <input type="text" inputmode="decimal" class="form-input ei-unitprice" data-idx="${idx}" placeholder="Price ex-GST" value="${it.unitPrice}" style="flex:1">
-            <select class="form-input ei-gstrate" data-idx="${idx}" style="flex:0 0 80px">
-              ${gstOption(0, it.gstRate)}
-              ${gstOption(0.05, it.gstRate)}
-              ${gstOption(0.10, it.gstRate)}
-            </select>
-            <span class="text-xs text-muted font-mono ei-gst-display" data-idx="${idx}" style="flex:0 0 70px;align-self:center;text-align:right">${fmt(it.gst)}</span>
-            <button type="button" class="btn btn-icon btn-ghost sm text-danger ei-remove" data-idx="${idx}" title="Remove line">🗑️</button>
-          </div>`).join('');
+          <tr data-row="${idx}" style="border-bottom:1px solid #eee">
+            <td style="padding:6px 8px">
+              <input type="text" class="ei-desc" data-idx="${idx}" placeholder="Description" value="${Utils.sanitizeHTML(it.description)}" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px">
+            </td>
+            <td style="padding:6px 8px">
+              <input type="text" inputmode="decimal" class="ei-unitprice" data-idx="${idx}" placeholder="0.00" value="${it.unitPrice}" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;text-align:right;font-family:monospace;font-size:13px">
+            </td>
+            <td style="padding:6px 8px">
+              <select class="ei-gstrate" data-idx="${idx}" style="width:100%;padding:6px 4px;border:1px solid #ddd;border-radius:6px;font-size:13px">
+                ${gstOption(0, it.gstRate)}
+                ${gstOption(0.05, it.gstRate)}
+                ${gstOption(0.10, it.gstRate)}
+              </select>
+            </td>
+            <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:13px;color:#666" class="ei-gst-display" data-idx="${idx}">${fmt(it.gst)}</td>
+            <td style="padding:6px 8px;text-align:center">
+              <button type="button" class="ei-remove" data-idx="${idx}" title="Remove line" style="background:none;border:none;cursor:pointer;font-size:15px;color:#c0392b">🗑️</button>
+            </td>
+          </tr>`).join('');
 
         Utils.$$('.ei-desc', container).forEach(el => el.addEventListener('input', () => {
           items[+el.dataset.idx].description = el.value;
