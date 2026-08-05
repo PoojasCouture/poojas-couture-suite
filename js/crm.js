@@ -4018,13 +4018,25 @@ poojascouture.com.au`
     const invoice = Store.getById(Store.COLLECTIONS.INVOICES, invoiceId);
     if (!invoice) { Utils.showToast('Invoice not found.', 'error'); return; }
 
+    // gstRate is inferred from existing unitPrice/gst where possible (defaults to 10%
+    // if it can't be cleanly inferred, matching the app's historical default).
+    const inferRate = (unitPrice, gst) => {
+      if (!unitPrice) return 0.10;
+      const r = gst / unitPrice;
+      if (Math.abs(r - 0.05) < 0.01) return 0.05;
+      if (Math.abs(r - 0.10) < 0.01) return 0.10;
+      if (Math.abs(r) < 0.01) return 0;
+      return 0.10;
+    };
+
     let items = (invoice.items && invoice.items.length)
       ? invoice.items.map(it => ({
           description: it.description || '',
           unitPrice: it.unitPrice != null ? it.unitPrice : 0,
+          gstRate: it.gstRate != null ? it.gstRate : inferRate(it.unitPrice, it.gst),
           gst: it.gst != null ? it.gst : 0
         }))
-      : [{ description: '', unitPrice: 0, gst: 0 }];
+      : [{ description: '', unitPrice: 0, gstRate: 0.10, gst: 0 }];
 
     const fmt = (n) => Utils.formatCurrency(Math.round((n || 0) * 100) / 100);
     const clean = (v) => {
@@ -4074,6 +4086,7 @@ poojascouture.com.au`
             description: it.description || '',
             quantity: 1,
             unitPrice: clean(it.unitPrice),
+            gstRate: it.gstRate != null ? it.gstRate : 0.10,
             gst: clean(it.gst),
             amount: Math.round((clean(it.unitPrice) + clean(it.gst)) * 100) / 100
           }));
@@ -4119,11 +4132,18 @@ poojascouture.com.au`
       shippingInput.addEventListener('input', recalc);
 
       const renderItems = () => {
+        const gstOption = (rate, current) => `<option value="${rate}" ${Math.abs(current - rate) < 0.001 ? 'selected' : ''}>${Math.round(rate * 100)}%</option>`;
+
         container.innerHTML = items.map((it, idx) => `
           <div class="d-flex gap-2 items-start" data-row="${idx}">
             <input type="text" class="form-input ei-desc" data-idx="${idx}" placeholder="Description" value="${Utils.sanitizeHTML(it.description)}" style="flex:2">
             <input type="text" inputmode="decimal" class="form-input ei-unitprice" data-idx="${idx}" placeholder="Price ex-GST" value="${it.unitPrice}" style="flex:1">
-            <input type="text" inputmode="decimal" class="form-input ei-gst" data-idx="${idx}" placeholder="GST" value="${it.gst}" style="flex:1">
+            <select class="form-input ei-gstrate" data-idx="${idx}" style="flex:0 0 80px">
+              ${gstOption(0, it.gstRate)}
+              ${gstOption(0.05, it.gstRate)}
+              ${gstOption(0.10, it.gstRate)}
+            </select>
+            <span class="text-xs text-muted font-mono ei-gst-display" data-idx="${idx}" style="flex:0 0 70px;align-self:center;text-align:right">${fmt(it.gst)}</span>
             <button type="button" class="btn btn-icon btn-ghost sm text-danger ei-remove" data-idx="${idx}" title="Remove line">🗑️</button>
           </div>`).join('');
 
@@ -4131,11 +4151,19 @@ poojascouture.com.au`
           items[+el.dataset.idx].description = el.value;
         }));
         Utils.$$('.ei-unitprice', container).forEach(el => el.addEventListener('input', () => {
-          items[+el.dataset.idx].unitPrice = el.value.replace(/[^0-9.,]/g, '');
+          const idx = +el.dataset.idx;
+          items[idx].unitPrice = el.value.replace(/[^0-9.,]/g, '');
+          items[idx].gst = Math.round(clean(items[idx].unitPrice) * items[idx].gstRate * 100) / 100;
+          const disp = container.querySelector(`.ei-gst-display[data-idx="${idx}"]`);
+          if (disp) disp.textContent = fmt(items[idx].gst);
           recalc();
         }));
-        Utils.$$('.ei-gst', container).forEach(el => el.addEventListener('input', () => {
-          items[+el.dataset.idx].gst = el.value.replace(/[^0-9.,]/g, '');
+        Utils.$$('.ei-gstrate', container).forEach(el => el.addEventListener('change', () => {
+          const idx = +el.dataset.idx;
+          items[idx].gstRate = parseFloat(el.value);
+          items[idx].gst = Math.round(clean(items[idx].unitPrice) * items[idx].gstRate * 100) / 100;
+          const disp = container.querySelector(`.ei-gst-display[data-idx="${idx}"]`);
+          if (disp) disp.textContent = fmt(items[idx].gst);
           recalc();
         }));
         Utils.$$('.ei-remove', container).forEach(el => el.addEventListener('click', () => {
@@ -4147,7 +4175,7 @@ poojascouture.com.au`
       };
 
       document.getElementById('ei-add-item').addEventListener('click', () => {
-        items.push({ description: '', unitPrice: 0, gst: 0 });
+        items.push({ description: '', unitPrice: 0, gstRate: 0.10, gst: 0 });
         renderItems();
         recalc();
       });
