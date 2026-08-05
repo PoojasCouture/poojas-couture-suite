@@ -1824,8 +1824,9 @@ div[style*="border:1px solid var(--pc-"] {
   border: 1px solid var(--pc-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--pc-shadow-xl);
-  width: 100%;
-  max-width: 560px;
+  width: max-content;
+  min-width: min(90vw, 480px);
+  max-width: min(94vw, 960px);
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -1837,8 +1838,12 @@ div[style*="border:1px solid var(--pc-"] {
   transform: scale(1) translateY(0);
 }
 
-.modal-lg { max-width: 720px; }
-.modal-xl { max-width: 900px; }
+/* modal-lg/xl now set a MINIMUM width (form-style content that should
+   never look cramped) rather than a hard cap — content wider than the
+   minimum (like a full invoice table) can still grow up to the shared
+   max-width above instead of wrapping awkwardly. */
+.modal-lg { min-width: min(94vw, 720px); }
+.modal-xl { min-width: min(94vw, 900px); }
 
 .modal-header {
   padding: var(--sp-6) var(--sp-7);
