@@ -1837,6 +1837,7 @@ poojascouture.com.au`
               <div class="d-flex gap-2 mt-3">
                 ${_invBalance>0?`<button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.recordAdditionalPayment('${o.id}'),200)">💳 Record Payment</button>`:''}
                 ${_invoice.status!=='Paid'?`<button class="btn btn-secondary btn-sm" onclick="CRM.syncInvoiceFromOrders('${o.id}')" title="Recalculate invoice from current order prices">🔄 Sync from Orders</button>`:''}
+                <button class="btn btn-secondary btn-sm" onclick="Accounting.viewInvoicePreview('${_invoice.id}')">🖨️ View / Print</button>
                 <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${_invoice.id}'),200)">✏️ Edit Invoice</button>
               </div>
               <div id="agreement-panel-${o.id}" class="mt-3" style="border-top:1px solid var(--pc-border);padding-top:10px">
@@ -4098,6 +4099,7 @@ poojascouture.com.au`
                 <div class="d-flex gap-2 items-center">
                   <span class="badge ${invoice.status === 'Paid' ? 'badge-success' : invoice.status === 'Partially Paid' ? 'badge-warning' : 'badge-muted'} text-xs">${invoice.status}</span>
                   ${invoice.status !== 'Paid' && subOrders.length > 0 ? `<button class="btn btn-secondary" style="font-size:10px;padding:3px 10px" onclick="CRM.syncInvoiceFromOrders('${subOrders[0].id}')" title="Recalculate invoice from current order prices">🔄 Sync</button>` : ''}
+                  <button class="btn btn-secondary" style="font-size:10px;padding:3px 10px" onclick="Accounting.viewInvoicePreview('${invoice.id}')">🖨️ View / Print</button>
                   <button class="btn btn-secondary" style="font-size:10px;padding:3px 10px" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${invoice.id}'),200)">✏️ Edit</button>
                 </div>
               </div>
