@@ -707,6 +707,7 @@ const Accounting = (() => {
 
     App.showModal({
       title: `Invoice Advice — ${inv.invoiceNumber}`,
+      modalSize: 'modal-lg',
       content: modalHTML,
       submitText: 'Print Invoice',
       onSubmit: () => {
