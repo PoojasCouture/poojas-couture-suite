@@ -348,8 +348,14 @@ export async function onRequest(context) {
         const paid = r2(amountPaid != null ? amountPaid : (invoice.amountPaid || 0));
         const finalStatus = status || statusFor(total, paid);
 
+        // Total can change here (e.g. GST rate edit). Milestones must keep summing to
+        // total (DB constraint) — rebuild them the same way every other write path does,
+        // preserving whatever's already been paid on Milestone 1.
+        const milestones = (invoice.milestones && invoice.milestones.length)
+          ? buildMilestones(total, invoice.milestones) : invoice.milestones;
+
         const updated = await patchInvoice(invoiceId, {
-          items, subtotal, gstTotal, shipping: ship, total, amountPaid: paid, status: finalStatus
+          items, subtotal, gstTotal, shipping: ship, total, amountPaid: paid, status: finalStatus, milestones
         });
         return ok({ invoice: updated });
       }
