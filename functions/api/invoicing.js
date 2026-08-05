@@ -184,6 +184,11 @@ export async function onRequest(context) {
       method: 'PATCH', headers: svcHeaders, body: JSON.stringify(appToRow(patch))
     });
   }
+  async function patchOrder(id, patch) {
+    await fetch(SB + '/rest/v1/orders?id=eq.' + id, {
+      method: 'PATCH', headers: svcHeaders, body: JSON.stringify(appToRow(patch))
+    });
+  }
 
   try {
     switch (action) {
@@ -357,6 +362,21 @@ export async function onRequest(context) {
         const updated = await patchInvoice(invoiceId, {
           items, subtotal, gstTotal, shipping: ship, total, amountPaid: paid, status: finalStatus, milestones
         });
+
+        // Keep the linked order/project price in sync with the edited invoice.
+        // Without this, Edit Invoice silently drifts from the order record it
+        // came from (order still shows the old pre-edit price forever).
+        // Standalone order: order.price = new ex-GST subtotal.
+        if (invoice.orderId && !invoice.projectId) {
+          await patchOrder(invoice.orderId, { price: subtotal });
+        }
+        // Project invoice: order_projects.totalPrice = new ex-GST subtotal
+        // (crm.js also does this client-side for the project-edit UI path;
+        // this covers editDirect specifically so it's true regardless of caller).
+        if (invoice.projectId) {
+          await patchProject(invoice.projectId, { totalPrice: subtotal });
+        }
+
         return ok({ invoice: updated });
       }
 
