@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Client Service Agreement — Pooja's Couture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #b08d57;
+    --navy: #1f2a44;
+    --muted: #6b6b6b;
+    --border: #e3ddd0;
+    --bg: #fdfaf5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: #222;
+    margin: 0;
+    padding: 24px 16px 60px;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    color: var(--gold);
+    font-size: 22px;
+    margin: 0 0 4px;
+    letter-spacing: 0.5px;
+  }
+  header p { color: var(--muted); font-size: 13px; margin: 0; font-style: italic; }
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 24px;
+    margin-bottom: 20px;
+  }
+  .notice {
+    background: #fbf3e7;
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #8a6d1d;
+    margin-bottom: 20px;
+  }
+  h2 {
+    font-family: 'Playfair Display', serif;
+    color: var(--navy);
+    font-size: 15px;
+    border-bottom: 2px solid var(--gold);
+    padding-bottom: 6px;
+    margin: 24px 0 10px;
+  }
+  h2:first-of-type { margin-top: 0; }
+  p, li { font-size: 14px; color: #222; }
+  ul { padding-left: 20px; margin: 8px 0; }
+  li { margin-bottom: 6px; }
+  .fill { color: var(--navy); font-weight: 600; }
+  .sign-box {
+    border: 2px dashed var(--gold);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 12px;
+  }
+  .sign-box label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--navy); }
+  .sign-box input[type=text] {
+    width: 100%;
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 12px;
+  }
+  .checkbox-row { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; margin-bottom: 16px; }
+  .checkbox-row input { margin-top: 3px; }
+  button {
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button:hover:not(:disabled) { background: #16203a; }
+  .status-banner {
+    background: #eafaf0;
+    border: 1px solid #2e9e5b;
+    color: #1a6e3c;
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 14px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .status-banner.pending-pooja { background: #fff8e6; border-color: var(--gold); color: #8a6d1d; }
+  footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 24px; }
+  #error-msg { color: #c0392b; font-size: 13px; margin-top: 8px; display: none; }
+  #loading, #not-found { text-align: center; padding: 60px 0; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>POOJA'S COUTURE</h1>
+    <p>Client Service Agreement &amp; Terms of Service</p>
+  </header>
+
+  <div id="loading">Loading your agreement…</div>
+  <div id="not-found" style="display:none">This agreement link is invalid or has expired. Please contact Pooja's Couture at info@poojascouture.com.</div>
+
+  <div id="content" style="display:none">
+
+    <div id="already-signed-banner" style="display:none" class="status-banner"></div>
+
+    <div class="card">
+      <p>This Agreement is between <strong>Pooja's Couture</strong> ("the Boutique", "we", "us"), a bridal and occasion-wear couture business operating from Glenwood, New South Wales, Australia, and <span class="fill" id="client-name-inline"></span> ("the Client", "you"). By paying a deposit or confirming an order, and by signing below, the Client accepts these Terms in full.</p>
+
+      <h2>1. Payment Terms</h2>
+      <ul>
+        <li>A non-refundable-except-as-required-by-law deposit of 30% of the total quoted price is due within 7 days of invoicing. Work does not commence, and materials are not procured, until this deposit is received.</li>
+        <li>A second progress payment (if applicable) is due at the milestone stated on the invoice.</li>
+        <li>The final balance is due in full prior to final fitting, alteration handover, or delivery/collection — whichever occurs first.</li>
+        <li>All prices are quoted in AUD, exclusive of GST unless stated otherwise on the invoice.</li>
+      </ul>
+
+      <h2>2. Delivery Timeline</h2>
+      <ul>
+        <li>Estimated delivery dates are best-faith estimates given the handmade nature of the garments — not guaranteed dates.</li>
+        <li>The Boutique will notify the Client as early as possible of any anticipated delay.</li>
+        <li>Delays caused by a Client-side change (design, measurement, fabric, or late payment) are not a breach of this Agreement.</li>
+      </ul>
+
+      <h2>3. Cancellation &amp; Refund Policy</h2>
+      <ul>
+        <li>Deposits are non-refundable once paid — they secure fabric, artisan labour, and production capacity.</li>
+        <li>Cancelling within 14 days of the confirmed delivery/wedding date: no refund on any amount paid.</li>
+        <li>Cancellations must be made in writing (email accepted).</li>
+      </ul>
+
+      <h2>4. Alterations &amp; Fit</h2>
+      <ul>
+        <li>Garments are made to measurements confirmed by the Client at the measurement appointment(s).</li>
+        <li>One round of minor fitting alterations is included where a fitting appointment was attended prior to final delivery.</li>
+      </ul>
+
+      <h2>5. Photo &amp; Portfolio Release</h2>
+      <ul>
+        <li>Unless the Client opts out in writing, the Boutique may photograph the Client's garment(s) for portfolio, website, and social media (excluding images clearly identifying the Client's face, unless separately consented).</li>
+      </ul>
+
+      <h2>6. Intellectual Property</h2>
+      <ul>
+        <li>All original designs, patterns, and embroidery layouts created by the Boutique remain its intellectual property.</li>
+        <li>The Client receives the completed garment(s) only — not the right to reproduce or commercially replicate the design.</li>
+      </ul>
+
+      <h2>7. Limitation of Liability &amp; Governing Law</h2>
+      <ul>
+        <li>This Agreement is governed by the laws of New South Wales, Australia. Nothing here excludes the Client's rights under the Australian Consumer Law (ACL).</li>
+        <li>The Boutique's total liability arising from an order is limited to the total amount paid by the Client for that order, except where the ACL provides otherwise.</li>
+      </ul>
+
+      <p style="font-size:12px;color:var(--muted);margin-top:20px;">
+        This summary is provided for signing convenience. The full Client Service Agreement &amp; Terms of Service — including Clauses 8–10 (Complaints &amp; Disputes and full ACL provisions) — is available below to download and keep for your records.
+      </p>
+      <div style="text-align:center;margin-top:16px">
+        <a href="/assets/Poojas-Couture-Client-Agreement.docx" download style="display:inline-block;background:#fbf3e7;border:1px solid var(--gold);color:#8a6d1d;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none">
+          ⬇ Download Full Agreement (Word Document)
+        </a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Acceptance</h2>
+      <p>By typing your full name below, you confirm you have read, understood, and agree to these Terms, on behalf of:</p>
+      <p><strong>Client:</strong> <span class="fill" id="client-name-1"></span> &nbsp;·&nbsp; <strong>Boutique representative:</strong> <span class="fill" id="pooja-name-1"></span></p>
+
+      <div id="sign-form">
+        <div class="sign-box">
+          <label for="sig-input">Type your full name to sign</label>
+          <input type="text" id="sig-input" placeholder="Your full name" autocomplete="name">
+          <div class="checkbox-row">
+            <input type="checkbox" id="sig-confirm">
+            <label for="sig-confirm" style="font-weight:400;margin:0">I confirm this constitutes my digital signature and that I have read and agree to the Terms above.</label>
+          </div>
+          <button id="sig-submit" disabled>Sign Agreement</button>
+          <div id="error-msg"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <footer>
+      15 Carolyn Court, Glenwood NSW 2768 &nbsp;·&nbsp; ABN 40 263 050 205 &nbsp;·&nbsp; info@poojascouture.com &nbsp;·&nbsp; +61 452 517 866
+    </footer>
+  </div>
+</div>
+
+<script>
+  const API = '/api/agreements';
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+
+  const el = id => document.getElementById(id);
+
+  async function load() {
+    if (!token) { showNotFound(); return; }
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get', token })
+      });
+      const result = await res.json();
+      if (!result.ok) { showNotFound(); return; }
+      render(result.agreement);
+    } catch (e) {
+      showNotFound();
+    }
+  }
+
+  function showNotFound() {
+    el('loading').style.display = 'none';
+    el('not-found').style.display = 'block';
+  }
+
+  function render(a) {
+    el('loading').style.display = 'none';
+    el('content').style.display = 'block';
+
+    el('client-name-inline').textContent = a.clientName;
+    el('client-name-1').textContent = a.clientName;
+    el('pooja-name-1').textContent = a.poojaName;
+
+    if (a.status === 'Client Signed') {
+      el('already-signed-banner').style.display = 'block';
+      el('already-signed-banner').className = 'status-banner pending-pooja';
+      el('already-signed-banner').textContent =
+        "You signed this agreement on " + formatDate(a.clientSignedAt) + ". It is now with Pooja's Couture for countersignature — no further action needed from you.";
+      el('sign-form').style.display = 'none';
+    } else if (a.status === 'Fully Executed') {
+      el('already-signed-banner').style.display = 'block';
+      el('already-signed-banner').textContent =
+        "Fully signed. You signed on " + formatDate(a.clientSignedAt) + ", and Pooja's Couture countersigned on " + formatDate(a.poojaSignedAt) + ". This agreement is complete.";
+      el('sign-form').style.display = 'none';
+    } else {
+      el('sig-input').addEventListener('input', updateSubmitState);
+      el('sig-confirm').addEventListener('change', updateSubmitState);
+      el('sig-submit').addEventListener('click', submitSignature);
+    }
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function updateSubmitState() {
+    const name = el('sig-input').value.trim();
+    const confirmed = el('sig-confirm').checked;
+    el('sig-submit').disabled = !(name.length > 1 && confirmed);
+  }
+
+  async function submitSignature() {
+    const signatureText = el('sig-input').value.trim();
+    el('sig-submit').disabled = true;
+    el('sig-submit').textContent = 'Signing…';
+    el('error-msg').style.display = 'none';
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clientSign', token, signatureText })
+      });
+      const result = await res.json();
+      if (!result.ok) {
+        el('error-msg').textContent = result.error || 'Something went wrong. Please try again.';
+        el('error-msg').style.display = 'block';
+        el('sig-submit').disabled = false;
+        el('sig-submit').textContent = 'Sign Agreement';
+        return;
+      }
+      render(result.agreement);
+    } catch (e) {
+      el('error-msg').textContent = 'Network error — please try again.';
+      el('error-msg').style.display = 'block';
+      el('sig-submit').disabled = false;
+      el('sig-submit').textContent = 'Sign Agreement';
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>

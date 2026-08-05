@@ -61,6 +61,25 @@ Thank you,
 Pooja Shah`
     },
     {
+      id: 'invoice_with_agreement',
+      name: 'New Invoice + Client Agreement',
+      subject: "Your Order Confirmation, Invoice & Agreement — Pooja's Couture",
+      body: `Dear {{clientName}},
+
+Thank you for confirming your order with Pooja's Couture! Your invoice {{invoiceNumber}} for {{invoiceAmount}} is attached, with the deposit due by {{dueDate}}.
+
+Before work begins, please review and sign your Client Service Agreement here:
+{{agreementLink}}
+
+You can download a copy for your own records from that page. Once signed, please also email a copy back to info@poojascouture.com — this is required before production begins.
+
+We can't wait to bring your vision to life!
+
+Warm regards,
+Pooja Shah
+Pooja's Couture`
+    },
+    {
       id: 'welcome',
       name: 'Welcome New Client',
       subject: "Welcome to Pooja's Couture — Your Bridal Journey Begins",
@@ -1620,6 +1639,10 @@ poojascouture.com.au`
             await Invoicing.recordAdditionalPayment(createdInvoice.id, depositPaid, 'Deposit');
           }
 
+          if (createdInvoice) {
+            await ensureAgreementForInvoice(createdInvoice, createdOrder);
+          }
+
           Utils.showToast(
             depositPaid > 0
               ? `Order created. Deposit ${Utils.formatCurrency(depositPaid)} recorded.`
@@ -1816,6 +1839,9 @@ poojascouture.com.au`
                 ${_invoice.status!=='Paid'?`<button class="btn btn-secondary btn-sm" onclick="CRM.syncInvoiceFromOrders('${o.id}')" title="Recalculate invoice from current order prices">🔄 Sync from Orders</button>`:''}
                 <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${_invoice.id}'),200)">✏️ Edit Invoice</button>
               </div>
+              <div id="agreement-panel-${o.id}" class="mt-3" style="border-top:1px solid var(--pc-border);padding-top:10px">
+                <div class="text-xs text-muted">Loading agreement status…</div>
+              </div>
             </div>`:`
             <div class="p-3 rounded-md text-xs text-muted" style="border:1px dashed var(--pc-border)">
               No invoice found for this order.
@@ -1961,13 +1987,52 @@ poojascouture.com.au`
     // Store cache, so they can't be rendered synchronously above.
     setTimeout(async () => {
       const holder = document.getElementById('order-docs-list-' + o.id);
-      if (!holder) return;
-      const docs = await listIntakeDocuments(o.id, null);
-      if (!docs.length) return;
-      holder.innerHTML = '📎 ' + docs.map(d =>
-        '<a href="' + d.fileUrl + '" target="_blank" rel="noopener" style="color:var(--pc-gold)">' + Utils.sanitizeHTML(d.fileName) + '</a>'
-      ).join(', ');
+      if (holder) {
+        const docs = await listIntakeDocuments(o.id, null);
+        if (docs.length) {
+          holder.innerHTML = '📎 ' + docs.map(d =>
+            '<a href="' + d.fileUrl + '" target="_blank" rel="noopener" style="color:var(--pc-gold)">' + Utils.sanitizeHTML(d.fileName) + '</a>'
+          ).join(', ');
+        }
+      }
+      if (_invoice) await renderAgreementPanel(o.id, _invoice);
     }, 100);
+  }
+
+  // Renders the Agreement status block inside the Order Summary's invoice
+  // panel — created lazily (not in local Store), so it's fetched from the
+  // backend after the modal mounts, same pattern as reference documents.
+  async function renderAgreementPanel(orderId, invoice) {
+    const holder = document.getElementById('agreement-panel-' + orderId);
+    if (!holder) return;
+
+    let agreement = (await callAgreementsBackend('getByInvoice', { invoiceId: invoice.id })).agreement;
+    if (!agreement) {
+      holder.innerHTML = `
+        <div class="text-xs text-muted mb-2">No client agreement sent yet.</div>
+        <button class="btn btn-secondary btn-sm" onclick="CRM.sendInvoiceWithAgreement('${orderId}')">📝 Send Invoice + Agreement</button>`;
+      return;
+    }
+
+    if (agreement.status === 'Pending') {
+      holder.innerHTML = `
+        <div class="d-flex justify-between items-center">
+          <span class="badge badge-muted text-xs">📝 Agreement: Awaiting Client Signature</span>
+        </div>
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-secondary btn-sm" onclick="CRM.copyAgreementLink('${agreement.token}')">🔗 Copy Signing Link</button>
+        </div>`;
+    } else if (agreement.status === 'Client Signed') {
+      holder.innerHTML = `
+        <div class="badge badge-warning text-xs">✍️ Client Signed ${agreement.clientSignedAt ? '(' + Utils.formatDate(agreement.clientSignedAt) + ')' : ''} — Awaiting Pooja's Countersignature</div>
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-primary btn-sm" onclick="CRM.countersignAgreement('${agreement.id}','Pooja Shah')">✍️ Countersign Now</button>
+        </div>`;
+    } else if (agreement.status === 'Fully Executed') {
+      holder.innerHTML = `
+        <div class="badge badge-success text-xs">✅ Agreement Fully Executed</div>
+        <div class="text-xs text-muted mt-1">Client signed ${Utils.formatDate(agreement.clientSignedAt)} · Pooja countersigned ${Utils.formatDate(agreement.poojaSignedAt)}</div>`;
+    }
   }
 
 
@@ -2231,6 +2296,108 @@ poojascouture.com.au`
       logEmail(clientId||'unknown', toName, subject, body, templateName, 'Failed');
       Utils.showToast(`Email failed for ${toName}.`, 'error');
     }
+  }
+
+  // ------------------------------------------------------------
+  // CLIENT SERVICE AGREEMENT (e-signature) — backend calls to
+  // functions/api/agreements.js. Mirrors the auth pattern already
+  // used for Invoicing.callBackend.
+  // ------------------------------------------------------------
+  async function callAgreementsBackend(action, params) {
+    const client = Store.getClient();
+    const { data: sessionData } = await client.auth.getSession();
+    const authToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
+    try {
+      const res = await fetch('/api/agreements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, authToken, ...params })
+      });
+      return await res.json();
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  // Creates the agreement record for an invoice if one doesn't already
+  // exist (idempotent — backend reuses an existing one for the same
+  // invoiceId). Returns the agreement, or null on failure.
+  async function ensureAgreementForInvoice(invoice, order) {
+    if (!invoice) return null;
+    const result = await callAgreementsBackend('create', {
+      invoiceId: invoice.id,
+      orderId: invoice.orderId || null,
+      projectId: invoice.projectId || null,
+      clientId: invoice.clientId || null,
+      clientName: invoice.clientName || (order ? order.clientName : 'Client'),
+      poojaName: 'Pooja Shah'
+    });
+    if (!result.ok) { Utils.showToast(result.error || 'Could not create agreement.', 'error'); return null; }
+    return result.agreement;
+  }
+
+  function agreementSigningLink(token) {
+    return window.location.origin + '/sign-agreement.html?token=' + token;
+  }
+
+  // Triggered from the invoice panel — ensures an agreement exists, then
+  // opens the compose modal prefilled with the invoice details and the
+  // signing link, ready to send.
+  async function sendInvoiceWithAgreement(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+    const invoice = _getOrderInvoice(o);
+    if (!invoice) { Utils.showToast('No invoice found for this order.', 'error'); return; }
+
+    const agreement = await ensureAgreementForInvoice(invoice, o);
+    if (!agreement) return;
+
+    App.closeModal();
+    setTimeout(() => {
+      showComposeModal(o.clientId, 'invoice_with_agreement', {
+        invoiceNumber: invoice.invoiceNumber || '',
+        invoiceAmount: Utils.formatCurrency(invoice.total),
+        dueDate: invoice.dueDate ? Utils.formatDate(invoice.dueDate) : '',
+        agreementLink: agreementSigningLink(agreement.token)
+      });
+    }, 200);
+  }
+
+  function copyAgreementLink(token) {
+    const link = agreementSigningLink(token);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(
+        () => Utils.showToast('Signing link copied.', 'success'),
+        () => Utils.showToast(link, 'info')
+      );
+    } else {
+      Utils.showToast(link, 'info');
+    }
+  }
+
+  // Pooja's countersignature — only allowed once the client has signed.
+  async function countersignAgreement(agreementId, defaultName) {
+    App.showModal({
+      title: '✍️ Countersign Agreement',
+      content: `
+        <div class="d-flex flex-col gap-3">
+          <div class="text-xs text-muted">The client has signed. Type your name to countersign on behalf of Pooja's Couture — this records today's date automatically.</div>
+          <div class="form-group">
+            <label class="form-label">Your Full Name</label>
+            <input type="text" id="cs-name" class="form-input" value="${Utils.sanitizeHTML(defaultName || 'Pooja Shah')}">
+          </div>
+        </div>`,
+      submitText: 'Countersign',
+      onSubmit: async () => {
+        const name = document.getElementById('cs-name').value.trim();
+        if (!name) { Utils.showToast('Enter your name to countersign.', 'error'); return false; }
+        const result = await callAgreementsBackend('poojaCountersign', { agreementId, signatureText: name });
+        if (!result.ok) { Utils.showToast(result.error || 'Countersign failed.', 'error'); return false; }
+        Utils.showToast('Agreement fully executed.', 'success');
+        renderSubTab();
+        return true;
+      }
+    });
   }
 
   function fillTemplate(text, vars) {
@@ -4608,6 +4775,9 @@ poojascouture.com.au`
     listIntakeDocuments,
     deletePhoto,
     sendPhotosToClient,
-    logClientReply
+    logClientReply,
+    sendInvoiceWithAgreement,
+    copyAgreementLink,
+    countersignAgreement
   };
 })();
