@@ -1823,27 +1823,27 @@ poojascouture.com.au`
             })()}
           </div>
           ${_invoice?`
-            <div class="p-3 rounded-md" style="background:rgba(0,0,0,0.2);border:1px solid var(--pc-border)">
+            <div class="p-3 rounded-md" style="background:#fdfaf6;border:1px solid #ECB676">
               <div class="d-flex justify-between items-center mb-2">
-                <div class="text-xs font-semibold text-gold">🧾 Invoice ${Utils.sanitizeHTML(_invoice.invoiceNumber||'')}</div>
+                <div class="text-xs font-semibold" style="color:#B8860B">🧾 Invoice ${Utils.sanitizeHTML(_invoice.invoiceNumber||'')}</div>
                 <span class="badge ${_invoice.status==='Paid'?'badge-success':_invoice.status==='Partially Paid'?'badge-warning':'badge-muted'} text-xs">${_invoice.status}</span>
               </div>
-              <div class="d-flex justify-between text-xs mb-1"><span class="text-muted">Invoice Total (inc GST):</span><span class="font-mono">${Utils.formatCurrency(_invoice.total)}</span></div>
-              <div class="d-flex justify-between text-xs mb-1"><span class="text-muted">Amount Paid:</span><span class="font-mono text-success">${Utils.formatCurrency(_invPaid)}</span></div>
-              <div class="d-flex justify-between text-xs font-bold" style="border-top:1px solid var(--pc-border);padding-top:6px;margin-top:4px">
+              <div class="d-flex justify-between text-xs mb-1"><span style="color:#666">Invoice Total (inc GST):</span><span class="font-mono" style="color:#111">${Utils.formatCurrency(_invoice.total)}</span></div>
+              <div class="d-flex justify-between text-xs mb-1"><span style="color:#666">Amount Paid:</span><span class="font-mono" style="color:#15803d">${Utils.formatCurrency(_invPaid)}</span></div>
+              <div class="d-flex justify-between text-xs font-bold" style="border-top:1px solid #ECB676;padding-top:6px;margin-top:4px;color:#111">
                 <span>Balance Due:</span>
-                <span class="font-mono ${_invBalance>0?'text-danger':'text-success'}">${Utils.formatCurrency(_invBalance)}</span>
+                <span class="font-mono" style="color:${_invBalance>0?'#dc2626':'#15803d'}">${Utils.formatCurrency(_invBalance)}</span>
               </div>
               <div class="d-flex gap-2 mt-3">
                 ${_invBalance>0?`<button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.recordAdditionalPayment('${o.id}'),200)">💳 Record Payment</button>`:''}
                 ${_invoice.status!=='Paid'?`<button class="btn btn-secondary btn-sm" onclick="CRM.syncInvoiceFromOrders('${o.id}')" title="Recalculate invoice from current order prices">🔄 Sync from Orders</button>`:''}
                 <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${_invoice.id}'),200)">✏️ Edit Invoice</button>
               </div>
-              <div id="agreement-panel-${o.id}" class="mt-3" style="border-top:1px solid var(--pc-border);padding-top:10px">
-                <div class="text-xs text-muted">Loading agreement status…</div>
+              <div id="agreement-panel-${o.id}" class="mt-3" style="border-top:1px solid #ECB676;padding-top:10px">
+                <div class="text-xs" style="color:#999">Loading agreement status…</div>
               </div>
             </div>`:`
-            <div class="p-3 rounded-md text-xs text-muted" style="border:1px dashed var(--pc-border)">
+            <div class="p-3 rounded-md text-xs" style="border:1px dashed #ccc;color:#999">
               No invoice found for this order.
             </div>`}
           ${(o.shippingCost && o.shippingAllocation && o.shippingAllocation!=='None')?`
