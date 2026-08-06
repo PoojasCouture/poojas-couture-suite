@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const awaitingPay     = orders.filter(o => o.status === 'Awaiting Payment').length;
     const cleared         = orders.filter(o => o.status === 'Cleared for Delivery').length;
     const deliveredMonth  = orders.filter(o => {
-      if (o.status !== 'Delivered') return false;
+      if (!['Delivered', 'Completed'].includes(o.status)) return false;
       const d = new Date(o.updatedAt || o.createdAt || 0);
       const n = new Date();
       return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();

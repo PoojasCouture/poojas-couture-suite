@@ -86,7 +86,7 @@ export async function onRequestPost(context) {
     }
 
     const supabaseUrl = env.SUPABASE_URL;
-    const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceKey = env.SUPABASE_SERVICE_KEY;
 
     if (!supabaseUrl || !serviceKey) {
       return jsonResponse({ error: "Server misconfiguration" }, 500, CORS_HEADERS);
@@ -104,7 +104,9 @@ export async function onRequestPost(context) {
         name,
         email,
         phone,
-        type: "Lead",
+        type: "Other", // NOT NULL, must be one of Bride/Groom/Family/Other in the UI —
+                       // "Lead" isn't a real option. Pooja reclassifies once qualified.
+                       // 'source' below is what actually flags this as a website lead.
         source: "Website Form",
         appointment_type: appointmentType,
         who_for: whoFor,

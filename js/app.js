@@ -178,7 +178,7 @@ const App = (() => {
     const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
 
     const totalBrides = clients.filter(c => c.type === 'Bride').length;
-    const activeOrders = orders.filter(o => o.status !== 'Delivered');
+    const activeOrders = orders.filter(o => !['Delivered', 'Completed'].includes(o.status));
     const pendingInvoices = invoices.filter(i => ['Partially Paid', 'Sent', 'Draft'].includes(i.status));
     const upcomingAppts = appts.filter(a => a.status === 'Scheduled');
     const totalOutstanding = pendingInvoices.reduce((sum, i) => {
@@ -286,7 +286,7 @@ const App = (() => {
     });
 
     orders.forEach(o => {
-      if (o.status !== 'Delivered' && new Date(o.deadline) < new Date()) {
+      if (!['Delivered', 'Completed'].includes(o.status) && new Date(o.deadline) < new Date()) {
         alerts.push({
           type: 'warning',
           title: `Overdue Order Deadline!`,
@@ -729,7 +729,7 @@ const App = (() => {
           }).join('') + '</tbody></table></div>';
     } else if (type === 'orders') {
       title = '🧵 Active Custom Orders';
-      const active = allOrders.filter(o => o.status !== 'Delivered');
+      const active = allOrders.filter(o => !['Delivered', 'Completed'].includes(o.status));
       content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Garment</th><th>Stage</th><th>Deadline</th></tr></thead><tbody>' +
         active.sort((a,b)=>new Date(a.deadline||0)-new Date(b.deadline||0)).map(o => {
           const over = o.deadline && new Date(o.deadline) < now;
