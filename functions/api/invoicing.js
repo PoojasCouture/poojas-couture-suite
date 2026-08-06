@@ -441,7 +441,7 @@ export async function onRequest(context) {
       // the existing project and re-syncs the invoice/project totals.
       case 'addExtraItem': {
         if (!canWrite) return fail('Not authorized to modify invoices', 403);
-        const { orderId, description, unitPrice, gstRate } = body;
+        const { orderId, description, unitPrice, gstRate, orderCode } = body;
         if (!orderId || !description || unitPrice == null) return fail('Missing orderId, description, or unitPrice');
 
         const order = await getOrderById(orderId);
@@ -477,6 +477,7 @@ export async function onRequest(context) {
 
           await insertOrder({
             title: description,
+            orderCode: orderCode || null,
             clientId: order.clientId,
             clientName: order.clientName,
             projectId,
@@ -507,6 +508,7 @@ export async function onRequest(context) {
 
           await insertOrder({
             title: description,
+            orderCode: orderCode || null,
             clientId: order.clientId,
             clientName: order.clientName,
             projectId,

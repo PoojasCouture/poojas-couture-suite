@@ -4225,7 +4225,8 @@ poojascouture.com.au`
         if (!description) { Utils.showToast('Enter a description.', 'error'); return false; }
         if (!unitPrice || unitPrice <= 0) { Utils.showToast('Enter a valid price.', 'error'); return false; }
 
-        const result = await Invoicing.addExtraItem(orderId, { description, unitPrice, gstRate });
+        const orderCode = generateOrderCode('GEN');
+        const result = await Invoicing.addExtraItem(orderId, { description, unitPrice, gstRate, orderCode });
         if (!result) return false;
         renderSubTab();
         return true;

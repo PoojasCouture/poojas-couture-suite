@@ -241,8 +241,8 @@ const Invoicing = (function () {
   // order for the extra item, re-points the invoice). Refreshes every
   // collection that could have changed as a result.
   // ------------------------------------------------------------
-  async function addExtraItem(orderId, { description, unitPrice, gstRate }) {
-    const result = await callBackend('addExtraItem', { orderId, description, unitPrice, gstRate });
+  async function addExtraItem(orderId, { description, unitPrice, gstRate, orderCode }) {
+    const result = await callBackend('addExtraItem', { orderId, description, unitPrice, gstRate, orderCode });
     if (!result.ok) return null;
     await Store.refresh(Store.COLLECTIONS.INVOICES);
     await Store.refresh(Store.COLLECTIONS.ORDERS);
