@@ -1475,6 +1475,10 @@ poojascouture.com.au`
                 <input type="text" name="mSleeveLength" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mSleeveLength||''):''}">
               </div>
               <div class="form-group m-0">
+                <label class="form-label">Biceps</label>
+                <input type="text" name="mBiceps" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mBiceps||''):''}">
+              </div>
+              <div class="form-group m-0">
                 <label class="form-label">Morrie</label>
                 <input type="text" name="mMorrie" class="form-input" placeholder="—" value="${order?Utils.sanitizeHTML(order.mMorrie||''):''}">
               </div>
@@ -1589,6 +1593,7 @@ poojascouture.com.au`
           mBackNeck: fd.get('mBackNeck') || '',
           mFrontNeck: fd.get('mFrontNeck') || '',
           mSleeveLength: fd.get('mSleeveLength') || '',
+          mBiceps: fd.get('mBiceps') || '',
           mMorrie: fd.get('mMorrie') || '',
           mWaist: fd.get('mWaist') || '',
           mWrist: fd.get('mWrist') || '',
@@ -1903,6 +1908,7 @@ poojascouture.com.au`
               ${o.mChest?`<div><span class="text-muted">Chest:</span> ${Utils.sanitizeHTML(o.mChest)}</div>`:''}
               ${o.mShoulder?`<div><span class="text-muted">Shoulder:</span> ${Utils.sanitizeHTML(o.mShoulder)}</div>`:''}
               ${o.mArmhole?`<div><span class="text-muted">Armhole:</span> ${Utils.sanitizeHTML(o.mArmhole)}</div>`:''}
+              ${o.mBiceps?`<div><span class="text-muted">Biceps:</span> ${Utils.sanitizeHTML(o.mBiceps)}</div>`:''}
               ${o.mBlouseLength?`<div><span class="text-muted">Blouse Length:</span> ${Utils.sanitizeHTML(o.mBlouseLength)}</div>`:''}
               ${o.mBackNeck?`<div><span class="text-muted">Back Neck:</span> ${Utils.sanitizeHTML(o.mBackNeck)}</div>`:''}
               ${o.mFrontNeck?`<div><span class="text-muted">Front Neck:</span> ${Utils.sanitizeHTML(o.mFrontNeck)}</div>`:''}
