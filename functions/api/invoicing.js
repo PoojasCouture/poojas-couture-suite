@@ -189,6 +189,26 @@ export async function onRequest(context) {
       method: 'PATCH', headers: svcHeaders, body: JSON.stringify(appToRow(patch))
     });
   }
+  async function insertOrder(data) {
+    const res = await fetch(SB + '/rest/v1/orders', {
+      method: 'POST',
+      headers: { ...svcHeaders, 'Prefer': 'return=representation' },
+      body: JSON.stringify(appToRow(data))
+    });
+    if (!res.ok) throw new Error('Order create failed: ' + res.status + ' ' + (await res.text()).slice(0, 300));
+    const rows = await res.json();
+    return rowToApp(rows[0]);
+  }
+  async function insertProject(data) {
+    const res = await fetch(SB + '/rest/v1/order_projects', {
+      method: 'POST',
+      headers: { ...svcHeaders, 'Prefer': 'return=representation' },
+      body: JSON.stringify(appToRow(data))
+    });
+    if (!res.ok) throw new Error('Project create failed: ' + res.status + ' ' + (await res.text()).slice(0, 300));
+    const rows = await res.json();
+    return rowToApp(rows[0]);
+  }
 
   try {
     switch (action) {
@@ -205,16 +225,38 @@ export async function onRequest(context) {
           if (isLocked(invoice)) return fail('Invoice is Paid and locked. Use Edit Invoice Directly to override.', 409);
 
           const subOrders = await getOrdersByProject(o.projectId);
-          const newExGST = r2(subOrders.reduce((s, x) => s + (x.price || 0), 0));
-          const newGST = r2(newExGST * 0.10);
+          const existingItems = invoice.items || [];
+
+          // Rebuild each order-backed line, but preserve its GST rate and
+          // description if a matching existing line is found (matched by
+          // order title) — a resync must not silently reset a rate someone
+          // deliberately set via Edit Invoice.
+          const orderDerivedItems = subOrders.map(x => {
+            const existing = existingItems.find(it => it.description === x.title || it.description === (x.orderCode ? x.orderCode + ' — ' + x.title : x.title));
+            const rate = existing && existing.gstRate != null ? existing.gstRate : 0.10;
+            const price = r2(x.price);
+            const gst = r2(price * rate);
+            return {
+              description: (x.orderCode ? x.orderCode + ' — ' : '') + x.title,
+              quantity: 1, unitPrice: price, gstRate: rate, gst, amount: r2(price + gst)
+            };
+          });
+
+          // Any existing line that isn't backed by a current sub-order (a
+          // manually-added extra item, e.g. via "Add Line") is preserved
+          // as-is rather than silently dropped.
+          const orderTitles = new Set(subOrders.map(x => x.title));
+          const extraLines = existingItems.filter(it =>
+            !subOrders.some(x => it.description === x.title || it.description === (x.orderCode ? x.orderCode + ' — ' + x.title : x.title))
+          );
+
+          const items = [...orderDerivedItems, ...extraLines];
+          const newExGST = r2(items.reduce((s, it) => s + (it.unitPrice || 0) * (it.quantity || 1), 0));
+          const newGST = r2(items.reduce((s, it) => s + (it.gst || 0), 0));
           const shipping = r2(invoice.shipping || 0);
           const newTotal = r2(newExGST + newGST + shipping);
           const paid = r2(invoice.amountPaid || 0);
 
-          const items = subOrders.map(x => ({
-            description: (x.orderCode ? x.orderCode + ' — ' : '') + x.title,
-            quantity: 1, unitPrice: r2(x.price), gst: r2(x.price * 0.10), amount: r2(x.price * 1.10)
-          }));
           const milestones = (invoice.milestones && invoice.milestones.length)
             ? buildMilestones(newTotal, invoice.milestones) : invoice.milestones;
 
@@ -222,19 +264,25 @@ export async function onRequest(context) {
             items, subtotal: newExGST, gstTotal: newGST, shipping, total: newTotal,
             status: statusFor(newTotal, paid), milestones
           });
-          await patchProject(o.projectId, { totalPrice: newExGST });
+          // Project total reflects only real order-backed value, matching
+          // how order/project prices are tracked elsewhere in the app —
+          // extra invoice-only lines don't have a corresponding order.
+          const orderOnlyTotal = r2(subOrders.reduce((s, x) => s + (x.price || 0), 0));
+          await patchProject(o.projectId, { totalPrice: orderOnlyTotal });
           return ok({ invoice: updated });
         } else {
           const invoice = await getInvoiceByOrder(orderId);
           if (!invoice) return fail('No invoice for this order', 404);
           if (isLocked(invoice)) return fail('Invoice is Paid and locked. Use Edit Invoice Directly to override.', 409);
 
+          const existing = (invoice.items || [])[0];
+          const rate = existing && existing.gstRate != null ? existing.gstRate : 0.10;
           const newSub = r2(o.price || 0);
-          const newGst = r2(newSub * 0.10);
+          const newGst = r2(newSub * rate);
           const garmentTotal = r2(newSub + newGst);
           const items = (invoice.items || []).slice();
-          if (items.length > 0) items[0] = { ...items[0], description: o.title, unitPrice: newSub, gst: newGst, amount: garmentTotal };
-          else items.push({ description: o.title, quantity: 1, unitPrice: newSub, gst: newGst, amount: garmentTotal });
+          if (items.length > 0) items[0] = { ...items[0], description: o.title, unitPrice: newSub, gstRate: rate, gst: newGst, amount: garmentTotal };
+          else items.push({ description: o.title, quantity: 1, unitPrice: newSub, gstRate: rate, gst: newGst, amount: garmentTotal });
 
           const extra = items.slice(1);
           const subtotal = r2(newSub + extra.reduce((s, it) => s + (it.unitPrice || 0), 0));
@@ -378,6 +426,117 @@ export async function onRequest(context) {
         }
 
         return ok({ invoice: updated });
+      }
+
+      // ---------------------------------------------------------------
+      // ADD EXTRA ITEM — the self-serve replacement for what used to
+      // require manual SQL. Adds a new billable garment/item to an
+      // existing order's invoice. If the order isn't already part of a
+      // project (i.e. it's a standalone single-item order), this
+      // converts it into one automatically: creates the project, moves
+      // the existing order under it, creates the new order for the
+      // extra item, and re-points the invoice from order_id to
+      // project_id — the exact steps that previously had to be done by
+      // hand. If it's already a project, just adds the new order under
+      // the existing project and re-syncs the invoice/project totals.
+      case 'addExtraItem': {
+        if (!canWrite) return fail('Not authorized to modify invoices', 403);
+        const { orderId, description, unitPrice, gstRate } = body;
+        if (!orderId || !description || unitPrice == null) return fail('Missing orderId, description, or unitPrice');
+
+        const order = await getOrderById(orderId);
+        if (!order) return fail('Order not found', 404);
+
+        const rate = gstRate != null ? gstRate : 0.10;
+        const price = r2(unitPrice);
+        const gst = r2(price * rate);
+        const newItem = { description, quantity: 1, unitPrice: price, gstRate: rate, gst, amount: r2(price + gst) };
+
+        let projectId = order.projectId;
+        let invoice;
+
+        if (!projectId) {
+          // Standalone order → convert to a project.
+          invoice = await getInvoiceByOrder(orderId);
+          if (!invoice) return fail('No invoice found for this order — cannot add an item to a non-invoiced order.');
+          if (isLocked(invoice)) return fail('Invoice is Paid and locked. Use Edit Invoice Directly to override.', 409);
+
+          const project = await insertProject({
+            projectName: order.clientName + ' Bridal Order',
+            eventName: order.eventName || (order.clientName + "'s Order"),
+            eventDate: order.eventDate || null,
+            clientId: order.clientId,
+            clientName: order.clientName,
+            status: 'Active',
+            totalPrice: r2(order.price + price),
+            projectCode: ''
+          });
+          projectId = project.id;
+
+          await patchOrder(orderId, { projectId });
+
+          await insertOrder({
+            title: description,
+            clientId: order.clientId,
+            clientName: order.clientName,
+            projectId,
+            price,
+            status: 'New',
+            eventName: order.eventName || null,
+            eventDate: order.eventDate || null,
+            deadline: order.deadline || null
+          });
+
+          const items = [...(invoice.items || []), newItem];
+          const subtotal = r2(items.reduce((s, it) => s + (it.unitPrice || 0) * (it.quantity || 1), 0));
+          const gstTotal = r2(items.reduce((s, it) => s + (it.gst || 0), 0));
+          const total = r2(subtotal + gstTotal + (invoice.shipping || 0));
+          const milestones = (invoice.milestones && invoice.milestones.length)
+            ? buildMilestones(total, invoice.milestones) : invoice.milestones;
+
+          invoice = await patchInvoice(invoice.id, {
+            projectId, orderId: null, items, subtotal, gstTotal, total, milestones,
+            status: statusFor(total, invoice.amountPaid || 0)
+          });
+
+        } else {
+          // Already a project — just add the new order and re-sync.
+          invoice = await getInvoiceByProject(projectId);
+          if (!invoice) return fail('No invoice found for this project.');
+          if (isLocked(invoice)) return fail('Invoice is Paid and locked. Use Edit Invoice Directly to override.', 409);
+
+          await insertOrder({
+            title: description,
+            clientId: order.clientId,
+            clientName: order.clientName,
+            projectId,
+            price,
+            status: 'New',
+            eventName: order.eventName || null,
+            eventDate: order.eventDate || null,
+            deadline: order.deadline || null
+          });
+
+          const projRes = await fetch(SB + '/rest/v1/order_projects?id=eq.' + projectId + '&select=total_price', { headers: svcHeaders });
+          const projRows = projRes.ok ? await projRes.json() : [];
+          const currentTotal = projRows[0] ? parseFloat(projRows[0].total_price) : 0;
+          const newProjectTotal = r2(currentTotal + price);
+          await patchProject(projectId, { totalPrice: newProjectTotal });
+
+          const items = [...(invoice.items || []), newItem];
+          const subtotal = r2(items.reduce((s, it) => s + (it.unitPrice || 0) * (it.quantity || 1), 0));
+          const gstTotal = r2(items.reduce((s, it) => s + (it.gst || 0), 0));
+          const total = r2(subtotal + gstTotal + (invoice.shipping || 0));
+          const milestones = (invoice.milestones && invoice.milestones.length)
+            ? buildMilestones(total, invoice.milestones) : invoice.milestones;
+
+          invoice = await patchInvoice(invoice.id, {
+            items, subtotal, gstTotal, total, milestones,
+            status: statusFor(total, invoice.amountPaid || 0)
+          });
+        }
+
+        return ok({ invoice, projectId });
       }
 
       // ---------------------------------------------------------------

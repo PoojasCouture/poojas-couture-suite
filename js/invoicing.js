@@ -232,6 +232,25 @@ const Invoicing = (function () {
     return true;
   }
 
+  // ------------------------------------------------------------
+  // ADD EXTRA ITEM — self-serve replacement for the manual-SQL
+  // conversion an order used to need when a second garment/item had
+  // to be added to an existing invoice. If the order isn't already
+  // part of a project, the backend converts it into one automatically
+  // (moves the existing order under a new project, creates the new
+  // order for the extra item, re-points the invoice). Refreshes every
+  // collection that could have changed as a result.
+  // ------------------------------------------------------------
+  async function addExtraItem(orderId, { description, unitPrice, gstRate }) {
+    const result = await callBackend('addExtraItem', { orderId, description, unitPrice, gstRate });
+    if (!result.ok) return null;
+    await Store.refresh(Store.COLLECTIONS.INVOICES);
+    await Store.refresh(Store.COLLECTIONS.ORDERS);
+    await Store.refresh(Store.COLLECTIONS.ORDER_PROJECTS);
+    Utils.showToast('Item added — invoice and order updated.', 'success');
+    return result;
+  }
+
   return {
     round2: r2,
     isLocked,
@@ -247,6 +266,7 @@ const Invoicing = (function () {
     recordAdditionalPayment,
     markPaid,
     editDirect,
-    deleteInvoice
+    deleteInvoice,
+    addExtraItem
   };
 })();

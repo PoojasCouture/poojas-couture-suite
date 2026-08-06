@@ -1843,6 +1843,7 @@ poojascouture.com.au`
                 ${_invBalance>0?`<button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.recordAdditionalPayment('${o.id}'),200)">💳 Record Payment</button>`:''}
                 ${_invoice.status!=='Paid'?`<button class="btn btn-secondary btn-sm" onclick="CRM.syncInvoiceFromOrders('${o.id}')" title="Recalculate invoice from current order prices">🔄 Sync from Orders</button>`:''}
                 <button class="btn btn-secondary btn-sm" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${_invoice.id}'),200)">✏️ Edit Invoice</button>
+                ${_invoice.status!=='Paid'?`<button class="btn btn-secondary btn-sm" onclick="CRM.showAddGarmentModal('${o.id}')" title="Add another garment/item to this invoice">➕ Add Garment</button>`:''}
               </div>
               <div id="agreement-panel-${o.id}" class="mt-3" style="border-top:1px solid #ECB676;padding-top:10px">
                 <div class="text-xs" style="color:#999">Loading agreement status…</div>
@@ -4061,13 +4062,14 @@ poojascouture.com.au`
         const newTotal = allSubOrders.reduce((sum, o) => sum + (o.price || 0), 0);
         await Store.update(Store.COLLECTIONS.ORDER_PROJECTS, projectId, { totalPrice: newTotal });
 
-        // If an invoice already exists for this project, it is left
-        // untouched — auto-sync was the root cause of totals/shipping/
-        // milestones being silently overwritten. Use the explicit
-        // "Sync Invoice from Orders" button to pull the new garment in.
+        // Auto-sync the invoice so the new garment shows up immediately —
+        // safe to do now that syncFromOrders preserves each line's GST
+        // rate and never drops a manually-added extra line (previously
+        // it didn't, which is why this used to be a manual step).
         const existingInv = Store.query(Store.COLLECTIONS.INVOICES, i => i.projectId === projectId)[0];
         if (existingInv) {
-          Utils.showToast(`Garment added to ${proj.projectName}. Click "Sync Invoice from Orders" to update the invoice.`, 'info');
+          await Invoicing.syncFromOrders(createdOrder.id);
+          Utils.showToast(`Garment added to ${proj.projectName} — invoice updated.`, 'success');
         } else {
           Utils.showToast(`Garment added to ${proj.projectName}.`);
         }
@@ -4186,6 +4188,51 @@ poojascouture.com.au`
   // the deliberate override path for cases where the auto-derived numbers
   // (from order prices) aren't trustworthy or don't apply — e.g. historical
   // orders with missing per-garment prices.
+  // Self-serve "add another garment/item to this invoice" — replaces what
+  // used to require manual SQL. If the order isn't already part of a
+  // project, the backend converts it into one automatically.
+  function showAddGarmentModal(orderId) {
+    const o = Store.getById(Store.COLLECTIONS.ORDERS, orderId);
+    if (!o) return;
+
+    App.showModal({
+      title: '➕ Add Garment',
+      content: `
+        <div class="d-flex flex-col gap-3">
+          <div class="text-xs text-muted">${o.projectId ? 'This order is already part of a project — the new item will be added as another garment on the same invoice.' : 'This is currently a standalone order. Adding an item here will automatically convert it into a multi-item project (same as Sanjana &amp; Rishi, Prachi, etc.) so both items are tracked and billed together.'}</div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <input type="text" id="aei-desc" class="form-input" placeholder="e.g. Extra Optional Blouse">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Price (ex-GST, AUD)</label>
+            <input type="text" inputmode="decimal" id="aei-price" class="form-input" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">GST Rate</label>
+            <select id="aei-gstrate" class="form-input">
+              <option value="0.10" selected>10%</option>
+              <option value="0.05">5%</option>
+              <option value="0">0%</option>
+            </select>
+          </div>
+        </div>`,
+      submitText: 'Add Item',
+      onSubmit: async () => {
+        const description = document.getElementById('aei-desc').value.trim();
+        const unitPrice = parseFloat(document.getElementById('aei-price').value.replace(/[^0-9.]/g, ''));
+        const gstRate = parseFloat(document.getElementById('aei-gstrate').value);
+        if (!description) { Utils.showToast('Enter a description.', 'error'); return false; }
+        if (!unitPrice || unitPrice <= 0) { Utils.showToast('Enter a valid price.', 'error'); return false; }
+
+        const result = await Invoicing.addExtraItem(orderId, { description, unitPrice, gstRate });
+        if (!result) return false;
+        renderSubTab();
+        return true;
+      }
+    });
+  }
+
   function showEditInvoiceModal(invoiceId) {
     const invoice = Store.getById(Store.COLLECTIONS.INVOICES, invoiceId);
     if (!invoice) { Utils.showToast('Invoice not found.', 'error'); return; }
@@ -4244,7 +4291,7 @@ poojascouture.com.au`
 
           <div class="d-flex justify-between items-center mb-2">
             <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase">Line Items</div>
-            <button type="button" class="btn btn-secondary btn-sm" id="ei-add-item">+ Add Line</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="ei-add-item">➕ Add Garment</button>
           </div>
 
           <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px">
@@ -4396,9 +4443,12 @@ poojascouture.com.au`
       };
 
       document.getElementById('ei-add-item').addEventListener('click', () => {
-        items.push({ description: '', unitPrice: 0, gstRate: 0.10, gst: 0 });
-        renderItems();
-        recalc();
+        App.closeModal();
+        setTimeout(() => {
+          const refOrderId = invoice.orderId || (Store.query(Store.COLLECTIONS.ORDERS, o => o.projectId === invoice.projectId)[0] || {}).id;
+          if (!refOrderId) { Utils.showToast('Could not find a linked order for this invoice.', 'error'); return; }
+          showAddGarmentModal(refOrderId);
+        }, 200);
       });
       paidInput.addEventListener('input', recalc);
 
@@ -4833,6 +4883,7 @@ poojascouture.com.au`
     logClientReply,
     sendInvoiceWithAgreement,
     copyAgreementLink,
-    countersignAgreement
+    countersignAgreement,
+    showAddGarmentModal
   };
 })();
