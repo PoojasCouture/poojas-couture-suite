@@ -205,6 +205,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         row('Back Neck', m('mBackNeck')) +
         row('Front Neck', m('mFrontNeck')) +
         row('Sleeve Length', m('mSleeveLength')) +
+        row('Biceps', m('mBiceps')) +
         row('Morrie', m('mMorrie')) +
         row('Waist', m('mWaist')) +
         row('Wrist', m('mWrist')) +
