@@ -1056,6 +1056,26 @@ poojascouture.com.au`
     return prefix + '-' + String(next).padStart(6, '0');
   }
 
+  // Sequential invoice numbers (INV-YYYY-NNN), same continue-from-max
+  // pattern as generateOrderCode — replaces the old random-number
+  // generator, which had no relationship to creation order and could
+  // theoretically collide (DB has a UNIQUE constraint on invoice_number,
+  // so a collision would fail the invoice creation outright).
+  function generateInvoiceNumber() {
+    const year = new Date().getFullYear();
+    const prefix = 'INV-' + year + '-';
+    const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
+    let maxNum = 0;
+    invoices.forEach(i => {
+      if (i.invoiceNumber && i.invoiceNumber.indexOf(prefix) === 0) {
+        const n = parseInt(i.invoiceNumber.slice(prefix.length), 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      }
+    });
+    const next = maxNum + 1;
+    return prefix + String(next).padStart(3, '0');
+  }
+
   // Boutique colour palette - shade card references used in orders.
   // Every code visible on the two physical shade cards (Manish Embroidery
   // Yarn, Neelam/Telephone Embroidery Yarn) is listed here — full coverage,
@@ -1632,7 +1652,7 @@ poojascouture.com.au`
           const createdInvoice = await Invoicing.createForOrder(createdOrder.id, {
             clientId: fd.get('clientId'),
             clientName: selectedClient ? selectedClient.name : 'Unknown',
-            invoiceNumber: 'INV-' + new Date().getFullYear() + '-' + Utils.randomBetween(100, 999),
+            invoiceNumber: generateInvoiceNumber(),
             issueDate: new Date().toISOString().split('T')[0],
             dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             notes: depositPaid > 0
@@ -4558,7 +4578,7 @@ poojascouture.com.au`
         const created = await Invoicing.createForProject(projectId, {
           clientId: proj.clientId,
           clientName: proj.clientName,
-          invoiceNumber: 'INV-' + new Date().getFullYear() + '-' + Utils.randomBetween(100, 999),
+          invoiceNumber: generateInvoiceNumber(),
           issueDate: fd.get('issueDate'),
           dueDate: fd.get('dueDate'),
           notes: fd.get('notes') || ''
