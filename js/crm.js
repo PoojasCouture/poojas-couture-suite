@@ -560,7 +560,7 @@ poojascouture.com.au`
     };
 
     const headerCell = (label, col) => `
-      <th style="cursor:pointer;user-select:none;white-space:nowrap" data-sort-col="${col}" title="Click to sort">
+      <th style="cursor:pointer;user-select:none;white-space:nowrap" data-sort-col="${col}">
         ${label} ${sortArrow(col)}
       </th>`;
 
