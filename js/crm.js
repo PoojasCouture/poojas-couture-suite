@@ -550,34 +550,59 @@ poojascouture.com.au`
       <button class="btn btn-primary" id="btn-add-appt">+ Schedule Appointment</button>`;
     Utils.$('#btn-add-appt').addEventListener('click', () => showAppointmentModal());
 
+    // Sort/filter state lives on the header row itself now, not a
+    // separate dropdown bar above the table.
+    const state = { sortCol: 'date', sortDir: 'asc', fClient: '', fDate: '', fType: 'all', fStatus: 'all' };
+
+    const sortArrow = (col) => {
+      if (state.sortCol !== col) return '<span style="opacity:.35">⇅</span>';
+      return state.sortDir === 'asc' ? '<span>▲</span>' : '<span>▼</span>';
+    };
+
+    const headerCell = (label, col) => `
+      <th style="cursor:pointer;user-select:none;white-space:nowrap" data-sort-col="${col}" title="Click to sort">
+        ${label} ${sortArrow(col)}
+      </th>`;
+
     container.innerHTML = `
       <div class="card p-0">
         <div class="card-header flex-wrap gap-4">
-          <div class="filter-bar m-0" style="flex-wrap:nowrap;align-items:center;">
-            <select id="appt-filter-status" class="form-select">
-              <option value="all">All Statuses</option>
-              <option value="Scheduled" selected>Scheduled</option>
-              <option value="Completed">Completed</option>
-              <option value="Cancelled">Cancelled</option>
-              <option value="No-Show">No-Show</option>
-            </select>
-            <select id="appt-filter-type" class="form-select">
-              <option value="all">All Types</option>
-              <option value="Consultation">Consultations</option>
-              <option value="Fitting">Fittings</option>
-              <option value="Pickup">Pickups</option>
-              <option value="Video Call">Video Calls</option>
-              <option value="Store Visit">Store Visits</option>
-            </select>
-          </div>
           <div class="text-muted text-sm font-mono" id="appt-count"></div>
         </div>
         <div class="table-container" style="border:none;border-radius:0">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Client</th><th>Date & Time</th><th>Type</th><th>Status</th><th>Notes</th>
+                ${headerCell('Client', 'clientName')}
+                ${headerCell('Date & Time', 'date')}
+                ${headerCell('Type', 'type')}
+                ${headerCell('Status', 'status')}
+                <th>Notes</th>
                 <th style="width:130px;text-align:right">Actions</th>
+              </tr>
+              <tr class="appt-filter-row">
+                <th style="padding:6px 8px"><input type="text" id="appt-filter-client" class="form-input" placeholder="Search client…" style="font-size:12px;padding:4px 6px;width:100%"></th>
+                <th style="padding:6px 8px"><input type="date" id="appt-filter-date" class="form-input" style="font-size:12px;padding:4px 6px;width:100%"></th>
+                <th style="padding:6px 8px">
+                  <select id="appt-filter-type" class="form-select" style="font-size:12px;padding:4px 6px;width:100%">
+                    <option value="all">All Types</option>
+                    <option value="Consultation">Consultations</option>
+                    <option value="Fitting">Fittings</option>
+                    <option value="Pickup">Pickups</option>
+                    <option value="Video Call">Video Calls</option>
+                    <option value="Store Visit">Store Visits</option>
+                  </select>
+                </th>
+                <th style="padding:6px 8px">
+                  <select id="appt-filter-status" class="form-select" style="font-size:12px;padding:4px 6px;width:100%">
+                    <option value="all">All Statuses</option>
+                    <option value="Scheduled" selected>Scheduled</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="No-Show">No-Show</option>
+                  </select>
+                </th>
+                <th></th><th></th>
               </tr>
             </thead>
             <tbody id="appts-table-body"></tbody>
@@ -586,16 +611,47 @@ poojascouture.com.au`
       </div>
     `;
 
-    const statusFilter = Utils.$('#appt-filter-status');
+    state.fStatus = 'Scheduled'; // matches the pre-selected option, same default as before
+
+    const clientFilter = Utils.$('#appt-filter-client');
+    const dateFilter = Utils.$('#appt-filter-date');
     const typeFilter = Utils.$('#appt-filter-type');
+    const statusFilter = Utils.$('#appt-filter-status');
+
+    const sortValue = (a, col) => {
+      if (col === 'date') return new Date(a.date).getTime() || 0;
+      if (col === 'clientName') return (a.clientName || '').toLowerCase();
+      if (col === 'type') return (a.type || '').toLowerCase();
+      if (col === 'status') return (a.status || '').toLowerCase();
+      return '';
+    };
 
     const refreshTable = () => {
-      const status = statusFilter.value;
-      const type = typeFilter.value;
       const appts = Store.getAll(Store.COLLECTIONS.APPOINTMENTS);
-      appts.sort((a,b) => new Date(a.date)-new Date(b.date));
-      const filtered = appts.filter(a=>(status==='all'||a.status===status)&&(type==='all'||a.type===type));
+
+      let filtered = appts.filter(a =>
+        (state.fStatus === 'all' || a.status === state.fStatus) &&
+        (state.fType === 'all' || a.type === state.fType) &&
+        (!state.fClient || (a.clientName || '').toLowerCase().indexOf(state.fClient.toLowerCase()) !== -1) &&
+        (!state.fDate || new Date(a.date).toDateString() === new Date(state.fDate + 'T00:00:00').toDateString())
+      );
+
+      filtered.sort((a, b) => {
+        const va = sortValue(a, state.sortCol), vb = sortValue(b, state.sortCol);
+        const cmp = va > vb ? 1 : va < vb ? -1 : 0;
+        return state.sortDir === 'asc' ? cmp : -cmp;
+      });
+
       Utils.$('#appt-count').textContent = `Showing ${filtered.length} of ${appts.length} appointments`;
+
+      // Re-render just the sort arrows without rebuilding the whole header
+      // (keeps the filter inputs' focus/typed values intact).
+      Utils.$$('[data-sort-col]', container).forEach(th => {
+        const col = th.dataset.sortCol;
+        const label = th.textContent.replace(/[▲▼⇅]/g, '').trim();
+        th.innerHTML = `${label} ${sortArrow(col)}`;
+      });
+
       const tbody = Utils.$('#appts-table-body');
       tbody.innerHTML = '';
       if (filtered.length===0) {
@@ -626,8 +682,24 @@ poojascouture.com.au`
       });
     };
 
-    statusFilter.addEventListener('change', refreshTable);
-    typeFilter.addEventListener('change', refreshTable);
+    clientFilter.addEventListener('input', () => { state.fClient = clientFilter.value; refreshTable(); });
+    dateFilter.addEventListener('change', () => { state.fDate = dateFilter.value; refreshTable(); });
+    typeFilter.addEventListener('change', () => { state.fType = typeFilter.value; refreshTable(); });
+    statusFilter.addEventListener('change', () => { state.fStatus = statusFilter.value; refreshTable(); });
+
+    Utils.$$('[data-sort-col]', container).forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.sortCol;
+        if (state.sortCol === col) {
+          state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          state.sortCol = col;
+          state.sortDir = 'asc';
+        }
+        refreshTable();
+      });
+    });
+
     refreshTable();
 
     // --- TidyCal sync (non-blocking) ---
