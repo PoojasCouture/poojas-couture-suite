@@ -552,7 +552,7 @@ poojascouture.com.au`
 
     // Sort/filter state lives on the header row itself now, not a
     // separate dropdown bar above the table.
-    const state = { sortCol: 'date', sortDir: 'asc', fClient: '', fDate: '', fType: 'all', fStatus: 'all' };
+    const state = { sortCol: 'date', sortDir: 'asc' };
 
     const sortArrow = (col) => {
       if (state.sortCol !== col) return '<span style="opacity:.35">⇅</span>';
@@ -580,43 +580,12 @@ poojascouture.com.au`
                 <th>Notes</th>
                 <th style="width:130px;text-align:right">Actions</th>
               </tr>
-              <tr class="appt-filter-row">
-                <th style="padding:6px 8px"><input type="text" id="appt-filter-client" class="form-input" placeholder="Search client…" style="font-size:12px;padding:4px 6px;width:100%"></th>
-                <th style="padding:6px 8px"><input type="date" id="appt-filter-date" class="form-input" style="font-size:12px;padding:4px 6px;width:100%"></th>
-                <th style="padding:6px 8px">
-                  <select id="appt-filter-type" class="form-select" style="font-size:12px;padding:4px 6px;width:100%">
-                    <option value="all">All Types</option>
-                    <option value="Consultation">Consultations</option>
-                    <option value="Fitting">Fittings</option>
-                    <option value="Pickup">Pickups</option>
-                    <option value="Video Call">Video Calls</option>
-                    <option value="Store Visit">Store Visits</option>
-                  </select>
-                </th>
-                <th style="padding:6px 8px">
-                  <select id="appt-filter-status" class="form-select" style="font-size:12px;padding:4px 6px;width:100%">
-                    <option value="all">All Statuses</option>
-                    <option value="Scheduled" selected>Scheduled</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Cancelled">Cancelled</option>
-                    <option value="No-Show">No-Show</option>
-                  </select>
-                </th>
-                <th></th><th></th>
-              </tr>
             </thead>
             <tbody id="appts-table-body"></tbody>
           </table>
         </div>
       </div>
     `;
-
-    state.fStatus = 'Scheduled'; // matches the pre-selected option, same default as before
-
-    const clientFilter = Utils.$('#appt-filter-client');
-    const dateFilter = Utils.$('#appt-filter-date');
-    const typeFilter = Utils.$('#appt-filter-type');
-    const statusFilter = Utils.$('#appt-filter-status');
 
     const sortValue = (a, col) => {
       if (col === 'date') return new Date(a.date).getTime() || 0;
@@ -629,12 +598,7 @@ poojascouture.com.au`
     const refreshTable = () => {
       const appts = Store.getAll(Store.COLLECTIONS.APPOINTMENTS);
 
-      let filtered = appts.filter(a =>
-        (state.fStatus === 'all' || a.status === state.fStatus) &&
-        (state.fType === 'all' || a.type === state.fType) &&
-        (!state.fClient || (a.clientName || '').toLowerCase().indexOf(state.fClient.toLowerCase()) !== -1) &&
-        (!state.fDate || new Date(a.date).toDateString() === new Date(state.fDate + 'T00:00:00').toDateString())
-      );
+      let filtered = appts.slice();
 
       filtered.sort((a, b) => {
         const va = sortValue(a, state.sortCol), vb = sortValue(b, state.sortCol);
@@ -681,11 +645,6 @@ poojascouture.com.au`
         tbody.appendChild(tr);
       });
     };
-
-    clientFilter.addEventListener('input', () => { state.fClient = clientFilter.value; refreshTable(); });
-    dateFilter.addEventListener('change', () => { state.fDate = dateFilter.value; refreshTable(); });
-    typeFilter.addEventListener('change', () => { state.fType = typeFilter.value; refreshTable(); });
-    statusFilter.addEventListener('change', () => { state.fStatus = statusFilter.value; refreshTable(); });
 
     Utils.$$('[data-sort-col]', container).forEach(th => {
       th.addEventListener('click', () => {
