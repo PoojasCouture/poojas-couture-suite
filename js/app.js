@@ -1,790 +1,3931 @@
 /* ============================================================
-   POOJA'S COUTURE — Main Application Controller
-   Routing, navigation, modal manager, settings & overview dashboard
+   POOJA'S COUTURE SUITE — Unified Stylesheet
+   ------------------------------------------------------------
+   Single CSS file for the entire app, replacing what used to be
+   10 separate files (index.css, layout.css, components.css,
+   crm.css, hrm.css, accounting.css, admin.css, shipping/style.css,
+   tailor/style.css, ai-team/style.css).
+
+   Structure:
+   1. Shared design tokens, layout, and components (used everywhere)
+   2. Portal-specific overrides, each scoped under that portal's
+      <body> class (.portal-shipping / .portal-tailor / .portal-ai-team)
+      so they can never leak into or collide with any other portal,
+      regardless of which page loads this file.
+
+   Load order is preserved exactly as it was across the separate
+   files, so the cascade behaves identically to before — merging
+   this into one file changes nothing about how styles resolve,
+   it just means one file to edit and one file to deploy.
    ============================================================ */
-window.addEventListener('error', (event) => {
-  console.error('Uncaught error:', event.error);
-  if (window.Utils && typeof Utils.showToast === 'function') {
-    Utils.showToast('An unexpected error occurred. Please check console.', 'error');
+
+/* ===== 1. index.css — design tokens, base styles ===== */
+/* ============================================================
+   POOJA'S COUTURE — Design System
+   Core tokens, reset, typography, and utilities
+   ============================================================ */
+
+/* Google Fonts removed - using Segoe UI throughout */
+
+/* ---------- Design Tokens ---------- */
+:root {
+  /* Brand Colors — Gold/Amber Palette */
+  --pc-gold: #ECB676;
+  --pc-gold-light: #F5DABA;
+  --pc-gold-lighter: #FFF4E6;
+  --pc-gold-dark: #A4652F;
+  --pc-gold-darker: #7A4A20;
+  --pc-amber: #CA8F55;
+  --pc-amber-glow: rgba(236, 182, 118, 0.15);
+  --pc-amber-glow-strong: rgba(236, 182, 118, 0.3);
+
+  /* Background Colors — Dark Theme */
+  --pc-bg-dark: #0B0B12;
+  --pc-bg-body: #0F0F17;
+  --pc-bg-card: #16161F;
+  --pc-bg-card-hover: #1C1C28;
+  --pc-bg-sidebar: #111118;
+  --pc-bg-topbar: rgba(15, 15, 23, 0.85);
+  --pc-bg-input: #1A1A25;
+  --pc-bg-modal: #1A1A26;
+  --pc-bg-overlay: rgba(0, 0, 0, 0.6);
+
+  /* Text Colors */
+  --pc-text: #E8E4DF;
+  --pc-text-secondary: #B0AAA0;
+  --pc-text-muted: #6B6780;
+  --pc-text-heading: #F5F0EB;
+  --pc-text-gold: #ECB676;
+  --pc-text-inverse: #0F0F17;
+
+  /* Borders */
+  --pc-border: rgba(255, 255, 255, 0.06);
+  --pc-border-light: rgba(255, 255, 255, 0.1);
+  --pc-border-gold: rgba(236, 182, 118, 0.25);
+  --pc-border-gold-strong: rgba(236, 182, 118, 0.5);
+
+  /* Status Colors */
+  --pc-success: #34D399;
+  --pc-success-bg: rgba(52, 211, 153, 0.1);
+  --pc-warning: #FBBF24;
+  --pc-warning-bg: rgba(251, 191, 36, 0.1);
+  --pc-danger: #F87171;
+  --pc-danger-bg: rgba(248, 113, 113, 0.1);
+  --pc-info: #60A5FA;
+  --pc-info-bg: rgba(96, 165, 250, 0.1);
+  --pc-purple: #A78BFA;
+  --pc-purple-bg: rgba(167, 139, 250, 0.1);
+
+  /* Gradients */
+  --pc-gradient-gold: linear-gradient(135deg, #ECB676 0%, #CA8F55 100%);
+  --pc-gradient-gold-soft: linear-gradient(135deg, rgba(236,182,118,0.2) 0%, rgba(202,143,85,0.05) 100%);
+  --pc-gradient-dark: linear-gradient(180deg, #16161F 0%, #0F0F17 100%);
+  --pc-gradient-card: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+  --pc-gradient-sidebar: linear-gradient(180deg, #13131C 0%, #0E0E15 100%);
+
+  /* Shadows */
+  --pc-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --pc-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --pc-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --pc-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+  --pc-shadow-gold: 0 4px 20px rgba(236, 182, 118, 0.15);
+  --pc-shadow-glow: 0 0 30px rgba(236, 182, 118, 0.1);
+
+  /* Spacing Scale */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 48px;
+  --sp-10: 64px;
+
+  /* Border Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Typography — Classic Elegant pairing (luxury/fashion) */
+  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Segoe UI', 'Consolas', monospace;
+
+  --text-xs: 0.6875rem;   /* 11px */
+  --text-sm: 0.8125rem;   /* 13px */
+  --text-base: 0.875rem;  /* 14px */
+  --text-md: 1rem;        /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 1.875rem;   /* 30px */
+  --text-4xl: 2.25rem;    /* 36px */
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Z-index Scale */
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-sidebar: 300;
+  --z-modal: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+
+  /* Layout */
+  --sidebar-width: 260px;
+  --sidebar-collapsed: 72px;
+  --topbar-height: 64px;
+}
+
+/* ---------- CSS Reset ---------- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--pc-text);
+  background-color: var(--pc-bg-body);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--pc-gold);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--pc-gold-light);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  outline: none;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--pc-text-heading);
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+h1 { font-size: var(--text-4xl); }
+h2 { font-size: var(--text-3xl); }
+h3 { font-size: var(--text-2xl); }
+h4 { font-size: var(--text-xl); }
+h5 { font-size: var(--text-lg); }
+h6 { font-size: var(--text-md); }
+
+p {
+  margin-bottom: var(--sp-4);
+  color: var(--pc-text);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--pc-border-light);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--pc-text-muted);
+}
+
+::selection {
+  background-color: rgba(236, 182, 118, 0.3);
+  color: var(--pc-text-heading);
+}
+
+.stat-card-icon {
+  filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.4));
+}
+/* ---------- Utility Classes ---------- */
+.text-gold { color: var(--pc-text-gold); }
+.text-muted { color: var(--pc-text-muted); }
+.text-success { color: var(--pc-success); }
+.text-warning { color: var(--pc-warning); }
+.text-danger { color: var(--pc-danger); }
+.text-info { color: var(--pc-info); }
+
+.text-xs { font-size: var(--text-xs); }
+.text-sm { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-md { font-size: var(--text-md); }
+.text-lg { font-size: var(--text-lg); }
+.text-xl { font-size: var(--text-xl); }
+
+.font-display { font-family: var(--font-display); }
+.font-body { font-family: var(--font-body); }
+.font-mono { font-family: var(--font-mono); }
+
+.font-light { font-weight: 300; }
+.font-normal { font-weight: 400; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+.text-uppercase { text-transform: uppercase; letter-spacing: 0.08em; }
+
+.d-flex { display: flex; }
+.d-grid { display: grid; }
+.d-block { display: block; }
+.d-inline-flex { display: inline-flex; }
+.d-none { display: none; }
+
+.flex-col { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-1 { flex: 1; }
+.flex-shrink-0 { flex-shrink: 0; }
+
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.items-end { align-items: flex-end; }
+.items-stretch { align-items: stretch; }
+
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
+.justify-start { justify-content: flex-start; }
+
+.gap-1 { gap: var(--sp-1); }
+.gap-2 { gap: var(--sp-2); }
+.gap-3 { gap: var(--sp-3); }
+.gap-4 { gap: var(--sp-4); }
+.gap-5 { gap: var(--sp-5); }
+.gap-6 { gap: var(--sp-6); }
+.gap-7 { gap: var(--sp-7); }
+.gap-8 { gap: var(--sp-8); }
+
+.m-0 { margin: 0; }
+.mt-1 { margin-top: var(--sp-1); }
+.mt-2 { margin-top: var(--sp-2); }
+.mt-3 { margin-top: var(--sp-3); }
+.mt-4 { margin-top: var(--sp-4); }
+.mt-6 { margin-top: var(--sp-6); }
+.mt-8 { margin-top: var(--sp-8); }
+.mb-1 { margin-bottom: var(--sp-1); }
+.mb-2 { margin-bottom: var(--sp-2); }
+.mb-3 { margin-bottom: var(--sp-3); }
+.mb-4 { margin-bottom: var(--sp-4); }
+.mb-6 { margin-bottom: var(--sp-6); }
+.mb-8 { margin-bottom: var(--sp-8); }
+.ml-auto { margin-left: auto; }
+.mr-auto { margin-right: auto; }
+
+.p-0 { padding: 0; }
+.p-2 { padding: var(--sp-2); }
+.p-3 { padding: var(--sp-3); }
+.p-4 { padding: var(--sp-4); }
+.p-5 { padding: var(--sp-5); }
+.p-6 { padding: var(--sp-6); }
+.p-8 { padding: var(--sp-8); }
+
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.min-h-screen { min-height: 100vh; }
+
+.overflow-hidden { overflow: hidden; }
+.overflow-auto { overflow: auto; }
+.overflow-y-auto { overflow-y: auto; }
+
+.relative { position: relative; }
+.absolute { position: absolute; }
+.fixed { position: fixed; }
+.sticky { position: sticky; }
+
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded-md { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-xl { border-radius: var(--radius-xl); }
+.rounded-full { border-radius: var(--radius-full); }
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* ---------- Animations ---------- */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(236, 182, 118, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(236, 182, 118, 0.4); }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ripple {
+  0% { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+.animate-fade-in { animation: fadeIn var(--transition-base) ease-out; }
+.animate-fade-in-up { animation: fadeInUp var(--transition-slow) ease-out; }
+.animate-fade-in-down { animation: fadeInDown var(--transition-slow) ease-out; }
+.animate-fade-in-scale { animation: fadeInScale var(--transition-slow) ease-out; }
+.animate-slide-in-right { animation: slideInRight var(--transition-slow) ease-out; }
+.animate-slide-in-left { animation: slideInLeft var(--transition-slow) ease-out; }
+
+/* Stagger animation delays */
+.stagger-1 { animation-delay: 50ms; }
+.stagger-2 { animation-delay: 100ms; }
+.stagger-3 { animation-delay: 150ms; }
+.stagger-4 { animation-delay: 200ms; }
+.stagger-5 { animation-delay: 250ms; }
+.stagger-6 { animation-delay: 300ms; }
+.stagger-7 { animation-delay: 350ms; }
+.stagger-8 { animation-delay: 400ms; }
+
+/* ============================================================
+   LIGHT THEME OVERRIDES
+   Applied when <html data-theme="light"> is set
+   ============================================================ */
+[data-theme="light"] {
+  /* Backgrounds */
+  --pc-bg-dark:    #F0EDE8;
+  --pc-bg-body:    #F7F4F0;
+  --pc-bg-card:    #FFFFFF;
+  --pc-bg-card-hover: #F9F6F2;
+  --pc-bg-sidebar: #FFFFFF;
+  --pc-bg-topbar:  rgba(255, 255, 255, 0.92);
+  --pc-bg-input:   #F3EFE9;
+  --pc-bg-modal:   #FFFFFF;
+  --pc-bg-overlay: rgba(0, 0, 0, 0.35);
+
+  /* Text */
+  --pc-text:           #2C2825;
+  --pc-text-secondary: #5C5652;
+  --pc-text-muted:     #9E9A96;
+  --pc-text-heading:   #1A1714;
+  --pc-text-gold:      #A4652F;
+  --pc-text-inverse:   #FFFFFF;
+
+  /* Borders */
+  --pc-border:             rgba(0, 0, 0, 0.08);
+  --pc-border-light:       rgba(0, 0, 0, 0.12);
+  --pc-border-gold:        rgba(164, 101, 47, 0.25);
+  --pc-border-gold-strong: rgba(164, 101, 47, 0.5);
+
+  /* Gold adjustments for light bg */
+  --pc-gold:        #A4652F;
+  --pc-gold-light:  #C4854F;
+  --pc-gold-lighter:#FFF4E6;
+  --pc-amber-glow:  rgba(164, 101, 47, 0.1);
+  --pc-amber-glow-strong: rgba(164, 101, 47, 0.2);
+
+  /* Gradients */
+  --pc-gradient-dark:    linear-gradient(180deg, #FFFFFF 0%, #F7F4F0 100%);
+  --pc-gradient-card:    linear-gradient(145deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0) 100%);
+  --pc-gradient-sidebar: linear-gradient(180deg, #FFFFFF 0%, #F9F6F2 100%);
+
+  /* Shadows — lighter for light theme */
+  --pc-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --pc-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --pc-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --pc-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.15);
+  --pc-shadow-gold: 0 4px 20px rgba(164, 101, 47, 0.15);
+  --pc-shadow-glow: 0 0 30px rgba(164, 101, 47, 0.1);
+
+  /* Scrollbar */
+  scrollbar-color: rgba(0,0,0,0.2) transparent;
+}
+
+/* Light theme scrollbar */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.25);
+}
+
+/* Light theme wordmark — use dark version */
+[data-theme="light"] .brand-wordmark,
+[data-theme="light"] .sidebar-logo img {
+  filter: none;
+}
+
+/* Light theme login card */
+[data-theme="light"] .auth-overlay {
+  background-color: var(--pc-bg-dark);
+}
+
+/* Smooth theme transition */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* ============================================================
+   LIGHT THEME — Targeted overrides for hardcoded dark rgba values
+   Only fixing components that use rgba(255,255,255,...) backgrounds
+   which become invisible on a light background.
+   ============================================================ */
+
+[data-theme="light"] .btn-secondary {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+[data-theme="light"] .btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.10);
+}
+[data-theme="light"] .btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .data-table th {
+  background: rgba(0, 0, 0, 0.03);
+}
+[data-theme="light"] .data-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .badge-muted {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="light"] .modal-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .progress-bar {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .list-item:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .kanban-column {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] .kanban-column-count {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="light"] .stat-card-trend.neutral {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* ===== 2. layout.css — sidebar, topbar, page structure ===== */
+/* ============================================================
+   POOJA'S COUTURE — Layout Styles
+   Dashboard shell, sidebar, topbar, main content area
+   ============================================================ */
+
+/* ---------- App Shell ---------- */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--pc-bg-body);
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-sidebar);
+  background: var(--pc-gradient-sidebar);
+  border-right: 1px solid var(--pc-border);
+  display: flex;
+  flex-direction: column;
+  transition: width var(--transition-slow), transform var(--transition-slow);
+  overflow: hidden;
+}
+
+.sidebar-brand {
+  padding: var(--sp-6) var(--sp-5);
+  border-bottom: 1px solid var(--pc-border);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sidebar-brand::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at 30% 50%, rgba(236,182,118,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.sidebar-brand-logo {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Subtle raised/3D feel without distorting the mark */
+  filter:
+    drop-shadow(0 1px 1px rgba(0,0,0,0.55))
+    drop-shadow(0 2px 4px rgba(0,0,0,0.35))
+    drop-shadow(0 0 1px rgba(236,182,118,0.5));
+}
+
+.sidebar-wordmark {
+  flex: 1;
+  min-width: 0;
+  max-width: 150px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  /* Subtle depth to match the monogram */
+  filter:
+    drop-shadow(0 1px 1px rgba(0,0,0,0.5))
+    drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+}
+
+.sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar-brand-name {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.sidebar-brand-tagline {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  white-space: nowrap;
+  font-style: italic;
+}
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-4) 0;
+}
+
+.sidebar-section {
+  margin-bottom: var(--sp-2);
+}
+
+.sidebar-section-title {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--pc-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: var(--sp-3) var(--sp-5) var(--sp-2);
+  font-family: var(--font-body);
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  color: var(--pc-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  position: relative;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-body);
+}
+
+.sidebar-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  background: var(--pc-gradient-gold);
+  border-radius: 0 var(--radius-full) var(--radius-full) 0;
+  transition: height var(--transition-fast);
+}
+
+.sidebar-link:hover {
+  color: var(--pc-text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sidebar-link:hover::before {
+  height: 60%;
+}
+
+.sidebar-link.active {
+  color: var(--pc-gold);
+  background: var(--pc-amber-glow);
+}
+
+.sidebar-link.active::before {
+  height: 60%;
+}
+
+.sidebar-link-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+  box-shadow:
+    0 0 6px var(--glow, transparent),
+    0 0 14px var(--glow, transparent);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.sidebar-link-icon i {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.sidebar-link:hover .sidebar-link-icon,
+.sidebar-link.active .sidebar-link-icon {
+  transform: scale(1.15);
+  box-shadow:
+    0 0 8px var(--glow, transparent),
+    0 0 22px var(--glow, transparent),
+    0 0 34px var(--glow, transparent);
+}
+
+.sidebar-link-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-link-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--pc-danger);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-footer {
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--pc-border);
+  flex-shrink: 0;
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+  cursor: pointer;
+}
+
+.sidebar-user:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sidebar-user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--pc-gradient-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--pc-text-inverse);
+  flex-shrink: 0;
+}
+
+.sidebar-user-info {
+  min-width: 0;
+}
+
+.sidebar-user-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--pc-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-role {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+}
+
+/* ---------- Main Content ---------- */
+.main-content {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  transition: margin-left var(--transition-slow);
+}
+
+/* ---------- Top Bar ---------- */
+.topbar {
+  height: var(--topbar-height);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--pc-bg-topbar);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--pc-border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-7);
+  gap: var(--sp-5);
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 1;
+}
+
+.topbar-toggle {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  align-items: center;
+  justify-content: center;
+  color: var(--pc-text-muted);
+  font-size: var(--text-xl);
+  transition: all var(--transition-fast);
+}
+
+.topbar-toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--pc-text);
+}
+
+.topbar-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--pc-text-muted);
+}
+
+.topbar-breadcrumb-item {
+  color: var(--pc-text-muted);
+}
+
+.topbar-breadcrumb-separator {
+  color: var(--pc-border-light);
+  font-size: var(--text-xs);
+}
+
+.topbar-breadcrumb-current {
+  color: var(--pc-text);
+  font-weight: 500;
+}
+
+.topbar-search {
+  position: relative;
+  max-width: 320px;
+  flex: 1;
+}
+
+.topbar-search-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 var(--sp-4) 0 38px;
+  background: var(--pc-bg-input);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-full);
+  color: var(--pc-text);
+  font-size: var(--text-sm);
+  transition: all var(--transition-fast);
+}
+
+.topbar-search-input::placeholder {
+  color: var(--pc-text-muted);
+}
+
+.topbar-search-input:focus {
+  border-color: var(--pc-border-gold);
+  box-shadow: 0 0 0 3px rgba(236, 182, 118, 0.1);
+}
+
+.topbar-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--pc-text-muted);
+  font-size: var(--text-sm);
+  pointer-events: none;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.topbar-datetime {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.topbar-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pc-text-muted);
+  font-size: var(--text-lg);
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.topbar-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--pc-text);
+}
+
+.topbar-btn-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pc-danger);
+  border: 2px solid var(--pc-bg-body);
+}
+
+/* ---------- Page Content ---------- */
+.page-content {
+  flex: 1;
+  padding: var(--sp-7);
+  animation: fadeIn var(--transition-base) ease-out;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-7);
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.page-title {
+  font-family: var(--font-body);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+}
+
+.page-subtitle {
+  font-size: var(--text-sm);
+  color: var(--pc-text-muted);
+  margin-top: var(--sp-1);
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+/* ---------- Dashboard Widgets Grid ---------- */
+.widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-7);
+}
+
+.widgets-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-7);
+}
+
+.widgets-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-7);
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-7);
+}
+
+.content-grid-3 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-7);
+}
+
+/* ---------- Toast Container ---------- */
+#toast-container {
+  position: fixed;
+  top: var(--sp-6);
+  right: var(--sp-6);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--pc-shadow-lg);
+  backdrop-filter: blur(12px);
+  pointer-events: all;
+  min-width: 280px;
+  max-width: 420px;
+  transition: all var(--transition-base);
+}
+
+.toast-success { border-left: 3px solid var(--pc-success); }
+.toast-error { border-left: 3px solid var(--pc-danger); }
+.toast-warning { border-left: 3px solid var(--pc-warning); }
+.toast-info { border-left: 3px solid var(--pc-info); }
+
+.toast-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.toast-success .toast-icon { background: var(--pc-success-bg); color: var(--pc-success); }
+.toast-error .toast-icon { background: var(--pc-danger-bg); color: var(--pc-danger); }
+.toast-warning .toast-icon { background: var(--pc-warning-bg); color: var(--pc-warning); }
+.toast-info .toast-icon { background: var(--pc-info-bg); color: var(--pc-info); }
+
+.toast-message {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--pc-text);
+}
+
+.toast-close {
+  color: var(--pc-text-muted);
+  font-size: var(--text-lg);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1024px) {
+  .sidebar {
+    transform: translateX(-100%);
   }
-});
-
-const App = (() => {
-  let currentRoute = 'dashboard';
-
-  async function init() {
-    // Hide login overlay immediately if session already cached — prevents flash on back-navigation
-    const _cachedUser = (() => {
-      try { return JSON.parse(localStorage.getItem('pc_current_user')); } catch(e) { return null; }
-    })();
-    const _loginOverlay = Utils.$('#login-overlay');
-    if (_cachedUser && _loginOverlay) _loginOverlay.classList.remove('active');
-
-    const area = Utils.$('#main-content-area');
-    if (area) area.innerHTML = '<div style="padding:60px;text-align:center;color:var(--pc-text-muted)">Loading your studio data...</div>';
-
-    try {
-      await Store.ready();
-      Store.subscribeRealtime();
-    } catch (err) {
-      console.error('Failed to load data from Supabase:', err);
-      if (area) area.innerHTML = '<div style="padding:60px;text-align:center;color:#F87171">Could not connect to the database. Check config.js (your publishable key) and your internet connection, then refresh.</div>';
-      return;
-    }
-
-    startClock();
-    setupNavigation();
-    Utils.$('#btn-notifications').addEventListener('click', showNotificationsSummary);
-    setupAuthListeners();
-    await checkAuthSession();
+  
+  .sidebar.open {
+    transform: translateX(0);
   }
 
-  function startClock() {
-    const clockEl = Utils.$('#topbar-clock');
-    if (!clockEl) return;
-    const updateTime = () => { clockEl.textContent = Utils.formatDateTime(new Date()); };
-    updateTime();
-    setInterval(updateTime, 1000);
+  .main-content {
+    margin-left: 0;
   }
 
-  function setupNavigation() {
-    Utils.$$('.sidebar-link').forEach(link => {
-      link.addEventListener('click', (e) => {
-        const route = e.currentTarget.dataset.route;
-        if (route) {
-          navigate(route);
-          Utils.$('#sidebar').classList.remove('open');
-          Utils.$('#sidebar-overlay').classList.remove('active');
-        }
-      });
-    });
+  .topbar-toggle {
+    display: flex;
   }
 
-  (function wireSidebarCollapse() {
-    const sidebar = document.getElementById('sidebar');
-    const brand   = sidebar ? sidebar.querySelector('.sidebar-brand') : null;
-    if (!sidebar || !brand) return;
-    sidebar.querySelectorAll('.sidebar-link').forEach(btn => {
-      const text = btn.querySelector('.sidebar-link-text');
-      if (text) btn.setAttribute('data-tooltip', text.textContent.trim());
-    });
-    const saved = localStorage.getItem('pc-sidebar-collapsed');
-    if (saved === 'true') sidebar.classList.add('collapsed');
-    brand.addEventListener('click', () => {
-      const isCollapsed = sidebar.classList.toggle('collapsed');
-      localStorage.setItem('pc-sidebar-collapsed', isCollapsed);
-    });
-  })();
-
-  function navigate(route) {
-    currentRoute = route;
-    try { localStorage.setItem('pc_last_route', route); } catch(e) {}
-
-    const user = Store.getCurrentUser();
-    if (user) {
-      const role = user.appRole || user.app_role || 'admin';
-      const ACCESS = {
-        admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  'ai-team':true  },
-        operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, 'ai-team':false },
-        social_crm: { dashboard:true,  products:true,  crm:true,  hrm:false, accounting:false, admin:false, settings:false, 'ai-team': (user.permissions && user.permissions.socialCrm) ? true : false  },
-        tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false },
-        logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false }
-      };
-      const access = ACCESS[role] || ACCESS.admin;
-      if (['dashboard','products','crm','hrm','accounting','admin','settings','ai-team'].includes(route) && access[route] !== true) {
-        showAccessDenied();
-        return;
-      }
-    }
-
-    Utils.$$('.sidebar-link').forEach(link => {
-      if (link.dataset.route === route) {
-        link.classList.add('active');
-      } else {
-        link.classList.remove('active');
-      }
-    });
-
-    const breadcrumbLabel = Utils.$('#topbar-breadcrumb-active');
-    const routesMap = {
-      dashboard:  'Overview Dashboard',
-      crm:        'Sales Dashboard',
-      products:   'Stock & Inventory',
-      accounting: 'Accounting & Finance',
-      hrm:        'Human Capital',
-      admin:      'Admin Center',
-      settings:   'Boutique Settings',
-      'ai-team':  'Social CRM Studio',
-    };
-    if (breadcrumbLabel) breadcrumbLabel.textContent = routesMap[route] || 'System Panel';
-
-    if (route === 'dashboard') {
-      renderDashboard();
-    } else if (route === 'products') {
-      Products.init();
-    } else if (route === 'crm') {
-      CRM.init();
-    } else if (route === 'hrm') {
-      HRM.init();
-    } else if (route === 'accounting') {
-      Accounting.init();
-    } else if (route === 'settings') {
-      renderSettings();
-    } else if (route === 'admin') {
-      Admin.init();
-    } else if (route === 'ai-team') {
-      window.location.href = '/ai-team/';
-    } else if (route === 'workstation-tailor') {
-      renderWorkstationHolding('tailor');
-    } else if (route === 'workstation-logistics') {
-      renderWorkstationHolding('logistics');
-    }
+  .page-content {
+    padding: var(--sp-5);
   }
 
-  function renderWorkstationHolding(kind) {
-    const container = Utils.$('#main-content-area');
-    if (!container) return;
-    const user = Store.getCurrentUser() || {};
-    const isTailor = kind === 'tailor';
-    const portalName = isTailor ? 'Karigar Workstation' : 'Logistics Workstation';
-    const portalHref = isTailor ? 'tailor/index.html' : 'shipping/index.html';
-    const icon = isTailor ? '🪡' : '✈️';
-    container.innerHTML = `
-      <div class="card p-8 text-center animate-fade-in" style="max-width:520px;margin:60px auto">
-        <div style="font-size:52px;margin-bottom:16px">${icon}</div>
-        <h2 class="font-display text-gold">Welcome, ${Utils.sanitizeHTML(user.name || 'there')}</h2>
-        <p class="text-muted mt-2">Opening your ${portalName}…</p>
-        <p class="text-xs text-muted mt-4">If it does not open automatically,
-          <a href="${portalHref}" style="color:var(--pc-gold,#d4af37);text-decoration:underline;">click here</a>.</p>
-      </div>
-    `;
-    const bc = Utils.$('#topbar-breadcrumb-active');
-    if (bc) bc.textContent = portalName;
-    setTimeout(() => { window.location.href = portalHref; }, 1500);
+  .widgets-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  function renderDashboard() {
-    const container = Utils.$('#main-content-area');
-    if (!container) return;
-
-    const _dashUser = Store.getCurrentUser();
-    const _firstName = _dashUser && _dashUser.name ? _dashUser.name.split(' ')[0] : 'there';
-    const _hour = new Date().getHours();
-    const _greeting = _hour < 12 ? 'Good morning' : _hour < 17 ? 'Good afternoon' : 'Good evening';
-
-    const clients = Store.getAll(Store.COLLECTIONS.CLIENTS);
-    const orders = Store.getAll(Store.COLLECTIONS.ORDERS);
-    const appts = Store.getAll(Store.COLLECTIONS.APPOINTMENTS);
-    const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
-
-    const totalBrides = clients.filter(c => c.type === 'Bride').length;
-    const activeOrders = orders.filter(o => !['Delivered', 'Completed'].includes(o.status));
-    const pendingInvoices = invoices.filter(i => ['Partially Paid', 'Sent', 'Draft'].includes(i.status));
-    const upcomingAppts = appts.filter(a => a.status === 'Scheduled');
-    const totalOutstanding = pendingInvoices.reduce((sum, i) => {
-      const paid = (i.amountPaid != null && i.amountPaid !== '') ? parseFloat(i.amountPaid) : 0;
-      return sum + Math.max(0, (i.total || 0) - paid);
-    }, 0);
-
-    container.innerHTML = `
-      <div class="page-header animate-fade-in">
-        <div>
-          <h1 class="page-title">${_greeting}, ${_firstName} 👋</h1>
-          <p class="page-subtitle">Here is what is happening at Pooja's Couture today</p>
-        </div>
-      </div>
-
-      <div class="widgets-grid animate-fade-in stagger-1">
-        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('brides')">
-          <div class="stat-card-header">
-            <span class="stat-card-icon gold">👑</span>
-            <span class="badge badge-gold">${totalBrides} Registered</span>
-          </div>
-          <div class="stat-card-value">${totalBrides}</div>
-          <div class="stat-card-label">Active Brides</div>
-        </div>
-        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('orders')">
-          <div class="stat-card-header">
-            <span class="stat-card-icon blue">🧵</span>
-            <span class="badge badge-info">${activeOrders.length} In Production</span>
-          </div>
-          <div class="stat-card-value">${activeOrders.length}</div>
-          <div class="stat-card-label">Active Custom Orders</div>
-        </div>
-        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('outstanding')">
-          <div class="stat-card-header">
-            <span class="stat-card-icon green">💰</span>
-            <span class="badge badge-success">${pendingInvoices.length} Unpaid</span>
-          </div>
-          <div class="stat-card-value">${Utils.formatCurrency(totalOutstanding)}</div>
-          <div class="stat-card-label">Outstanding Invoices</div>
-        </div>
-        <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('appointments')">
-          <div class="stat-card-header">
-            <span class="stat-card-icon purple">📅</span>
-            <span class="badge badge-purple">${upcomingAppts.length} Scheduled</span>
-          </div>
-          <div class="stat-card-value">${upcomingAppts.length}</div>
-          <div class="stat-card-label">Upcoming Consultations</div>
-        </div>
-      </div>
-
-      <div class="content-grid-3 animate-fade-in stagger-2">
-        <div class="card p-6">
-          <div class="card-header p-0 pb-4 mb-4">
-            <div class="card-title">📅 Upcoming Consultations & Fittings (Next 7 Days)</div>
-            <button class="btn btn-secondary btn-sm" onclick="App.quickRoute('crm', 'appointments')">View All</button>
-          </div>
-          <div class="table-container" style="border: none;">
-            <table class="data-table">
-              <thead><tr><th>Client</th><th>Session Date</th><th>Session Type</th><th>Notes</th></tr></thead>
-              <tbody id="dash-appt-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="card p-6">
-          <div class="card-title mb-4">🔔 Live Operations Alerts</div>
-          <div class="d-flex flex-col gap-3" id="dash-alerts-feed"></div>
-        </div>
-      </div>
-    `;
-
-    const tbody = Utils.$('#dash-appt-tbody');
-    tbody.innerHTML = '';
-    const next7DaysAppts = appts
-      .filter(a => a.status === 'Scheduled' && Utils.daysFromNow(a.date) >= 0 && Utils.daysFromNow(a.date) <= 7)
-      .sort((a,b) => new Date(a.date) - new Date(b.date));
-
-    if (next7DaysAppts.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" class="text-center p-6 text-muted text-xs">No appointments scheduled for the next 7 days.</td></tr>`;
-    } else {
-      next7DaysAppts.forEach(a => {
-        const tr = Utils.createElement('tr');
-        tr.innerHTML = `
-          <td class="font-medium">${Utils.sanitizeHTML(a.clientName)}</td>
-          <td class="font-mono text-xs">${Utils.formatDateTime(a.date)}</td>
-          <td><span class="badge ${a.type === 'Fitting' ? 'badge-purple' : 'badge-gold'}">${a.type}</span></td>
-          <td class="text-muted text-xs truncate" style="max-width: 180px;">${Utils.sanitizeHTML(a.notes || '—')}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    const feed = Utils.$('#dash-alerts-feed');
-    feed.innerHTML = '';
-    const alerts = [];
-
-    invoices.forEach(i => {
-      if (i.status === 'Sent' && new Date(i.dueDate) < new Date()) {
-        alerts.push({
-          type: 'danger',
-          title: `Overdue Invoice: ${i.invoiceNumber}`,
-          desc: `Client: ${i.clientName} | Total: ${Utils.formatCurrency(i.total)}`,
-          action: () => quickRoute('accounting', 'invoices')
-        });
-      }
-    });
-
-    orders.forEach(o => {
-      if (!['Delivered', 'Completed'].includes(o.status) && new Date(o.deadline) < new Date()) {
-        alerts.push({
-          type: 'warning',
-          title: `Overdue Order Deadline!`,
-          desc: `${o.title} (${o.clientName}) passed target date.`,
-          action: () => quickRoute('crm', 'orders')
-        });
-      }
-    });
-
-    const pendingLeaves = Store.getAll(Store.COLLECTIONS.LEAVES).filter(l => l.status === 'Pending');
-    pendingLeaves.forEach(pl => {
-      alerts.push({
-        type: 'info',
-        title: `Pending Leave Request`,
-        desc: `${pl.employeeName} requests ${pl.days} days starting ${Utils.formatDateShort(pl.startDate)}`,
-        action: () => quickRoute('hrm', 'leaves')
-      });
-    });
-
-    if (alerts.length === 0) {
-      feed.innerHTML = `<div class="text-center p-6 text-muted text-xs">✅ All operational pipelines are on schedule. No alerts!</div>`;
-    } else {
-      alerts.slice(0, 5).forEach(alert => {
-        const item = Utils.createElement('div', {
-          className: 'p-3 rounded-md d-flex justify-between items-start gap-2',
-          style: `background: rgba(255,255,255,0.01); border-left: 3px solid var(--pc-${alert.type === 'danger' ? 'danger' : alert.type === 'warning' ? 'warning' : 'info'}); border-top: 1px solid var(--pc-border); border-right: 1px solid var(--pc-border); border-bottom: 1px solid var(--pc-border);`
-        });
-        item.innerHTML = `
-          <div>
-            <div class="text-xs font-semibold text-gold">${Utils.sanitizeHTML(alert.title)}</div>
-            <div class="text-xs text-muted mt-1 font-light">${Utils.sanitizeHTML(alert.desc)}</div>
-          </div>
-          <button class="btn btn-secondary btn-sm" style="font-size: 10px; padding: 2px 6px;">Manage</button>
-        `;
-        Utils.$('button', item).addEventListener('click', alert.action);
-        feed.appendChild(item);
-      });
-    }
+  .content-grid,
+  .content-grid-3 {
+    grid-template-columns: 1fr;
   }
 
-  function quickRoute(route, subtab = null) {
-    navigate(route);
-    if (subtab) {
-      setTimeout(() => {
-        const tabBtn = Utils.$(`.tab-btn[data-tab="${subtab}"]`);
-        if (tabBtn) tabBtn.click();
-      }, 50);
-    }
+  .widgets-grid-2,
+  .widgets-grid-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .widgets-grid,
+  .widgets-grid-2,
+  .widgets-grid-3 {
+    grid-template-columns: 1fr;
   }
 
-  function renderSettings() {
-    const container = Utils.$('#main-content-area');
-    if (!container) return;
-    const settings = Store.getSettings();
-    container.innerHTML = `
-      <div class="card max-w-xl mx-auto" style="max-width: 600px; margin: 0 auto;">
-        <div class="card-header">
-          <div class="card-title">Studio Business Details & Data Utility</div>
-        </div>
-        <div class="card-body">
-          <form id="settings-form" class="animate-fade-in">
-            <div class="form-group">
-              <label class="form-label">Showroom Business Name</label>
-              <input type="text" name="companyName" class="form-input font-medium" required value="${Utils.sanitizeHTML(settings.companyName)}">
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Australian ABN</label>
-                <input type="text" name="abn" class="form-input font-mono" required value="${Utils.sanitizeHTML(settings.abn)}">
-              </div>
-              <div class="form-group">
-                <label class="form-label">GST Tax Percentage (%)</label>
-                <input type="number" name="gstRate" class="form-input font-mono" readonly value="10">
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Contact Email</label>
-                <input type="email" name="companyEmail" class="form-input" required value="${Utils.sanitizeHTML(settings.companyEmail)}">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Contact Phone</label>
-                <input type="text" name="companyPhone" class="form-input" required value="${Utils.sanitizeHTML(settings.companyPhone)}">
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Studio/Boutique Address</label>
-              <input type="text" name="companyAddress" class="form-input" required value="${Utils.sanitizeHTML(settings.companyAddress)}">
-            </div>
-            <div class="d-flex justify-end mb-6" style="border-bottom: 1px solid var(--pc-border); padding-bottom: var(--sp-5);">
-              <button type="submit" class="btn btn-primary">Save Boutique Settings</button>
-            </div>
-          </form>
-          <div>
-            <h4 class="text-sm font-semibold text-gold mb-3">Local Sandbox Administration</h4>
-            <div class="d-flex flex-wrap gap-2">
-              <button class="btn btn-secondary btn-sm" id="btn-export-data">📥 Export JSON Backup</button>
-              <button class="btn btn-secondary btn-sm" id="btn-import-trigger">📤 Import JSON Restore</button>
-              <input type="file" id="import-file-input" style="display: none;" accept=".json">
-              <button class="btn btn-danger btn-sm" id="btn-reset-db">🚨 Factory Reset Sandbox</button>
-            </div>
-            <p class="text-xs text-muted mt-2 font-light">Exporting downloads a local .json file containing all client, order, payroll and accounting transactions for storage.</p>
-          </div>
-        </div>
-      </div>
-    `;
-
-    Utils.$('#settings-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const formData = new FormData(form);
-      Store.updateSettings({
-        companyName: formData.get('companyName'),
-        abn: formData.get('abn'),
-        companyEmail: formData.get('companyEmail'),
-        companyPhone: formData.get('companyPhone'),
-        companyAddress: formData.get('companyAddress')
-      });
-      Utils.showToast('Boutique details saved successfully.');
-    });
-
-    Utils.$('#btn-export-data').addEventListener('click', exportSandboxData);
-    const fileInput = Utils.$('#import-file-input');
-    Utils.$('#btn-import-trigger').addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => importSandboxData(e.target.files[0]));
-    Utils.$('#btn-reset-db').addEventListener('click', () => {
-      showConfirm({
-        title: 'Factory Reset Operations',
-        text: 'This will purge all local client data, orders, financial records, and payrolls, returning the boutique sandbox to default seed values. This cannot be undone!',
-        confirmText: 'Yes, Factory Reset',
-        onConfirm: () => {
-          Utils.showToast('Factory reset is disabled in the cloud database version. Manage data via Supabase.', 'info');
-        }
-      });
-    });
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  function exportSandboxData() {
-    const backup = {};
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('pc_suite_')) backup[key] = localStorage.getItem(key);
-    });
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `poojas_couture_backup_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    Utils.showToast('Backup JSON file downloaded.');
+  .topbar {
+    padding: 0 var(--sp-4);
   }
 
-  function importSandboxData(file) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const backup = JSON.parse(e.target.result);
-        Object.entries(backup).forEach(([key, val]) => { localStorage.setItem(key, val); });
-        Utils.showToast('Database restored. Reloading operations dashboard.', 'success');
-        setTimeout(() => navigate('dashboard'), 1000);
-      } catch (err) {
-        console.error(err);
-        Utils.showToast('Invalid backup file formatting.', 'error');
-      }
-    };
-    reader.readAsText(file);
+  .topbar-search {
+    display: none;
   }
 
-  function showModal({ title, content, submitText = 'Submit', cancelText = 'Cancel', hideCancel = false, modalSize = '', onSubmit }) {
-    closeModal();
-    const overlay = Utils.createElement('div', { className: `modal-overlay active` });
-    overlay.innerHTML = `
-      <div class="modal ${modalSize}">
-        <div class="modal-header">
-          <div class="modal-title">${Utils.sanitizeHTML(title)}</div>
-          <button class="modal-close" id="modal-close-btn">×</button>
-        </div>
-        <div class="modal-body">${content}</div>
-        <div class="modal-footer">
-          ${hideCancel ? '' : `<button class="btn btn-secondary" id="modal-cancel-btn">${cancelText}</button>`}
-          <button class="btn btn-primary" id="modal-submit-btn">${submitText}</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    const close = () => closeModal();
-    Utils.$('#modal-close-btn', overlay).addEventListener('click', close);
-    if (!hideCancel) Utils.$('#modal-cancel-btn', overlay).addEventListener('click', close);
-    const submit = Utils.$('#modal-submit-btn', overlay);
-    submit.addEventListener('click', () => {
-      if (onSubmit) {
-        const success = onSubmit(overlay);
-        if (success !== false) close();
-      } else {
-        close();
-      }
-    });
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  .topbar-datetime {
+    display: none;
   }
+}
 
-  function closeModal() {
-    const overlays = Utils.$$('.modal-overlay');
-    overlays.forEach(overlay => {
-      overlay.classList.remove('active');
-      setTimeout(() => overlay.remove(), 250);
-    });
+/* Mobile overlay */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--pc-bg-overlay);
+  z-index: calc(var(--z-sidebar) - 1);
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.sidebar-overlay.active {
+  display: block;
+  opacity: 1;
+}
+
+/* ============================================================
+   SIDEBAR COLLAPSIBLE — collapsed state
+   ============================================================ */
+
+/* Collapsed sidebar */
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed, 72px);
+}
+
+/* Hide wordmark, section titles, link text when collapsed */
+.sidebar.collapsed .sidebar-wordmark,
+.sidebar.collapsed .sidebar-brand-text,
+.sidebar.collapsed .sidebar-section-title,
+.sidebar.collapsed .sidebar-link-text {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s, width 0.2s;
+}
+
+/* Center icons when collapsed */
+.sidebar.collapsed .sidebar-link {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sidebar.collapsed .sidebar-link-icon {
+  margin: 0 auto;
+  font-size: 20px;
+}
+
+/* Logo click cursor */
+.sidebar-brand {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Collapse toggle hint on logo */
+.sidebar-brand-logo::after {
+  content: '‹';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  color: var(--pc-gold, #d4af37);
+  opacity: 0.5;
+  transition: transform 0.3s, opacity 0.2s;
+}
+.sidebar.collapsed .sidebar-brand-logo::after {
+  content: '›';
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  top: 50%;
+}
+.sidebar-brand:hover .sidebar-brand-logo::after {
+  opacity: 1;
+}
+
+/* Main content adjusts when sidebar collapses */
+.app-body.sidebar-collapsed .main-content,
+.sidebar.collapsed ~ .main-content,
+.sidebar.collapsed ~ * .main-content {
+  margin-left: var(--sidebar-collapsed, 72px);
+}
+
+/* Tooltip on collapsed nav items */
+.sidebar.collapsed .sidebar-link {
+  position: relative;
+}
+.sidebar.collapsed .sidebar-link:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(var(--sidebar-collapsed, 72px) + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--pc-bg-card, #1a1a2e);
+  color: var(--pc-text, #fff);
+  border: 1px solid var(--pc-border, #2a2a4a);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 9999;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* ============================================================
+   UNIFIED MOBILE SIDEBAR CONTRACT
+   One behavior for every portal that has a sidebar:
+   - #sidebar-toggle (hamburger) shows/hides #sidebar via .open
+   - #sidebar-overlay dims the page and closes on click
+   - .collapsed (desktop icon-rail) is a DESKTOP-ONLY feature —
+     neutralized below so it can never combine with the mobile
+     off-canvas state (that combination previously left the
+     opened sidebar showing icon-only, with no text, on phones).
+   ============================================================ */
+@media (max-width: 1024px) {
+  .sidebar.collapsed {
+    width: var(--sidebar-width, 260px);
   }
-
-  function showConfirm({ title, text, confirmText = 'Confirm', cancelText = 'Cancel', onConfirm }) {
-    const contentHTML = `
-      <div class="confirm-dialog animate-fade-in-scale">
-        <div class="confirm-dialog-icon">⚠</div>
-        <h3 class="confirm-dialog-title">${Utils.sanitizeHTML(title)}</h3>
-        <p class="confirm-dialog-text">${Utils.sanitizeHTML(text)}</p>
-      </div>
-    `;
-    showModal({
-      title: 'Action Confirmation Required',
-      content: contentHTML,
-      submitText: confirmText,
-      cancelText: cancelText,
-      modalSize: 'modal-sm',
-      onSubmit: () => { if (onConfirm) onConfirm(); return true; }
-    });
+  .sidebar.collapsed .sidebar-wordmark,
+  .sidebar.collapsed .sidebar-brand-text,
+  .sidebar.collapsed .sidebar-section-title,
+  .sidebar.collapsed .sidebar-link-text {
+    opacity: 1;
+    width: auto;
+    pointer-events: all;
   }
-
-  function showNotificationsSummary() {
-    const invoices = Store.getAll(Store.COLLECTIONS.INVOICES);
-    const overdue = invoices.filter(i => i.status === 'Sent' && new Date(i.dueDate) < new Date());
-    const contentHTML = `
-      <div class="d-flex flex-col gap-3">
-        <h4 class="text-sm font-semibold text-gold mb-1">Overdue Invoices (${overdue.length})</h4>
-        ${overdue.length === 0
-          ? `<div class="text-xs text-muted p-4 text-center rounded-md" style="background: rgba(255,255,255,0.01); border: 1px dashed var(--pc-border)">No overdue invoices at this time.</div>`
-          : `<div class="d-flex flex-col gap-2">${overdue.map(i => `
-              <div class="p-3 rounded-md d-flex justify-between items-center text-xs" style="background: rgba(248,113,113,0.03); border: 1px solid var(--pc-border)">
-                <div>
-                  <div class="font-semibold text-gold">${i.invoiceNumber}</div>
-                  <div class="text-muted mt-1 font-light">${Utils.sanitizeHTML(i.clientName)} | Due: ${Utils.formatDate(i.dueDate)}</div>
-                </div>
-                <div class="font-mono font-bold text-danger">${Utils.formatCurrency(i.total)}</div>
-              </div>`).join('')}</div>`}
-      </div>
-    `;
-    showModal({
-      title: 'Active Operations System Notifications',
-      content: contentHTML,
-      submitText: 'Close Notifications',
-      hideCancel: true,
-      onSubmit: () => true
-    });
+  .sidebar.collapsed .sidebar-link {
+    justify-content: flex-start;
+    padding-left: var(--sp-4);
+    padding-right: var(--sp-4);
   }
+}
 
-  function landingRouteFor(user) {
-    const role = user.appRole || user.app_role || 'admin';
-    if (role === 'tailor') return 'workstation-tailor';
-    if (role === 'logistics') return 'workstation-logistics';
-    return 'dashboard';
+/* ===== 3. components.css — cards, tables, modals, forms, badges ===== */
+/* ============================================================
+   POOJA'S COUTURE — Reusable Component Styles
+   Cards, tables, modals, forms, badges, buttons, tabs
+   ============================================================ */
+
+/* ---------- Inline-styled info/summary panels ---------- */
+/* These are one-off boxes built directly in JS template strings across
+   crm.js, accounting.js, hrm.js, shipping/app.js, and tailor/app.js
+   (invoice summaries, milestone breakdowns, client detail panels, order
+   notices) — there are ~45 of them and they were never driven by a
+   shared CSS class, just a consistently-repeated inline style. Rather
+   than editing every individual template string, this attribute
+   selector catches all of them at once by matching that repeated
+   inline style, so they get the same resting shadow as .card/.stat-card/
+   .history-card without 45 separate JS edits (and without missing any).
+   Deliberately excludes dashed-border boxes (empty-state placeholders) —
+   those are meant to look empty/ghosted, not boxed. */
+div[style*="border:1px solid var(--pc-"] {
+  box-shadow: var(--pc-shadow-sm);
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--pc-shadow-sm);
+  transition: all var(--transition-base);
+  position: relative;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--pc-gradient-card);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.card:hover {
+  border-color: var(--pc-gold, #d4af37);
+  box-shadow: 0 6px 24px rgba(212,175,55,0.12);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  padding: var(--sp-5) var(--sp-6);
+  border-bottom: 1px solid var(--pc-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.card-title {
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+}
+
+.card-body {
+  padding: var(--sp-6);
+  position: relative;
+}
+
+.card-footer {
+  padding: var(--sp-4) var(--sp-6);
+  border-top: 1px solid var(--pc-border);
+}
+
+/* Stat Widget Card */
+.stat-card {
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--pc-shadow-sm);
+  transition: all var(--transition-base);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--pc-gradient-card);
+  pointer-events: none;
+}
+
+.stat-card:hover {
+  border-color: var(--pc-gold, #d4af37);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 28px rgba(212,175,55,0.18);
+}
+.stat-card:hover .stat-card-value {
+  color: var(--pc-gold, #d4af37);
+}
+
+.stat-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--sp-4);
+  position: relative;
+}
+
+.stat-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xl);
+  flex-shrink: 0;
+}
+
+.stat-card-icon.gold   { background: var(--pc-amber-glow);   color: var(--pc-gold);    }
+.stat-card-icon.green  { background: var(--pc-success-bg);   color: var(--pc-success); }
+.stat-card-icon.blue   { background: var(--pc-info-bg);      color: var(--pc-info);    }
+.stat-card-icon.red    { background: var(--pc-danger-bg);    color: var(--pc-danger);  }
+.stat-card-icon.purple { background: var(--pc-purple-bg);    color: var(--pc-purple);  }
+.stat-card-icon.amber  { background: var(--pc-warning-bg);   color: var(--pc-warning); }
+
+.stat-card-trend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.stat-card-trend.up      { color: var(--pc-success);     background: var(--pc-success-bg); }
+.stat-card-trend.down    { color: var(--pc-danger);      background: var(--pc-danger-bg);  }
+.stat-card-trend.neutral { color: var(--pc-text-muted);  background: rgba(255,255,255,0.05); }
+
+.stat-card-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  color: var(--pc-text-heading);
+  line-height: 1.1;
+  margin-bottom: var(--sp-1);
+  position: relative;
+}
+
+.stat-card-label {
+  font-size: var(--text-sm);
+  color: var(--pc-text-muted);
+  font-weight: 500;
+  position: relative;
+}
+
+.stat-card-sparkline {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 100px;
+  height: 40px;
+  opacity: 0.3;
+}
+
+/* ---------- Page-level grids ---------- */
+/*
+  Uniform section spacing rule:
+  Every top-level section block (stat grids, filter bars, content grids)
+  gets the same bottom margin so every page looks identical.
+  JS files use .widgets-grid and .content-grid — defined here globally.
+*/
+.widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+/* Uniform spacing between any direct block children inside page content */
+.page-content > * + * {
+  margin-top: var(--sp-6);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-5);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  line-height: 1.5;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: var(--pc-gradient-gold);
+  color: var(--pc-text-inverse);
+  border-color: transparent;
+}
+
+.btn-primary:hover {
+  box-shadow: var(--pc-shadow-gold);
+  filter: brightness(1.1);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--pc-text);
+  border-color: var(--pc-border-light);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--pc-border-light);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--pc-text-muted);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--pc-text);
+}
+
+.btn-danger {
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--pc-danger);
+  border-color: rgba(248, 113, 113, 0.2);
+}
+
+.btn-danger:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+
+.btn-sm {
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--text-xs);
+}
+
+.btn-lg {
+  padding: var(--sp-3) var(--sp-7);
+  font-size: var(--text-md);
+}
+
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-md);
+}
+
+.btn-icon.sm {
+  width: 28px;
+  height: 28px;
+  font-size: var(--text-sm);
+}
+
+/* ---------- Forms ---------- */
+.form-group {
+  margin-bottom: var(--sp-5);
+}
+
+.form-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--pc-text);
+  margin-bottom: var(--sp-2);
+}
+
+.form-label .required {
+  color: var(--pc-danger);
+  margin-left: 2px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--pc-bg-input);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  color: var(--pc-text);
+  font-size: var(--text-sm);
+  transition: all var(--transition-fast);
+  line-height: 1.5;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--pc-border-gold);
+  box-shadow: 0 0 0 3px rgba(236, 182, 118, 0.1);
+  background: var(--pc-bg-card);
+}
+
+.form-input::placeholder {
+  color: var(--pc-text-muted);
+}
+
+.form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B6780' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+.form-select option {
+  background: var(--pc-bg-card);
+  color: var(--pc-text);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+}
+
+.form-hint {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  margin-top: var(--sp-1);
+}
+
+.form-error {
+  font-size: var(--text-xs);
+  color: var(--pc-danger);
+  margin-top: var(--sp-1);
+}
+
+.form-input.error {
+  border-color: var(--pc-danger);
+}
+
+/* ---------- Tables ---------- */
+.table-container {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--pc-border);
+  background: var(--pc-bg-card);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  text-align: left;
+  padding: var(--sp-3) var(--sp-5);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--pc-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--pc-border);
+  white-space: nowrap;
+  font-family: var(--font-body);
+}
+
+.data-table td {
+  padding: var(--sp-3) var(--sp-5);
+  font-size: var(--text-sm);
+  color: var(--pc-text);
+  border-bottom: 1px solid var(--pc-border);
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* ---------- Badges ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  gap: 4px;
+}
+
+.badge-gold    { background: var(--pc-amber-glow);  color: var(--pc-gold);        }
+.badge-success { background: var(--pc-success-bg);  color: var(--pc-success);     }
+.badge-warning { background: var(--pc-warning-bg);  color: var(--pc-warning);     }
+.badge-danger  { background: var(--pc-danger-bg);   color: var(--pc-danger);      }
+.badge-info    { background: var(--pc-info-bg);     color: var(--pc-info);        }
+.badge-purple  { background: var(--pc-purple-bg);   color: var(--pc-purple);      }
+.badge-muted   { background: rgba(255,255,255,0.05); color: var(--pc-text-muted); }
+
+/* ---------- Modals ---------- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--pc-bg-overlay);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-base);
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal {
+  background: var(--pc-bg-modal);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--pc-shadow-xl);
+  width: max-content;
+  min-width: min(90vw, 480px);
+  max-width: min(94vw, 960px);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  transform: scale(0.95) translateY(10px);
+  transition: transform var(--transition-base);
+}
+
+.modal-overlay.active .modal {
+  transform: scale(1) translateY(0);
+}
+
+/* modal-lg/xl now set a MINIMUM width (form-style content that should
+   never look cramped) rather than a hard cap — content wider than the
+   minimum (like a full invoice table) can still grow up to the shared
+   max-width above instead of wrapping awkwardly. */
+.modal-lg { min-width: min(94vw, 720px); }
+.modal-xl { min-width: min(94vw, 900px); }
+
+.modal-header {
+  padding: var(--sp-6) var(--sp-7);
+  border-bottom: 1px solid var(--pc-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pc-text-muted);
+  font-size: var(--text-xl);
+  transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--pc-text);
+}
+
+.modal-body {
+  padding: var(--sp-7);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: var(--sp-4) var(--sp-7);
+  border-top: 1px solid var(--pc-border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+}
+
+/* ---------- Tabs ---------- */
+.tabs {
+  display: flex;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--pc-border);
+  margin-bottom: var(--sp-6);
+  overflow-x: auto;
+}
+
+.tab-btn {
+  padding: var(--sp-3) var(--sp-5);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--pc-text-muted);
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  cursor: pointer;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: var(--font-body);
+}
+
+.tab-btn:hover {
+  color: var(--pc-text);
+}
+
+.tab-btn.active {
+  color: var(--pc-gold);
+  border-bottom-color: var(--pc-gold);
+}
+
+.tab-content {
+  display: none;
+  animation: fadeIn var(--transition-base) ease-out;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* ---------- Avatar ---------- */
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--pc-text-inverse);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.avatar-sm { width: 32px; height: 32px; font-size: var(--text-xs); }
+.avatar-lg { width: 56px; height: 56px; font-size: var(--text-lg); }
+.avatar-xl { width: 80px; height: 80px; font-size: var(--text-2xl); }
+
+.avatar-status {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--pc-bg-card);
+}
+
+.avatar-status.online  { background: var(--pc-success);     }
+.avatar-status.offline { background: var(--pc-text-muted);  }
+.avatar-status.away    { background: var(--pc-warning);     }
+
+/* ---------- User Cell (Table) ---------- */
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.user-cell-info {
+  min-width: 0;
+}
+
+.user-cell-name {
+  font-weight: 500;
+  color: var(--pc-text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-cell-detail {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+}
+
+/* ---------- Empty State ---------- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-10) var(--sp-6);
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: var(--sp-5);
+  opacity: 0.3;
+}
+
+.empty-state-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+  margin-bottom: var(--sp-2);
+  font-family: var(--font-body);
+}
+
+.empty-state-text {
+  font-size: var(--text-sm);
+  color: var(--pc-text-muted);
+  max-width: 360px;
+  margin-bottom: var(--sp-6);
+}
+
+/* ---------- Progress Bar ---------- */
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--pc-gradient-gold);
+  transition: width var(--transition-slow);
+}
+
+.progress-bar-fill.green { background: var(--pc-success); }
+.progress-bar-fill.blue  { background: var(--pc-info);    }
+.progress-bar-fill.red   { background: var(--pc-danger);  }
+
+/* ---------- List Items ---------- */
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+  cursor: pointer;
+}
+
+.list-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.list-item + .list-item {
+  border-top: 1px solid var(--pc-border);
+}
+
+.list-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.list-item-title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--pc-text);
+}
+
+.list-item-subtitle {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  margin-top: 2px;
+}
+
+/* ---------- Kanban Board ---------- */
+.kanban-board {
+  display: flex;
+  gap: var(--sp-4);
+  overflow-x: auto;
+  padding-bottom: var(--sp-4);
+}
+
+.kanban-column {
+  min-width: 280px;
+  max-width: 320px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+.kanban-column-header {
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--pc-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kanban-column-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--pc-text);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.kanban-column-count {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pc-text-muted);
+}
+
+.kanban-cards {
+  padding: var(--sp-3);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-height: 100px;
+  overflow-y: auto;
+  max-height: 500px;
+}
+
+.kanban-card {
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.kanban-card:hover {
+  border-color: var(--pc-border-gold);
+  transform: translateY(-1px);
+  box-shadow: var(--pc-shadow-sm);
+}
+
+.kanban-card-title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--pc-text);
+  margin-bottom: var(--sp-2);
+}
+
+.kanban-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+}
+
+/* ---------- Timeline ---------- */
+.timeline {
+  position: relative;
+  padding-left: var(--sp-8);
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--pc-border);
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: var(--sp-7);
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -25px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--pc-gold);
+  border: 3px solid var(--pc-bg-body);
+  z-index: 1;
+}
+
+.timeline-dot.completed { background: var(--pc-success);    }
+.timeline-dot.pending   { background: var(--pc-text-muted); }
+.timeline-dot.active    { background: var(--pc-gold); animation: pulse-glow 2s infinite; }
+
+.timeline-content {
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+}
+
+.active-step-highlight {
+  border-color: var(--pc-border-gold);
+  box-shadow: 0 0 0 1px var(--pc-border-gold);
+}
+
+.timeline-date {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  margin-bottom: var(--sp-1);
+}
+
+.timeline-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--pc-text);
+}
+
+.timeline-description {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  margin-top: var(--sp-1);
+}
+
+/* ---------- Filter Bar ---------- */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+  flex-wrap: wrap;
+}
+
+.filter-bar .form-input,
+.filter-bar .form-select {
+  max-width: 200px;
+}
+
+.filter-search {
+  position: relative;
+  flex: 1;
+  max-width: 300px;
+}
+
+.filter-search input {
+  width: 100%;
+  padding-left: 36px;
+}
+
+.filter-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--pc-text-muted);
+  font-size: var(--text-sm);
+  pointer-events: none;
+}
+
+/* ---------- Chart Container ---------- */
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 250px;
+}
+
+.chart-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+}
+
+.chart-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ---------- Invoice Print View ---------- */
+.invoice-preview {
+  background: #fff;
+  color: #111;
+  border-radius: var(--radius-lg);
+  padding: var(--sp-9);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.invoice-preview h1,
+.invoice-preview h2,
+.invoice-preview h3 {
+  color: #111;
+}
+
+.invoice-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--sp-6) 0;
+}
+
+.invoice-preview th {
+  text-align: left;
+  padding: var(--sp-3);
+  border-bottom: 2px solid #ECB676;
+  font-size: var(--text-sm);
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.invoice-preview td {
+  padding: var(--sp-3);
+  border-bottom: 1px solid #eee;
+  font-size: var(--text-sm);
+}
+
+/* ---------- Confirmation Dialog ---------- */
+.confirm-dialog {
+  text-align: center;
+  padding: var(--sp-6) 0;
+}
+
+.confirm-dialog-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  margin: 0 auto var(--sp-5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xl);
+  background: var(--pc-danger-bg);
+  color: var(--pc-danger);
+}
+
+.confirm-dialog-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+  margin-bottom: var(--sp-2);
+  font-family: var(--font-body);
+}
+
+.confirm-dialog-text {
+  font-size: var(--text-sm);
+  color: var(--pc-text-muted);
+}
+
+/* ---------- Skeleton Loading ---------- */
+.skeleton {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.06) 37%,
+    rgba(255,255,255,0.03) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: var(--sp-2);
+}
+
+.skeleton-heading {
+  height: 24px;
+  width: 60%;
+  margin-bottom: var(--sp-3);
+}
+
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+}
+
+/* ---------- Authentication Overlay & Cards ---------- */
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--pc-bg-dark);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  transition: all 0.3s ease;
+}
+
+.auth-overlay:not(.active) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border-gold);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  box-shadow: var(--pc-shadow-xl);
+}
+
+.brand-header {
+  text-align: center;
+  margin-bottom: var(--sp-6);
+}
+
+.brand-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--pc-gradient-gold);
+  color: var(--pc-text-inverse);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--sp-3) auto;
+  box-shadow: var(--pc-shadow-gold);
+}
+
+/* -- Entry animations -- */
+@keyframes pcCardIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.card, .stat-card {
+  animation: pcCardIn 0.35s ease both;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.d-grid > .card:nth-child(1),  .d-grid > .stat-card:nth-child(1)  { animation-delay: 0.00s; }
+.d-grid > .card:nth-child(2),  .d-grid > .stat-card:nth-child(2)  { animation-delay: 0.05s; }
+.d-grid > .card:nth-child(3),  .d-grid > .stat-card:nth-child(3)  { animation-delay: 0.10s; }
+.d-grid > .card:nth-child(4),  .d-grid > .stat-card:nth-child(4)  { animation-delay: 0.15s; }
+.d-grid > .card:nth-child(5),  .d-grid > .stat-card:nth-child(5)  { animation-delay: 0.20s; }
+.d-grid > .card:nth-child(6),  .d-grid > .stat-card:nth-child(6)  { animation-delay: 0.25s; }
+.d-grid > .card:nth-child(7),  .d-grid > .stat-card:nth-child(7)  { animation-delay: 0.30s; }
+.d-grid > .card:nth-child(8),  .d-grid > .stat-card:nth-child(8)  { animation-delay: 0.35s; }
+.d-grid > .card:nth-child(n+9) { animation-delay: 0.40s; }
+
+/* ===== 4. crm.css ===== */
+/* ---- Order Pipeline: horizontal scroll fix ---- */
+.kanban-board {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 12px;            /* room for scrollbar */
+  scroll-snap-type: x proximity;   /* gentle snap as you scroll */
+  -webkit-overflow-scrolling: touch;
+}
+
+.kanban-column {
+  flex: 0 0 clamp(240px, 21vw, 300px);  /* fixed width, ~4.5 visible */
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.kanban-cards {
+  overflow-y: auto;
+  max-height: calc(100vh - 320px);  /* column scrolls internally if many cards */
+  padding-right: 4px;
+}
+
+/* Slim, on-brand scrollbar for the board */
+.kanban-board::-webkit-scrollbar { height: 8px; }
+.kanban-board::-webkit-scrollbar-thumb {
+  background: var(--pc-border);
+  border-radius: 4px;
+}
+.kanban-board::-webkit-scrollbar-track { background: transparent; }
+
+/* Constrain the main content area so child boards/tables scroll inside it */
+.main-content {
+  min-width: 0;        /* critical: lets it shrink inside the flex app-shell */
+  overflow-x: hidden;  /* clips overflow at the layout level */
+}
+
+.page-content {
+  min-width: 0;        /* same fix one level down */
+}
+/* ===== 5. hrm.css ===== */
+/* ============================================================
+   POOJA'S COUTURE — HRM Specific Styles
+   ============================================================ */
+
+.list-item.active {
+  background: var(--pc-amber-glow) !important;
+  border-left: 3px solid var(--pc-gold);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding-left: calc(var(--sp-4) - 3px);
+}
+
+/* ===== 6. accounting.css ===== */
+/* ============================================================
+   POOJA'S COUTURE — Accounting Specific Styles
+   ============================================================ */
+
+.invoice-item-row {
+  margin-bottom: var(--sp-2);
+  animation: fadeIn var(--transition-fast) ease-out;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
   }
-
-  async function checkAuthSession() {
-    const loginOverlay = Utils.$('#login-overlay');
-    let user = Store.getCurrentUser();
-
-    if (!user && typeof Store.reconcileUser === 'function') {
-      try { user = await Store.reconcileUser(); } catch (e) { user = null; }
-    }
-
-    if (user) {
-      const role = (user.appRole || user.app_role || '').toLowerCase();
-      if (role === 'tailor')    { window.location.replace('tailor/index.html');   return; }
-      if (role === 'logistics') { window.location.replace('shipping/index.html'); return; }
-      loginOverlay.classList.remove('active');
-      applySidebarPermissions(user);
-      navigate(landingRouteFor(user));
-    } else {
-      loginOverlay.classList.add('active');
-    }
+  .invoice-preview, .invoice-preview * {
+    visibility: visible;
   }
-
-  function setupAuthListeners() {
-    const loginForm = Utils.$('#login-form');
-    if (loginForm) {
-      loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        try {
-          const email = Utils.$('#login-email').value;
-          const password = Utils.$('#login-password').value;
-          const user = await Store.login(email, password);
-          if (user) {
-            console.log('Login successful:', user);
-            await checkAuthSession();
-            Utils.showToast(`Welcome back, ${user.name}!`);
-          } else {
-            console.log('Login failed for', email);
-            Utils.showToast('Invalid email or password.', 'error');
-          }
-        } catch (err) {
-          console.error('Login error:', err);
-          Utils.showToast('An unexpected error occurred during login.', 'error');
-        }
-      });
-    }
-
-    const userTrigger = Utils.$('#sidebar-user-trigger');
-    if (userTrigger) {
-      userTrigger.addEventListener('click', () => {
-        showConfirm({
-          title: 'Sign Out Operations',
-          text: 'Are you sure you want to end your current dashboard session?',
-          confirmText: 'Sign Out',
-          onConfirm: async () => { await Store.logout(); location.reload(); }
-        });
-      });
-    }
+  .invoice-preview {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    background: #fff;
+    color: #000;
   }
+}
 
-  function applySidebarPermissions(user) {
-    const appRole = user.appRole || user.app_role || 'admin';
-    const ACCESS = {
-      admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  tailorPortal:true,  logisticsPortal:true,  aiTeam:true  },
-      operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:true,  aiTeam:false },
-      social_crm: { dashboard:true,  products:true,  crm:true,  hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true,  aiTeam: (user.permissions && user.permissions.socialCrm) ? true : false  },
-      tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:false, aiTeam:false },
-      logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true,  aiTeam:false }
-    };
-    const access = ACCESS[appRole] || ACCESS.admin;
-    const routeKeyMap = { 'ai-team': 'aiTeam' };
+/* ===== 7. admin.css ===== */
+/* ============================================================
+   POOJA'S COUTURE — Admin Specific Styles
+   ============================================================ */
 
-    Utils.$$('.sidebar-section').forEach(section => {
-      const buttons = Utils.$$('.sidebar-link[data-route]', section);
-      const anchors = Utils.$$('a.sidebar-link', section);
+/* Customize permission checkboxes to look premium */
+.perm-chk {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--pc-gold);
+  border: 1px solid var(--pc-border);
+  background: var(--pc-bg-input);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
 
-      if (buttons.length > 0) {
-        const route = buttons[0].dataset.route;
-        const key = routeKeyMap[route] || (route === 'dashboard' ? 'dashboard' : route);
-        const allowed = access[key] === true;
-        section.style.display = allowed ? 'block' : 'none';
-        return;
-      }
+.perm-chk:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
-      if (anchors.length > 0) {
-        let anyVisible = false;
-        anchors.forEach(a => {
-          const href = a.getAttribute('href') || '';
-          let show = true;
-          if (href.includes('tailor'))   show = access.tailorPortal;
-          if (href.includes('shipping')) show = access.logisticsPortal;
-          a.style.display = show ? '' : 'none';
-          if (show) anyVisible = true;
-        });
-        section.style.display = anyVisible ? 'block' : 'none';
-      }
-    });
+/* Custom alignment for tables cells */
+.data-table td input[type="checkbox"] {
+  vertical-align: middle;
+}
 
-    const initials = Utils.getInitials(user.name);
-    const avatar = Utils.$('.sidebar-user-avatar');
-    if (avatar) {
-      avatar.textContent = initials;
-      avatar.style.backgroundColor = Utils.getAvatarColor(user.name);
-      avatar.style.color = 'var(--pc-text-inverse)';
-    }
+/* ===== 8. Shipping portal — scoped under .portal-shipping ===== */
+/* ============================================================
+   POOJA'S COUTURE — Shipping Portal Workspace Styles
+   ============================================================ */
 
-    const nameEl = Utils.$('.sidebar-user-name');
-    if (nameEl) nameEl.textContent = user.name;
+.portal-shipping body {
+  background-color: var(--pc-bg-dark);
+  font-family: var(--font-body);
+}
 
-    const roleEl = Utils.$('.sidebar-user-role');
-    if (roleEl) {
-      const roleTitles = {
-        admin:      'Operations Director',
-        operations: 'Operations Manager',
-        social_crm: 'CRM & Social',
-        tailor:     'Master Tailor',
-        logistics:  'Logistics Manager'
-      };
-      const appRoleKey = (user.appRole || user.app_role || user.role || '').toLowerCase();
-      const displayName = (user.name || '').toLowerCase();
-      if (displayName.includes('pooja')) {
-        roleEl.textContent = 'Managing Director';
-      } else {
-        roleEl.textContent = roleTitles[appRoleKey] || user.role;
-      }
-    }
+.portal-shipping .app-container {
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--pc-bg-body);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Auth Overlay CSS */
+.portal-shipping .auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--pc-bg-dark);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  transition: all 0.3s ease;
+}
+
+.portal-shipping .auth-overlay:not(.active) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.portal-shipping .login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border-gold);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  box-shadow: var(--pc-shadow-xl);
+}
+
+.portal-shipping .brand-header {
+  text-align: center;
+  margin-bottom: var(--sp-6);
+}
+
+.portal-shipping .brand-wordmark {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  margin: 0 auto var(--sp-3) auto;
+  display: block;
+  /* Raised, dimensional feel on the dark login card */
+  filter:
+    drop-shadow(0 2px 2px rgba(0,0,0,0.55))
+    drop-shadow(0 4px 8px rgba(0,0,0,0.35))
+    drop-shadow(0 0 2px rgba(236,182,118,0.45));
+}
+
+.portal-shipping .brand-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--pc-gradient-gold);
+  color: var(--pc-text-inverse);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--sp-3) auto;
+  box-shadow: var(--pc-shadow-gold);
+}
+
+/* Header styling */
+.portal-shipping .workspace-header {
+  height: 64px;
+  background-color: var(--pc-bg-sidebar);
+  border-bottom: 1px solid var(--pc-border);
+  padding: 0 var(--sp-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.portal-shipping .user-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.portal-shipping .user-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+}
+
+.portal-shipping .workspace-content {
+  flex: 1;
+  padding: var(--sp-6);
+  overflow-y: auto;
+}
+
+/* Metrics grid */
+.portal-shipping .metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-4);
+}
+
+.portal-shipping .metric-box {
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  text-align: center;
+}
+
+.portal-shipping .metric-val {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: bold;
+  color: var(--pc-gold);
+}
+
+.portal-shipping .metric-lbl {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  margin-top: 4px;
+}
+
+/* Customs Form styling inside modal */
+.portal-shipping .customs-form-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.portal-shipping .shipping-label-preview {
+  background: #fff;
+  color: #000;
+  padding: var(--sp-5);
+  border-radius: var(--radius-sm);
+  font-family: monospace;
+  font-size: 11px;
+}
+
+/* ============================================================
+   MOBILE-FIRST RESPONSIVE OVERRIDES
+   ============================================================ */
+
+@media (max-width: 600px) {
+.portal-shipping .app-container { max-width: 100%; border-radius: 0; }
+.portal-shipping .workspace-header { height: 56px; padding: 0 14px; }
+.portal-shipping .workspace-content { padding: 12px; }
+.portal-shipping .user-name { font-size: 13px; }
+}
+
+.portal-shipping .metrics-grid { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 400px) {
+.portal-shipping .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.portal-shipping .table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 480px) {
+.portal-shipping .btn { min-height: 44px; font-size: 14px; }
+}
+
+
+/* ===== 9. Tailor portal — scoped under .portal-tailor ===== */
+/* ============================================================
+   POOJA'S COUTURE — Tailor Workstation Mobile Styles
+   ============================================================ */
+
+.portal-tailor body {
+  background-color: var(--pc-bg-dark);
+  font-family: var(--font-body);
+}
+
+.portal-tailor .app-container {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--pc-bg-body);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Auth Overlay CSS */
+.portal-tailor .auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--pc-bg-dark);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  transition: all 0.3s ease;
+}
+
+.portal-tailor .auth-overlay:not(.active) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.portal-tailor .login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border-gold);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  box-shadow: var(--pc-shadow-xl);
+}
+
+.portal-tailor .brand-header {
+  text-align: center;
+  margin-bottom: var(--sp-6);
+}
+
+.portal-tailor .brand-wordmark {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  margin: 0 auto var(--sp-3) auto;
+  display: block;
+  /* Raised, dimensional feel on the dark login card — matches shipping portal */
+  filter:
+    drop-shadow(0 2px 2px rgba(0,0,0,0.55))
+    drop-shadow(0 4px 8px rgba(0,0,0,0.35))
+    drop-shadow(0 0 2px rgba(236,182,118,0.45));
+}
+
+.portal-tailor .brand-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--pc-gradient-gold);
+  color: var(--pc-text-inverse);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--sp-3) auto;
+  box-shadow: var(--pc-shadow-gold);
+}
+
+/* Header styling */
+.portal-tailor .workspace-header {
+  height: 64px;
+  background-color: var(--pc-bg-sidebar);
+  border-bottom: 1px solid var(--pc-border);
+  padding: 0 var(--sp-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.portal-tailor .user-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.portal-tailor .user-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+}
+
+.portal-tailor .workspace-content {
+  flex: 1;
+  padding: var(--sp-4);
+  overflow-y: auto;
+}
+
+/* Tab Filters */
+.portal-tailor .tab-filters {
+  display: flex;
+  gap: var(--sp-2);
+  background-color: var(--pc-bg-sidebar);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--pc-border);
+}
+
+.portal-tailor .filter-tab {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: var(--sp-2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--pc-text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.portal-tailor .filter-tab.active {
+  background-color: var(--pc-bg-card);
+  color: var(--pc-gold);
+  font-weight: 600;
+  box-shadow: var(--pc-shadow-sm);
+}
+
+/* Tasks / Cards styling */
+.portal-tailor .task-card {
+  background-color: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  transition: all var(--transition-fast);
+}
+
+.portal-tailor .task-card:hover {
+  border-color: var(--pc-border-gold);
+}
+
+.portal-tailor .task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.portal-tailor .task-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+  margin: 0;
+}
+
+.portal-tailor .measurement-badge {
+  background-color: rgba(236, 182, 118, 0.05);
+  border: 1px solid var(--pc-border-gold);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--pc-text-secondary);
+  white-space: pre-line;
+}
+
+
+/* ===== 10. AI Team portal — scoped under .portal-ai-team ===== */
+/* ============================================================
+   POOJA'S COUTURE — AI Studio Team
+   Inherits main app design tokens via ../css/index.css
+   Portal-specific layout and component overrides only
+   ============================================================ */
+
+/* ── LAYOUT ── */
+.portal-ai-team .app-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  background: var(--pc-bg-body);
+}
+
+.portal-ai-team #ai-team-workspace {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+.portal-ai-team #ai-team-workspace.d-none { display: none !important; }
+
+/* ── AUTH GATE — matches main app login overlay ── */
+.portal-ai-team .auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--pc-bg-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  padding: var(--sp-6);
+}
+.portal-ai-team .auth-overlay.d-none { display: none !important; }
+
+.portal-ai-team .login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border-gold);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-7);
+  box-shadow: var(--pc-shadow-xl);
+}
+
+.portal-ai-team .brand-header {
+  text-align: center;
+  margin-bottom: var(--sp-5);
+}
+
+.portal-ai-team .brand-wordmark {
+  max-width: 180px;
+  height: auto;
+  margin: 0 auto var(--sp-3);
+  display: block;
+  filter:
+    drop-shadow(0 1px 1px rgba(0,0,0,0.5))
+    drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+}
+
+.portal-ai-team .font-display {
+  font-family: var(--font-display);
+  color: var(--pc-gold);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin-bottom: var(--sp-2);
+}
+
+/* ── SIDEBAR — mirrors main app sidebar exactly ── */
+.portal-ai-team #sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  height: 100vh;
+  background: var(--pc-gradient-sidebar);
+  border-right: 1px solid var(--pc-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.portal-ai-team .brand {
+  padding: var(--sp-6) var(--sp-5);
+  border-bottom: 1px solid var(--pc-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.portal-ai-team .brand::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 50%, rgba(236,182,118,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.portal-ai-team .sidebar-wordmark {
+  max-width: 140px;
+  height: auto;
+  display: block;
+  filter:
+    drop-shadow(0 1px 1px rgba(0,0,0,0.5))
+    drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+}
+
+.portal-ai-team .brand-sub {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Logo + collapse toggle row (added for consistency with the main app's
+   sidebar, and so the logo can act as a "back to main app" link instead
+   of double-booking as the collapse trigger). */
+.portal-ai-team .brand-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.portal-ai-team .sidebar-brand-home {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  text-decoration: none;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.portal-ai-team .sidebar-brand-logo {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.portal-ai-team .sidebar-brand-logo img {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 1px 1px rgba(0,0,0,0.55))
+    drop-shadow(0 2px 4px rgba(0,0,0,0.35))
+    drop-shadow(0 0 1px rgba(236,182,118,0.5));
+}
+
+.portal-ai-team .sidebar-collapse-btn {
+  background: none;
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  color: var(--pc-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 8px;
+  flex-shrink: 0;
+  transition: all var(--transition-base);
+}
+
+.portal-ai-team .sidebar-collapse-btn:hover {
+  color: var(--pc-gold);
+  border-color: var(--pc-border-gold);
+}
+
+/* ── Collapsed state — same design language as the main app's
+   .sidebar.collapsed, applied to ai-team's own #sidebar element ── */
+.portal-ai-team #sidebar.collapsed {
+  width: var(--sidebar-collapsed, 72px);
+  min-width: var(--sidebar-collapsed, 72px);
+}
+
+.portal-ai-team #sidebar.collapsed .sidebar-wordmark,
+.portal-ai-team #sidebar.collapsed .brand-sub,
+.portal-ai-team #sidebar.collapsed .team-label,
+.portal-ai-team #sidebar.collapsed .member-info,
+.portal-ai-team #sidebar.collapsed .status-box {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s, width 0.2s;
+}
+
+.portal-ai-team #sidebar.collapsed .brand-top-row {
+  justify-content: center;
+}
+
+.portal-ai-team #sidebar.collapsed .sidebar-collapse-btn {
+  position: absolute;
+  right: 8px;
+  top: var(--sp-6);
+}
+
+.portal-ai-team #sidebar.collapsed .member-btn {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.portal-ai-team .team-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--pc-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: var(--sp-4) var(--sp-5) var(--sp-2);
+  font-family: var(--font-body);
+}
+
+/* Member buttons — individual boxed cards, matching the app's
+   established box treatment (border + resting shadow + gold accent),
+   same design language as .history-card / .card / .stat-card. */
+.portal-ai-team .member-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin: 0 var(--sp-3) var(--sp-2);
+  cursor: pointer;
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-md);
+  box-shadow: var(--pc-shadow-sm);
+  width: calc(100% - var(--sp-6));
+  box-sizing: border-box;
+  text-align: left;
+  color: var(--pc-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  font-family: var(--font-body);
+  transition: all var(--transition-base);
+}
+
+.portal-ai-team .member-btn:hover {
+  color: var(--pc-text);
+  background: var(--pc-bg-card-hover);
+  border-color: var(--pc-border-gold);
+  box-shadow: var(--pc-shadow-md);
+  transform: translateY(-1px);
+}
+
+.portal-ai-team .member-btn.active {
+  color: var(--pc-gold);
+  background: var(--pc-amber-glow);
+  border-color: var(--pc-border-gold);
+  border-left-color: var(--pc-gold);
+  box-shadow: var(--pc-shadow-gold);
+}
+
+.portal-ai-team .avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-base);
+  flex-shrink: 0;
+  background: transparent;
+  overflow: hidden;
+  box-sizing: border-box;
+  box-shadow:
+    0 0 6px var(--glow, transparent),
+    0 0 14px var(--glow, transparent);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.member-btn:hover .avatar,
+.member-btn.active .avatar {
+  transform: scale(1.15);
+  box-shadow:
+    0 0 8px var(--glow, transparent),
+    0 0 22px var(--glow, transparent),
+    0 0 34px var(--glow, transparent);
+}
+
+.portal-ai-team .member-info { flex: 1; min-width: 0; }
+
+.portal-ai-team .member-name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--pc-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.portal-ai-team .member-btn.active .member-name { color: var(--pc-gold); }
+
+.portal-ai-team .member-role {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  margin-top: 1px;
+}
+
+/* Status badges */
+.portal-ai-team .status-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255,255,255,0.03);
+  width: fit-content;
+  border: 1px solid var(--pc-border);
+}
+.portal-ai-team .status-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--pc-text-muted);
+  flex-shrink: 0;
+}
+.portal-ai-team .status-text {
+  font-size: 9px;
+  letter-spacing: 0.3px;
+  color: var(--pc-text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.portal-ai-team .status-box.working { background: var(--pc-amber-glow); border-color: var(--pc-border-gold); }
+.portal-ai-team .status-box.working .status-dot { background: var(--pc-gold); animation: statuspulse 1s infinite; }
+.portal-ai-team .status-box.working .status-text { color: var(--pc-gold); }
+.portal-ai-team .status-box.done { background: var(--pc-success-bg); border-color: rgba(52,211,153,0.2); }
+.portal-ai-team .status-box.done .status-dot { background: var(--pc-success); }
+.portal-ai-team .status-box.done .status-text { color: var(--pc-success); }
+.portal-ai-team .status-box.error { background: var(--pc-danger-bg); border-color: rgba(248,113,113,0.2); }
+.portal-ai-team .status-box.error .status-dot { background: var(--pc-danger); }
+.portal-ai-team .status-box.error .status-text { color: var(--pc-danger); }
+
+@keyframes statuspulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* Sidebar footer */
+.portal-ai-team .sidebar-footer {
+  margin-top: auto;
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--pc-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.portal-ai-team .back-link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--pc-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-decoration: none;
+  padding: var(--sp-2) 0;
+  transition: color var(--transition-fast);
+  font-family: var(--font-body);
+}
+.portal-ai-team .back-link:hover { color: var(--pc-gold); }
+
+.portal-ai-team .powered-label {
+  font-size: 9px;
+  color: var(--pc-text-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* ── MAIN PANEL ── */
+.portal-ai-team #main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--pc-bg-body);
+}
+
+/* Chat header — matches topbar style */
+.portal-ai-team #chat-header {
+  height: var(--topbar-height);
+  padding: 0 var(--sp-7);
+  border-bottom: 1px solid var(--pc-border);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  background: var(--pc-bg-topbar);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  flex-shrink: 0;
+}
+
+.portal-ai-team .header-avatar {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-xl);
+  background: transparent;
+  flex-shrink: 0;
+  box-shadow:
+    0 0 8px var(--glow, transparent),
+    0 0 18px var(--glow, transparent);
+}
+
+.portal-ai-team .header-info .h-name {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+}
+.portal-ai-team .header-info .h-tag {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  margin-top: 1px;
+}
+
+/* Clear button — matches topbar-btn style */
+.portal-ai-team .clear-btn {
+  margin-left: auto;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--pc-border-light);
+  color: var(--pc-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all var(--transition-fast);
+}
+.portal-ai-team .clear-btn:hover {
+  background: rgba(248,113,113,0.1);
+  color: var(--pc-danger);
+  border-color: rgba(248,113,113,0.2);
+}
+
+/* ── AUTO-DELEGATE TOGGLE ── */
+.portal-ai-team .delegate-toggle {
+  display: none;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-left: auto;
+  margin-right: var(--sp-3);
+  cursor: pointer;
+  user-select: none;
+}
+.portal-ai-team .delegate-toggle.visible { display: flex; }
+.portal-ai-team .delegate-toggle .dt-label {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  font-weight: 500;
+  font-family: var(--font-body);
+}
+.portal-ai-team .delegate-toggle.on .dt-label { color: var(--pc-gold); }
+
+.portal-ai-team .switch-track {
+  width: 36px; height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--pc-bg-input);
+  border: 1px solid var(--pc-border);
+  position: relative;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.portal-ai-team .delegate-toggle.on .switch-track {
+  background: var(--pc-amber-glow);
+  border-color: var(--pc-border-gold);
+}
+.portal-ai-team .switch-knob {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--pc-text-muted);
+  position: absolute;
+  top: 2px; left: 2px;
+  transition: left var(--transition-fast), background var(--transition-fast);
+}
+.portal-ai-team .delegate-toggle.on .switch-knob {
+  left: 18px;
+  background: var(--pc-gold);
+}
+
+/* ── MESSAGES AREA ── */
+.portal-ai-team #messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  scroll-behavior: smooth;
+}
+.portal-ai-team #messages::-webkit-scrollbar { width: 6px; }
+.portal-ai-team #messages::-webkit-scrollbar-track { background: transparent; }
+.portal-ai-team #messages::-webkit-scrollbar-thumb { background: var(--pc-border-light); border-radius: var(--radius-full); }
+.portal-ai-team #messages::-webkit-scrollbar-thumb:hover { background: var(--pc-text-muted); }
+
+.portal-ai-team .msg {
+  display: flex;
+  gap: var(--sp-3);
+  max-width: 88%;
+  animation: fadeIn var(--transition-base) ease-out;
+}
+.portal-ai-team .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+.portal-ai-team .msg.ai { align-self: flex-start; }
+
+.portal-ai-team .msg-avatar {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+  margin-top: 2px;
+  border: 1px solid var(--pc-border);
+}
+
+/* Bubbles — match card style */
+.portal-ai-team .bubble {
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  max-width: 100%;
+}
+.portal-ai-team .msg.user .bubble {
+  background: var(--pc-amber-glow);
+  border: 1px solid var(--pc-border-gold);
+  border-radius: var(--radius-lg) var(--radius-sm) var(--radius-lg) var(--radius-lg);
+  color: var(--pc-text);
+}
+.portal-ai-team .msg.ai .bubble {
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-sm) var(--radius-lg) var(--radius-lg) var(--radius-lg);
+  color: var(--pc-text);
+}
+.portal-ai-team .bubble ul { padding-left: var(--sp-5); margin-top: var(--sp-2); }
+.portal-ai-team .bubble li { margin-bottom: var(--sp-1); }
+.portal-ai-team .bubble strong { color: var(--pc-gold); font-weight: 600; }
+.portal-ai-team .bubble p { margin-bottom: var(--sp-2); color: var(--pc-text); }
+.portal-ai-team .bubble p:last-child { margin-bottom: 0; }
+
+/* Welcome card — matches main app card */
+.portal-ai-team .welcome-card {
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  margin-bottom: var(--sp-3);
+  max-width: 560px;
+  position: relative;
+  overflow: hidden;
+}
+.portal-ai-team .welcome-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--pc-gradient-card);
+  pointer-events: none;
+}
+.portal-ai-team .welcome-title {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--pc-gold);
+  margin-bottom: var(--sp-3);
+}
+.portal-ai-team .welcome-tasks { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-4); }
+.portal-ai-team .task-chip {
+  background: var(--pc-amber-glow);
+  border: 1px solid var(--pc-border-gold);
+  color: var(--pc-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-body);
+}
+.portal-ai-team .task-chip:hover {
+  background: var(--pc-amber-glow-strong);
+  color: var(--pc-gold);
+  border-color: var(--pc-border-gold-strong);
+}
+
+/* Typing indicator */
+.portal-ai-team .typing-indicator { display: flex; gap: 4px; align-items: center; padding: var(--sp-3) var(--sp-4); }
+.portal-ai-team .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--pc-text-muted);
+  animation: bounce 1.1s infinite;
+}
+.portal-ai-team .dot:nth-child(2) { animation-delay: 0.18s; }
+.portal-ai-team .dot:nth-child(3) { animation-delay: 0.36s; }
+@keyframes bounce {
+  0%,80%,100% { transform: translateY(0); }
+  40%          { transform: translateY(-6px); }
+}
+
+/* ── PIPELINE CARDS — match card component ── */
+.portal-ai-team .pipeline-card {
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+  max-width: 640px;
+  align-self: flex-start;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+.portal-ai-team .pipeline-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--pc-gradient-card);
+  pointer-events: none;
+}
+
+.portal-ai-team .pipeline-stage-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pc-gold);
+  margin-bottom: var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.portal-ai-team .pipeline-stage-label .pdot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--pc-gold);
+  animation: pulse-glow 1.2s infinite;
+}
+@keyframes pulse-glow {
+  0%,100% { opacity: 1; box-shadow: 0 0 4px var(--pc-gold); }
+  50% { opacity: 0.4; box-shadow: none; }
+}
+
+.portal-ai-team .strategic-take {
+  font-size: var(--text-sm);
+  color: var(--pc-text);
+  line-height: 1.65;
+  font-style: italic;
+  margin-bottom: var(--sp-4);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--pc-border);
+}
+
+.portal-ai-team .delegation-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+}
+.portal-ai-team .delegation-row .d-avatar {
+  width: 28px; height: 28px;
+  border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+  border: 1px solid var(--pc-border);
+}
+.portal-ai-team .delegation-row .d-info { flex: 1; min-width: 0; }
+.portal-ai-team .delegation-row .d-name { font-size: var(--text-sm); color: var(--pc-text); font-weight: 500; }
+.portal-ai-team .delegation-row .d-task { font-size: var(--text-xs); color: var(--pc-text-muted); margin-top: 1px; line-height: 1.4; }
+.portal-ai-team .delegation-row .d-status { font-size: var(--text-md); flex-shrink: 0; width: 20px; text-align: center; }
+.portal-ai-team .d-status.pending { color: var(--pc-text-muted); }
+.portal-ai-team .d-status.working { color: var(--pc-gold); animation: pulse-glow 1.2s infinite; }
+.portal-ai-team .d-status.done { color: var(--pc-success); }
+
+/* Agent contribution cards */
+.portal-ai-team details.agent-contribution {
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-3) var(--sp-4);
+  max-width: 640px;
+  align-self: flex-start;
+  width: 100%;
+  transition: border-color var(--transition-fast);
+}
+.portal-ai-team details.agent-contribution:hover { border-color: var(--pc-border-gold); }
+.portal-ai-team details.agent-contribution summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--pc-text);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  list-style: none;
+}
+.portal-ai-team details.agent-contribution summary::-webkit-details-marker { display: none; }
+.portal-ai-team details.agent-contribution summary .chevron {
+  margin-left: auto;
+  color: var(--pc-text-muted);
+  font-size: var(--text-xs);
+  transition: transform var(--transition-fast);
+}
+.portal-ai-team details.agent-contribution[open] summary .chevron { transform: rotate(90deg); }
+.portal-ai-team details.agent-contribution .contribution-body {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--pc-border);
+  font-size: var(--text-sm);
+  color: var(--pc-text-muted);
+  line-height: 1.65;
+}
+
+/* Final deliverable — gold border card */
+.portal-ai-team .final-deliverable {
+  border-color: var(--pc-border-gold) !important;
+  background: linear-gradient(180deg, var(--pc-amber-glow) 0%, var(--pc-bg-card) 100%) !important;
+  box-shadow: var(--pc-shadow-gold) !important;
+}
+.portal-ai-team .final-deliverable-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pc-gold);
+  margin-bottom: var(--sp-3);
+}
+
+/* ── INPUT AREA — matches main app form style ── */
+.portal-ai-team #input-area {
+  padding: var(--sp-4) var(--sp-7) var(--sp-5);
+  border-top: 1px solid var(--pc-border);
+  background: var(--pc-bg-topbar);
+  backdrop-filter: blur(12px);
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.portal-ai-team #user-input {
+  flex: 1;
+  background: var(--pc-bg-input);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  color: var(--pc-text);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  padding: var(--sp-3) var(--sp-4);
+  resize: none;
+  outline: none;
+  min-height: 46px;
+  max-height: 130px;
+  transition: all var(--transition-fast);
+  line-height: 1.5;
+}
+.portal-ai-team #user-input:focus {
+  border-color: var(--pc-border-gold);
+  box-shadow: 0 0 0 3px rgba(236, 182, 118, 0.1);
+  background: var(--pc-bg-card);
+}
+.portal-ai-team #user-input::placeholder { color: var(--pc-text-muted); }
+
+/* Send button — matches btn-primary */
+.portal-ai-team #send-btn {
+  background: var(--pc-gradient-gold);
+  border: none;
+  border-radius: var(--radius-md);
+  width: 46px; height: 46px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+  box-shadow: var(--pc-shadow-gold);
+}
+.portal-ai-team #send-btn:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 4px 20px rgba(236,182,118,0.3);
+}
+.portal-ai-team #send-btn:active { transform: scale(0.97); }
+.portal-ai-team #send-btn:disabled {
+  background: var(--pc-bg-input);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.portal-ai-team #send-btn svg { color: var(--pc-text-inverse); }
+
+/* ── RESPONSIVE ──
+   Desktop: #sidebar is a static flex child (intentionally different
+   from the main app's position:fixed sidebar — do not unify that part,
+   it would break this portal's two-column flex layout).
+   Mobile (≤1024px): switches to the SAME off-canvas contract used by
+   the main app and Files portal — fixed overlay panel, hidden by
+   default, opened via #sidebar-toggle, closed via #sidebar-overlay or
+   .open removal. This is the fix for the reported bug: previously the
+   sidebar was set to display:none below 480px with no toggle anywhere
+   in the markup to bring it back. */
+@media (max-width: 1024px) {
+  .portal-ai-team #sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: var(--z-sidebar, 1000);
+    transform: translateX(-100%);
+    transition: transform var(--transition-slow, 0.3s);
   }
-
-  function showAccessDenied() {
-    const container = Utils.$('#main-content-area');
-    if (!container) return;
-    container.innerHTML = `
-      <div class="card p-8 text-center animate-fade-in" style="max-width: 480px; margin: 40px auto;">
-        <div style="font-size: 48px; margin-bottom: 20px;">🔒</div>
-        <h2 class="font-display text-gold">Access Denied</h2>
-        <p class="text-muted mt-2">You do not have administrative clearance to access this module.</p>
-        <button class="btn btn-primary mt-4" onclick="App.navigate('dashboard')">Return to Dashboard</button>
-      </div>
-    `;
+  .portal-ai-team #sidebar.open {
+    transform: translateX(0);
   }
+}
 
-  window.addEventListener('pc:datachange', Utils.debounce(() => {
-    const dataModules = ['crm','accounting','hrm','admin','products'];
-    if (dataModules.includes(currentRoute)) navigate(currentRoute);
-  }, 500));
+@media (max-width: 768px) {
+.portal-ai-team #messages { padding: var(--sp-5); }
+.portal-ai-team #chat-header { padding: 0 var(--sp-5); }
+.portal-ai-team #input-area { padding: var(--sp-3) var(--sp-5) var(--sp-4); }
+}
 
-  document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible') {
-      try {
-        await Promise.all([
-          Store.refresh('orders'),
-          Store.refresh('invoices'),
-          Store.refresh('order_projects'),
-          Store.refresh('clients'),
-          Store.refresh('appointments')
-        ]);
-        if (currentRoute) navigate(currentRoute);
-      } catch (e) { /* ignore */ }
-    }
-  });
+@media (max-width: 480px) {
+.portal-ai-team #messages { padding: var(--sp-4); }
+}
 
-  function showDashReport(type) {
-    const allClients  = Store.getAll(Store.COLLECTIONS.CLIENTS);
-    const allOrders   = Store.getAll(Store.COLLECTIONS.ORDERS);
-    const invoices    = Store.getAll(Store.COLLECTIONS.INVOICES);
-    const appts       = Store.getAll(Store.COLLECTIONS.APPOINTMENTS);
-    const now         = new Date();
-    let title = '', content = '';
+/* ── PROJECT HISTORY ──
+   Matches the app's established .card pattern (css/components.css):
+   dark card background, subtle border, gold accent line, layered
+   shadow that intensifies on hover. Font is var(--font-body), which
+   resolves to 'Segoe UI' with -apple-system/BlinkMacSystemFont
+   fallbacks (see css/index.css) — same family as the rest of the app.
+*/
+.portal-ai-team .history-card {
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-top: 3px solid var(--pc-gold);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--pc-shadow-sm);
+  padding: var(--sp-5) var(--sp-6);
+  margin-bottom: var(--sp-4);
+  font-family: var(--font-body);
+  transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+}
 
-    if (type === 'brides') {
-      title = '👑 Active Bridal Clients';
-      const brides = allClients.filter(c => c.type === 'Bride');
-      content = brides.length === 0
-        ? '<div class="text-center p-6 text-muted">No bridal clients registered yet.</div>'
-        : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Bride</th><th>Wedding Date</th><th>Orders</th><th>Contact</th></tr></thead><tbody>' +
-          brides.sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(c => {
-            const cnt = allOrders.filter(o=>o.clientId===c.id).length;
-            return '<tr><td class="font-semibold text-xs">' + Utils.sanitizeHTML(c.name) + '</td>' +
-              '<td class="text-xs">' + Utils.formatDate(c.weddingDate||c.eventDate||'') + '</td>' +
-              '<td class="font-mono text-xs">' + cnt + '</td>' +
-              '<td class="text-xs text-muted">' + Utils.sanitizeHTML(c.email||c.phone||'\u2014') + '</td></tr>';
-          }).join('') + '</tbody></table></div>';
-    } else if (type === 'orders') {
-      title = '🧵 Active Custom Orders';
-      const active = allOrders.filter(o => !['Delivered', 'Completed'].includes(o.status));
-      content = '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Code</th><th>Client</th><th>Garment</th><th>Stage</th><th>Deadline</th></tr></thead><tbody>' +
-        active.sort((a,b)=>new Date(a.deadline||0)-new Date(b.deadline||0)).map(o => {
-          const over = o.deadline && new Date(o.deadline) < now;
-          return '<tr>' +
-            '<td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(o.orderCode||'\u2014') + '</td>' +
-            '<td class="text-xs">' + Utils.sanitizeHTML(o.clientName) + '</td>' +
-            '<td class="text-xs">' + Utils.sanitizeHTML(o.title) + '</td>' +
-            '<td><span class="badge badge-gold text-xs">' + o.status + '</span></td>' +
-            '<td class="text-xs ' + (over?'text-danger font-bold':'text-muted') + '">' + Utils.formatDate(o.deadline) + '</td></tr>';
-        }).join('') + '</tbody></table></div>';
-    } else if (type === 'outstanding') {
-      title = '💰 Outstanding Invoices';
-      const unpaid = invoices.filter(i => (i.total||0) > (parseFloat(i.amountPaid)||0));
-      content = unpaid.length === 0
-        ? '<div class="text-center p-6 text-success font-semibold">All invoices are paid!</div>'
-        : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Total</th><th>Paid</th><th>Balance</th></tr></thead><tbody>' +
-          unpaid.sort((a,b)=>((b.total||0)-(parseFloat(b.amountPaid)||0))-((a.total||0)-(parseFloat(a.amountPaid)||0))).map(inv => {
-            const paid = parseFloat(inv.amountPaid)||0;
-            const bal  = Math.round((inv.total-paid)*100)/100;
-            return '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(inv.invoiceNumber||'\u2014') + '</td>' +
-              '<td class="text-xs">' + Utils.sanitizeHTML(inv.clientName||'\u2014') + '</td>' +
-              '<td class="font-mono text-xs">' + Utils.formatCurrency(inv.total) + '</td>' +
-              '<td class="font-mono text-xs text-success">' + Utils.formatCurrency(paid) + '</td>' +
-              '<td class="font-mono text-xs font-bold text-danger">' + Utils.formatCurrency(bal) + '</td></tr>';
-          }).join('') + '</tbody></table></div>';
-    } else if (type === 'appointments') {
-      title = '📅 Upcoming Consultations';
-      const upcoming = appts.filter(a => a.status === 'Scheduled').sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
-      content = upcoming.length === 0
-        ? '<div class="text-center p-6 text-muted">No upcoming appointments scheduled.</div>'
-        : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Client</th><th>Type</th><th>Date</th><th>Notes</th></tr></thead><tbody>' +
-          upcoming.map(a =>
-            '<tr><td class="font-semibold text-xs">' + Utils.sanitizeHTML(a.clientName||'\u2014') + '</td>' +
-            '<td class="text-xs">' + Utils.sanitizeHTML(a.type||'\u2014') + '</td>' +
-            '<td class="text-xs">' + Utils.formatDate(a.date) + '</td>' +
-            '<td class="text-xs text-muted">' + Utils.sanitizeHTML(a.notes||'\u2014') + '</td></tr>'
-          ).join('') + '</tbody></table></div>';
-    }
-    showModal({
-      title, content: '<div style="max-height:60vh;overflow-y:auto;">' + content + '</div>',
-      submitText: 'Close', hideCancel: true, onSubmit: () => true, modalSize: 'modal-lg'
-    });
-  }
+.portal-ai-team .history-card:hover {
+  border-color: var(--pc-border-gold);
+  box-shadow: var(--pc-shadow-gold), var(--pc-shadow-md);
+  transform: translateY(-2px);
+}
 
-  return {
-    init,
-    navigate,
-    showDashReport,
-    quickRoute,
-    showModal,
-    closeModal,
-    showConfirm
-  };
-})();
+.portal-ai-team .history-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--pc-border);
+}
 
-document.addEventListener('DOMContentLoaded', () => {
-  App.init();
-});
+.portal-ai-team .history-title {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+  margin-bottom: 2px;
+}
+
+.portal-ai-team .history-date {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+}
+
+.portal-ai-team .history-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  opacity: 0.5;
+  transition: opacity var(--transition-base);
+  padding: var(--sp-1);
+  border-radius: var(--radius-md);
+}
+
+.portal-ai-team .history-delete-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.portal-ai-team .history-request {
+  font-size: var(--text-sm);
+  color: var(--pc-text-muted);
+  margin-bottom: var(--sp-3);
+  line-height: 1.5;
+}
+
+.portal-ai-team .history-details summary {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--pc-gold);
+  cursor: pointer;
+  list-style: none;
+  padding: var(--sp-2) 0;
+}
+
+.portal-ai-team .history-details summary::-webkit-details-marker { display: none; }
+.portal-ai-team .history-details summary::before { content: '▶ '; font-size: var(--text-xs); }
+.portal-ai-team .history-details[open] summary::before { content: '▼ '; }
+
+.portal-ai-team .history-output {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  margin-top: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--pc-text-heading);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.portal-ai-team .agent-contribution {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--pc-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.portal-ai-team .agent-contribution summary {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--pc-text-heading);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.portal-ai-team .agent-contribution summary::-webkit-details-marker { display: none; }
+.portal-ai-team .agent-contribution .chevron { margin-left: auto; font-size: var(--text-xs); color: var(--pc-text-muted); transition: transform var(--transition-base); }
+.portal-ai-team .agent-contribution[open] .chevron { transform: rotate(90deg); }
+
+.portal-ai-team .contribution-body {
+  font-size: var(--text-xs);
+  color: var(--pc-text-muted);
+  padding: var(--sp-2) 0 0 var(--sp-6);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
