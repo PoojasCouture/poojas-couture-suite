@@ -331,17 +331,10 @@ const HRM = (() => {
             <thead>
               <tr>
                 <th id="att-sort-name" style="cursor:pointer;user-select:none;white-space:nowrap">Staff Name ${sortArrow()}</th>
-                <th>Date</th>
-                <th>Clock In</th>
-                <th>Clock Out</th>
+                <th style="padding:6px 8px"><input type="text" id="att-filter-date" class="form-input" placeholder="Date (e.g. 5 Aug 2026)" style="font-size:12px;padding:4px 6px;width:100%;font-weight:600"></th>
+                <th style="padding:6px 8px"><input type="text" id="att-filter-checkin" class="form-input" placeholder="Clock In (e.g. 9:00 AM)" style="font-size:12px;padding:4px 6px;width:100%;font-weight:600"></th>
+                <th style="padding:6px 8px"><input type="text" id="att-filter-checkout" class="form-input" placeholder="Clock Out (e.g. 5:30 PM)" style="font-size:12px;padding:4px 6px;width:100%;font-weight:600"></th>
                 <th>Status</th>
-              </tr>
-              <tr>
-                <th></th>
-                <th style="padding:6px 8px"><input type="text" id="att-filter-date" class="form-input" placeholder="e.g. 5 Aug 2026" style="font-size:12px;padding:4px 6px;width:100%"></th>
-                <th style="padding:6px 8px"><input type="text" id="att-filter-checkin" class="form-input" placeholder="e.g. 9:00 AM" style="font-size:12px;padding:4px 6px;width:100%"></th>
-                <th style="padding:6px 8px"><input type="text" id="att-filter-checkout" class="form-input" placeholder="e.g. 5:30 PM" style="font-size:12px;padding:4px 6px;width:100%"></th>
-                <th></th>
               </tr>
             </thead>
             <tbody id="attendance-table-body">
