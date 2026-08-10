@@ -2,7 +2,7 @@
 // Deletes a job photo: removes the file from Supabase storage AND the
 // job_photos row. Called from the CRM when Pooja removes an incorrect photo.
 //
-// POST JSON body: { photoId: "<uuid>" }
+// POST JSON body: { photoId: "<uuid>", token: "<supabase session access_token>" }
 // Required Cloudflare env vars: SUPABASE_URL, SUPABASE_SERVICE_KEY
 
 export async function onRequest(context) {
@@ -28,8 +28,12 @@ export async function onRequest(context) {
   try {
     const body = await request.json();
     const photoId = body.photoId;
+    const token = body.token;
     if (!photoId) {
       return new Response(JSON.stringify({ ok: false, error: 'photoId is required' }), { status: 400, headers: corsHeaders });
+    }
+    if (!token) {
+      return new Response(JSON.stringify({ ok: false, error: 'Missing auth token' }), { status: 401, headers: corsHeaders });
     }
 
     const sbHeaders = {
@@ -37,6 +41,35 @@ export async function onRequest(context) {
       'apikey': env.SUPABASE_SERVICE_KEY,
       'Content-Type': 'application/json'
     };
+
+    // Verify the caller is actually a logged-in staff/vendor member with an
+    // appropriate role, matching the same allow-list already enforced by
+    // the job_photos table's RLS policy (jp_rw). Previously this endpoint
+    // had no identity check at all -- anyone who found the URL could
+    // permanently delete any client's photos with zero login.
+    const userRes = await fetch(env.SUPABASE_URL + '/auth/v1/user', {
+      headers: { 'Authorization': 'Bearer ' + token, 'apikey': env.SUPABASE_SERVICE_KEY }
+    });
+    if (!userRes.ok) {
+      return new Response(JSON.stringify({ ok: false, error: 'Invalid or expired session' }), { status: 401, headers: corsHeaders });
+    }
+    const userData = await userRes.json();
+    const callerEmail = userData.email;
+    if (!callerEmail) {
+      return new Response(JSON.stringify({ ok: false, error: 'Could not resolve caller identity' }), { status: 401, headers: corsHeaders });
+    }
+    const allowedRoles = ['admin', 'operations', 'social_crm', 'tailor', 'logistics'];
+    const empRes = await fetch(env.SUPABASE_URL + '/rest/v1/employees?email=eq.' + encodeURIComponent(callerEmail) + '&select=app_role', { headers: sbHeaders });
+    const empRows = empRes.ok ? await empRes.json() : [];
+    let role = empRows[0] ? empRows[0].app_role : null;
+    if (!role) {
+      const vendRes = await fetch(env.SUPABASE_URL + '/rest/v1/vendors?email=eq.' + encodeURIComponent(callerEmail) + '&select=app_role', { headers: sbHeaders });
+      const vendRows = vendRes.ok ? await vendRes.json() : [];
+      role = vendRows[0] ? vendRows[0].app_role : null;
+    }
+    if (!allowedRoles.includes(role)) {
+      return new Response(JSON.stringify({ ok: false, error: 'Not authorized to delete photos' }), { status: 403, headers: corsHeaders });
+    }
 
     // Storage API (unlike PostgREST) strictly parses the request body when
     // Content-Type: application/json is present — and rejects an empty body
