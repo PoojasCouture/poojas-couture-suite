@@ -83,13 +83,13 @@ const Admin = (() => {
               <tr>
                 <th>User Details</th>
                 <th>Role</th>
-                <th style="text-align: center;" title="Sales Dashboard (CRM)"><i class="ph ph-crown-simple"></i></th>
-                <th style="text-align: center;" title="Human Capital (HRM)"><i class="ph ph-users-three"></i></th>
-                <th style="text-align: center;" title="Accounting &amp; Finance"><i class="ph ph-coins"></i></th>
-                <th style="text-align: center;" title="Admin Center"><i class="ph ph-lock-key"></i></th>
-                <th style="text-align: center;" title="Social CRM Studio"><i class="ph ph-sparkle"></i></th>
-                <th style="text-align: center;" title="Tailor Portal"><i class="ph ph-needle"></i></th>
-                <th style="text-align: center;" title="Shipping Portal"><i class="ph ph-airplane-tilt"></i></th>
+                <th style="text-align: center;" title="Sales Dashboard (CRM)"><span class="perm-header-icon" style="color:rgb(212,168,75);--glow:rgba(212,168,75,0.65)"><i class="ph ph-crown-simple"></i></span></th>
+                <th style="text-align: center;" title="Human Capital (HRM)"><span class="perm-header-icon" style="color:rgb(150,110,190);--glow:rgba(150,110,190,0.65)"><i class="ph ph-users-three"></i></span></th>
+                <th style="text-align: center;" title="Accounting &amp; Finance"><span class="perm-header-icon" style="color:rgb(70,170,190);--glow:rgba(70,170,190,0.65)"><i class="ph ph-coins"></i></span></th>
+                <th style="text-align: center;" title="Admin Center"><span class="perm-header-icon" style="color:rgb(200,90,90);--glow:rgba(200,90,90,0.65)"><i class="ph ph-lock-key"></i></span></th>
+                <th style="text-align: center;" title="Social CRM Studio"><span class="perm-header-icon" style="color:rgb(220,140,90);--glow:rgba(220,140,90,0.65)"><i class="ph ph-sparkle"></i></span></th>
+                <th style="text-align: center;" title="Tailor Portal"><span class="perm-header-icon" style="color:rgb(200,150,190);--glow:rgba(200,150,190,0.65)"><i class="ph ph-needle"></i></span></th>
+                <th style="text-align: center;" title="Shipping Portal"><span class="perm-header-icon" style="color:rgb(90,110,210);--glow:rgba(90,110,210,0.65)"><i class="ph ph-airplane-tilt"></i></span></th>
                 <th style="width: 100px; text-align: right;">Save</th>
               </tr>
             </thead>
