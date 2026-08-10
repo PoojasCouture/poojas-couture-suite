@@ -14,7 +14,8 @@
 //   context: "Karigar Progress" | "Received from Karigar" | "Received from Vendor"
 //          | "Shipped Domestic (India)" | "Shipped International" | other text,
 //   caption: "front view",
-//   uploadedBy: "Kaleem Khan"
+//   uploadedBy: "Kaleem Khan",
+//   token: "<supabase session access_token>"
 // }
 //
 // Required Cloudflare env vars: SUPABASE_URL, SUPABASE_SERVICE_KEY
@@ -43,6 +44,45 @@ export async function onRequest(context) {
     const body = await request.json();
     const imageBase64 = body.imageBase64 || '';
     const mimeType = body.mimeType || 'image/jpeg';
+    const token = body.token;
+
+    if (!token) {
+      return new Response(JSON.stringify({ ok: false, error: 'Missing auth token' }), { status: 401, headers: corsHeaders });
+    }
+
+    const svcHeaders = {
+      'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_KEY,
+      'apikey': env.SUPABASE_SERVICE_KEY,
+      'Content-Type': 'application/json'
+    };
+
+    // Verify the caller is a logged-in staff/vendor member with an
+    // appropriate role, matching job_photos' RLS allow-list. Previously
+    // this endpoint had no identity check -- anyone who found the URL
+    // could upload arbitrary files attributed to any order, with zero login.
+    const userRes = await fetch(env.SUPABASE_URL + '/auth/v1/user', {
+      headers: { 'Authorization': 'Bearer ' + token, 'apikey': env.SUPABASE_SERVICE_KEY }
+    });
+    if (!userRes.ok) {
+      return new Response(JSON.stringify({ ok: false, error: 'Invalid or expired session' }), { status: 401, headers: corsHeaders });
+    }
+    const userData = await userRes.json();
+    const callerEmail = userData.email;
+    if (!callerEmail) {
+      return new Response(JSON.stringify({ ok: false, error: 'Could not resolve caller identity' }), { status: 401, headers: corsHeaders });
+    }
+    const allowedRoles = ['admin', 'operations', 'social_crm', 'tailor', 'logistics'];
+    const empRes = await fetch(env.SUPABASE_URL + '/rest/v1/employees?email=eq.' + encodeURIComponent(callerEmail) + '&select=app_role', { headers: svcHeaders });
+    const empRows = empRes.ok ? await empRes.json() : [];
+    let role = empRows[0] ? empRows[0].app_role : null;
+    if (!role) {
+      const vendRes = await fetch(env.SUPABASE_URL + '/rest/v1/vendors?email=eq.' + encodeURIComponent(callerEmail) + '&select=app_role', { headers: svcHeaders });
+      const vendRows = vendRes.ok ? await vendRes.json() : [];
+      role = vendRows[0] ? vendRows[0].app_role : null;
+    }
+    if (!allowedRoles.includes(role)) {
+      return new Response(JSON.stringify({ ok: false, error: 'Not authorized to upload photos' }), { status: 403, headers: corsHeaders });
+    }
 
     if (!imageBase64 || imageBase64.length < 100) {
       return new Response(JSON.stringify({ ok: false, error: 'No image data' }), { status: 400, headers: corsHeaders });
