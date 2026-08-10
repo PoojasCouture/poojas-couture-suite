@@ -2834,6 +2834,19 @@ div[style*="border:1px solid var(--pc-"] {
   margin-bottom: var(--sp-6);
 }
 
+.portal-tailor .brand-wordmark {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  margin: 0 auto var(--sp-3) auto;
+  display: block;
+  /* Raised, dimensional feel on the dark login card — matches shipping portal */
+  filter:
+    drop-shadow(0 2px 2px rgba(0,0,0,0.55))
+    drop-shadow(0 4px 8px rgba(0,0,0,0.35))
+    drop-shadow(0 0 2px rgba(236,182,118,0.45));
+}
+
 .portal-tailor .brand-logo {
   width: 48px;
   height: 48px;
@@ -3916,4 +3929,3 @@ div[style*="border:1px solid var(--pc-"] {
   line-height: 1.5;
   white-space: pre-wrap;
 }
-
