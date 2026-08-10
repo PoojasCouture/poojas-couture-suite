@@ -317,6 +317,9 @@ const HRM = (() => {
 
     Utils.$('#btn-add-attendance').addEventListener('click', () => showAttendanceModal());
 
+    const state = { sortDir: 'asc', fDate: '', fCheckIn: '', fCheckOut: '' };
+    const sortArrow = () => state.sortDir === 'asc' ? '<span>▲</span>' : '<span>▼</span>';
+
     container.innerHTML = `
       <div class="card p-0">
         <div class="card-header">
@@ -327,11 +330,18 @@ const HRM = (() => {
           <table class="data-table">
             <thead>
               <tr>
-                <th>Staff Name</th>
+                <th id="att-sort-name" style="cursor:pointer;user-select:none;white-space:nowrap">Staff Name ${sortArrow()}</th>
                 <th>Date</th>
                 <th>Clock In</th>
                 <th>Clock Out</th>
                 <th>Status</th>
+              </tr>
+              <tr>
+                <th></th>
+                <th style="padding:6px 8px"><input type="text" id="att-filter-date" class="form-input" placeholder="Search date…" style="font-size:12px;padding:4px 6px;width:100%"></th>
+                <th style="padding:6px 8px"><input type="text" id="att-filter-checkin" class="form-input" placeholder="Search clock in…" style="font-size:12px;padding:4px 6px;width:100%"></th>
+                <th style="padding:6px 8px"><input type="text" id="att-filter-checkout" class="form-input" placeholder="Search clock out…" style="font-size:12px;padding:4px 6px;width:100%"></th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="attendance-table-body">
@@ -342,10 +352,27 @@ const HRM = (() => {
       </div>
     `;
 
+    const dateFilter = Utils.$('#att-filter-date');
+    const checkInFilter = Utils.$('#att-filter-checkin');
+    const checkOutFilter = Utils.$('#att-filter-checkout');
+    const sortHeader = Utils.$('#att-sort-name');
+
     const refreshTable = () => {
-      const records = Store.getAll(Store.COLLECTIONS.ATTENDANCE);
-      // Sort newest first
-      records.sort((a, b) => new Date(b.date) - new Date(a.date));
+      let records = Store.getAll(Store.COLLECTIONS.ATTENDANCE);
+
+      records = records.filter(r =>
+        (!state.fDate || Utils.formatDate(r.date).toLowerCase().indexOf(state.fDate.toLowerCase()) !== -1) &&
+        (!state.fCheckIn || (r.checkIn || '').toLowerCase().indexOf(state.fCheckIn.toLowerCase()) !== -1) &&
+        (!state.fCheckOut || (r.checkOut || '').toLowerCase().indexOf(state.fCheckOut.toLowerCase()) !== -1)
+      );
+
+      records.sort((a, b) => {
+        const va = (a.employeeName || '').toLowerCase(), vb = (b.employeeName || '').toLowerCase();
+        const cmp = va > vb ? 1 : va < vb ? -1 : 0;
+        return state.sortDir === 'asc' ? cmp : -cmp;
+      });
+
+      sortHeader.innerHTML = `Staff Name ${sortArrow()}`;
 
       const tbody = Utils.$('#attendance-table-body');
       tbody.innerHTML = '';
@@ -371,6 +398,14 @@ const HRM = (() => {
         tbody.appendChild(tr);
       });
     };
+
+    sortHeader.addEventListener('click', () => {
+      state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+      refreshTable();
+    });
+    dateFilter.addEventListener('input', () => { state.fDate = dateFilter.value; refreshTable(); });
+    checkInFilter.addEventListener('input', () => { state.fCheckIn = checkInFilter.value; refreshTable(); });
+    checkOutFilter.addEventListener('input', () => { state.fCheckOut = checkOutFilter.value; refreshTable(); });
 
     refreshTable();
   }
