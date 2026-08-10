@@ -4,6 +4,8 @@
 // changed status value (max 2: Confirmed/Cancelled), to stay well under
 // Cloudflare's subrequest limit.
 //
+// POST JSON body: { token: "<supabase session access_token>" }
+//
 // Required Cloudflare env vars:
 //   TIDYCAL_API_TOKEN    - TidyCal personal access token
 //   SUPABASE_URL         - e.g. https://xxxx.supabase.co
@@ -35,6 +37,38 @@ export async function onRequest(context) {
     'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_KEY,
     'Content-Type': 'application/json'
   };
+
+  // Verify the caller is a logged-in staff member with CRM access.
+  // Previously this endpoint had no identity check at all -- anyone who
+  // found the URL could trigger a sync with zero login (mainly a TidyCal
+  // API-quota/abuse risk rather than a data leak, but still unauthenticated
+  // access to an internal action).
+  let token = null;
+  try {
+    const body = await context.request.clone().json();
+    token = body && body.token;
+  } catch { /* no JSON body (e.g. a bare GET) -- token stays null, falls through to 401 below */ }
+
+  if (!token) {
+    return new Response(JSON.stringify({ ok: false, error: 'Missing auth token' }), { status: 401, headers: corsHeaders });
+  }
+  const userRes = await fetch(env.SUPABASE_URL + '/auth/v1/user', {
+    headers: { 'Authorization': 'Bearer ' + token, 'apikey': env.SUPABASE_SERVICE_KEY }
+  });
+  if (!userRes.ok) {
+    return new Response(JSON.stringify({ ok: false, error: 'Invalid or expired session' }), { status: 401, headers: corsHeaders });
+  }
+  const userData = await userRes.json();
+  const callerEmail = userData.email;
+  if (!callerEmail) {
+    return new Response(JSON.stringify({ ok: false, error: 'Could not resolve caller identity' }), { status: 401, headers: corsHeaders });
+  }
+  const empRes = await fetch(env.SUPABASE_URL + '/rest/v1/employees?email=eq.' + encodeURIComponent(callerEmail) + '&select=app_role', { headers: sbHeaders });
+  const empRows = empRes.ok ? await empRes.json() : [];
+  const role = empRows[0] ? empRows[0].app_role : null;
+  if (!['admin', 'operations', 'social_crm'].includes(role)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Not authorized to sync TidyCal' }), { status: 403, headers: corsHeaders });
+  }
 
   try {
     // 1. Fetch bookings from TidyCal (paginated, capped at 10 pages)
