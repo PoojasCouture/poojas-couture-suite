@@ -749,7 +749,6 @@ p {
 
 .sidebar-link.active {
   color: var(--pc-gold);
-  background: var(--pc-amber-glow);
 }
 
 .sidebar-link.active::before {
@@ -793,10 +792,11 @@ p {
   justify-content: center;
   flex-shrink: 0;
   background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow:
     0 0 6px var(--glow, transparent),
     0 0 14px var(--glow, transparent);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .sidebar-link-icon i {
@@ -807,6 +807,7 @@ p {
 .sidebar-link:hover .sidebar-link-icon,
 .sidebar-link.active .sidebar-link-icon {
   transform: scale(1.15);
+  border-color: rgba(255, 255, 255, 0.28);
   box-shadow:
     0 0 8px var(--glow, transparent),
     0 0 22px var(--glow, transparent),
