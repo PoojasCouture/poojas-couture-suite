@@ -16,6 +16,33 @@ const Products = (() => {
   const tracksQtyByCategory = (cat) => QTY_CATEGORIES.includes(cat);
   const LOCATIONS = ['Showroom', 'Warehouse A', 'Warehouse B'];
 
+  // Short, human-writable prefix per category — matches the same
+  // sequential BLS-000001-style scheme already used for order codes,
+  // so SKUs are easy to read aloud and write by hand on a plain tag
+  // (no printer/scanner in use — see product decision this session).
+  const SKU_PREFIX = {
+    'Bridal Set': 'LEH',
+    'Groom Set': 'GRM',
+    'Menswear': 'MEN',
+    'Jewellery': 'JWL',
+    'Purse': 'PUR',
+    'Footwear': 'FTW',
+    'Accessory': 'ACC'
+  };
+
+  function generateSku(category) {
+    const prefix = SKU_PREFIX[category] || 'GEN';
+    const products = Store.getAll(Store.COLLECTIONS.PRODUCTS);
+    let maxNum = 0;
+    products.forEach(p => {
+      if (p.sku && p.sku.indexOf(prefix + '-') === 0) {
+        const n = parseInt(p.sku.slice(prefix.length + 1), 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      }
+    });
+    return prefix + '-' + String(maxNum + 1).padStart(6, '0');
+  }
+
   function init() {
     try {
       activeCategory = localStorage.getItem('pc_prod_cat') || 'all';
@@ -186,7 +213,8 @@ const Products = (() => {
     const p = editing ? Store.getById(Store.COLLECTIONS.PRODUCTS, productId) : {};
     if (editing && !p) { Utils.showToast('Product not found.', 'error'); return; }
 
-    const suggestedSku = editing ? p.sku : `PC-${Utils.randomBetween(10000, 99999)}`;
+    const defaultCategory = p.category || 'Bridal Set';
+    const suggestedSku = editing ? p.sku : generateSku(defaultCategory);
     // Effective tracking: explicit flag if set, else decide by category.
     const effTrack = editing
       ? (p.trackQuantity === true || (p.trackQuantity == null && tracksQtyByCategory(p.category)))
@@ -197,11 +225,11 @@ const Products = (() => {
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">SKU / Item Code</label>
-            <input type="text" name="sku" class="form-input font-mono" value="${Utils.sanitizeHTML(suggestedSku || '')}">
+            <input type="text" id="pf-sku" name="sku" class="form-input font-mono" value="${Utils.sanitizeHTML(suggestedSku || '')}">
           </div>
           <div class="form-group">
             <label class="form-label">Category</label>
-            <select name="category" class="form-select">
+            <select id="pf-category" name="category" class="form-select">
               ${CATEGORIES.map(c => `<option value="${c}" ${p.category===c?'selected':''}>${c}</option>`).join('')}
             </select>
           </div>
@@ -329,10 +357,17 @@ const Products = (() => {
         qtyGroup.style.display = trackCb.checked ? 'block' : 'none';
       };
       // When category changes, default the track flag to the category rule
-      // (user can still override by toggling the checkbox afterwards).
+      // (user can still override by toggling the checkbox afterwards), and
+      // regenerate the suggested SKU to match the new category's prefix —
+      // only when adding a new product; an existing SKU is never silently
+      // rewritten out from under an edit.
       catSel.addEventListener('change', () => {
         trackCb.checked = tracksQtyByCategory(catSel.value);
         syncQtyVisibility();
+        if (!editing) {
+          const skuInput = document.querySelector('#pf-sku');
+          if (skuInput) skuInput.value = generateSku(catSel.value);
+        }
       });
       trackCb.addEventListener('change', syncQtyVisibility);
     }, 50);
