@@ -107,6 +107,7 @@ const HRM = (() => {
               <option value="Design">Design</option>
               <option value="Production">Production</option>
               <option value="Logistics">Logistics</option>
+              <option value="Social Media">Social Media</option>
               <option value="Sales">Sales</option>
               <option value="Management">Management</option>
             </select>
@@ -228,7 +229,7 @@ const HRM = (() => {
             <select name="role" class="form-select" required>
               <option value="Designer" ${emp && emp.role === 'Designer' ? 'selected' : ''}>Designer</option>
               <option value="Tailor" ${emp && emp.role === 'Tailor' ? 'selected' : ''}>Tailor</option>
-              <option value="Embroiderer" ${emp && emp.role === 'Embroiderer' ? 'selected' : ''}>Embroiderer</option>
+              <option value="Social Media Specialist" ${emp && emp.role === 'Social Media Specialist' ? 'selected' : ''}>Social Media Specialist</option>
               <option value="Logistics Vendor" ${emp && emp.role === 'Logistics Vendor' ? 'selected' : ''}>Logistics Vendor</option>
               <option value="Sales" ${emp && emp.role === 'Sales' ? 'selected' : ''}>Sales Specialist</option>
               <option value="Admin" ${emp && emp.role === 'Admin' ? 'selected' : ''}>System Admin</option>
@@ -240,6 +241,7 @@ const HRM = (() => {
               <option value="Design" ${emp && emp.department === 'Design' ? 'selected' : ''}>Design</option>
               <option value="Production" ${emp && emp.department === 'Production' ? 'selected' : ''}>Production</option>
               <option value="Logistics" ${emp && emp.department === 'Logistics' ? 'selected' : ''}>Logistics</option>
+              <option value="Social Media" ${emp && emp.department === 'Social Media' ? 'selected' : ''}>Social Media</option>
               <option value="Sales" ${emp && emp.department === 'Sales' ? 'selected' : ''}>Sales</option>
               <option value="Management" ${emp && emp.department === 'Management' ? 'selected' : ''}>Management</option>
             </select>
