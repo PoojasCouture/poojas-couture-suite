@@ -338,9 +338,9 @@ const HRM = (() => {
               </tr>
               <tr>
                 <th></th>
-                <th style="padding:6px 8px"><input type="text" id="att-filter-date" class="form-input" placeholder="Search date…" style="font-size:12px;padding:4px 6px;width:100%"></th>
-                <th style="padding:6px 8px"><input type="text" id="att-filter-checkin" class="form-input" placeholder="Search clock in…" style="font-size:12px;padding:4px 6px;width:100%"></th>
-                <th style="padding:6px 8px"><input type="text" id="att-filter-checkout" class="form-input" placeholder="Search clock out…" style="font-size:12px;padding:4px 6px;width:100%"></th>
+                <th style="padding:6px 8px"><input type="text" id="att-filter-date" class="form-input" placeholder="e.g. 5 Aug 2026" style="font-size:12px;padding:4px 6px;width:100%"></th>
+                <th style="padding:6px 8px"><input type="text" id="att-filter-checkin" class="form-input" placeholder="e.g. 9:00 AM" style="font-size:12px;padding:4px 6px;width:100%"></th>
+                <th style="padding:6px 8px"><input type="text" id="att-filter-checkout" class="form-input" placeholder="e.g. 5:30 PM" style="font-size:12px;padding:4px 6px;width:100%"></th>
                 <th></th>
               </tr>
             </thead>
