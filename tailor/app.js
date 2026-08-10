@@ -361,6 +361,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         submitBtn.disabled = true;
 
         try {
+          const client = Store.getClient();
+          const { data: sessionData } = await client.auth.getSession();
+          const authToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
           for (let i = 0; i < files.length; i++) {
             progress.textContent = 'Uploading photo ' + (i + 1) + ' of ' + files.length + '...';
             const b64 = await compressImage(files[i]);
@@ -376,7 +379,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 markFulfilled: isLast && !!(fulfilEl && fulfilEl.checked),
                 context: 'Karigar Progress',
                 caption: caption || null,
-                uploadedBy: currentUser ? currentUser.name : 'Karigar'
+                uploadedBy: currentUser ? currentUser.name : 'Karigar',
+                token: authToken
               })
             });
             const out = await res.json();
