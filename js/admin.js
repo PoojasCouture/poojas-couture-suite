@@ -83,11 +83,13 @@ const Admin = (() => {
               <tr>
                 <th>User Details</th>
                 <th>Role</th>
-                <th style="text-align: center;">CRM Access</th>
-                <th style="text-align: center;">HRM Access</th>
-                <th style="text-align: center;">Accounting Access</th>
-                <th style="text-align: center;">Admin Panel</th>
-                <th style="text-align: center;">Social CRM Studio</th>
+                <th style="text-align: center;" title="Sales Dashboard (CRM)"><i class="ph ph-crown-simple"></i></th>
+                <th style="text-align: center;" title="Human Capital (HRM)"><i class="ph ph-users-three"></i></th>
+                <th style="text-align: center;" title="Accounting &amp; Finance"><i class="ph ph-coins"></i></th>
+                <th style="text-align: center;" title="Admin Center"><i class="ph ph-lock-key"></i></th>
+                <th style="text-align: center;" title="Social CRM Studio"><i class="ph ph-sparkle"></i></th>
+                <th style="text-align: center;" title="Tailor Portal"><i class="ph ph-needle"></i></th>
+                <th style="text-align: center;" title="Shipping Portal"><i class="ph ph-airplane-tilt"></i></th>
                 <th style="width: 100px; text-align: right;">Save</th>
               </tr>
             </thead>
@@ -109,7 +111,7 @@ const Admin = (() => {
       const avatarBg = Utils.getAvatarColor(emp.name);
 
       // Default permissions if missing
-      const perms = emp.permissions || { crm: false, hrm: false, accounting: false, admin: false, socialCrm: false };
+      const perms = emp.permissions || { crm: false, hrm: false, accounting: false, admin: false, socialCrm: false, tailor: false, shipping: false };
 
       tr.innerHTML = `
         <td>
@@ -141,6 +143,12 @@ const Admin = (() => {
         </td>
         <td style="text-align: center;">
           <input type="checkbox" class="perm-chk" data-emp="${emp.id}" data-perm="socialCrm" ${perms.socialCrm ? 'checked' : ''} ${emp.id === 'e-1' ? 'disabled' : ''}>
+        </td>
+        <td style="text-align: center;">
+          <input type="checkbox" class="perm-chk" data-emp="${emp.id}" data-perm="tailor" ${perms.tailor ? 'checked' : ''} ${emp.id === 'e-1' ? 'disabled' : ''}>
+        </td>
+        <td style="text-align: center;">
+          <input type="checkbox" class="perm-chk" data-emp="${emp.id}" data-perm="shipping" ${perms.shipping ? 'checked' : ''} ${emp.id === 'e-1' ? 'disabled' : ''}>
         </td>
         <td>
           <div class="table-actions justify-end">

@@ -126,7 +126,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   const appRole = (currentUser.appRole || currentUser.app_role || '').toLowerCase();
-  if (!['logistics','operations','admin'].includes(appRole)) {
+  const perms = currentUser.permissions || {};
+  if (!['logistics','operations','admin'].includes(appRole) && perms.shipping !== true) {
     showGate('This portal is for logistics (Shashank) only. Your account does not have access.', true);
     return;
   }

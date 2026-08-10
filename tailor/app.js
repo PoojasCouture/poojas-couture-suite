@@ -18,8 +18,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   function validateRole(user) {
     const role = (user.role || '').toLowerCase();
     const appRole = (user.appRole || user.app_role || '').toLowerCase();
+    const perms = user.permissions || {};
     return role === 'tailor' || role === 'embroiderer'
-        || appRole === 'tailor' || appRole === 'admin' || appRole === 'operations';
+        || appRole === 'tailor' || appRole === 'admin' || appRole === 'operations'
+        || perms.tailor === true;
   }
 
   function showGate(message, allowLogin) {
