@@ -83,14 +83,21 @@ const App = (() => {
     const user = Store.getCurrentUser();
     if (user) {
       const role = user.appRole || user.app_role || 'admin';
+      const hasCrmPerm = !!(user.permissions && user.permissions.crm);
+      const hasSocialCrmPerm = !!(user.permissions && user.permissions.socialCrm);
       const ACCESS = {
         admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  'ai-team':true  },
         operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, 'ai-team':false },
-        social_crm: { dashboard:true,  products:true,  crm:true,  hrm:false, accounting:false, admin:false, settings:false, 'ai-team': (user.permissions && user.permissions.socialCrm) ? true : false  },
+        social_crm: { dashboard:hasCrmPerm, products:hasCrmPerm, crm:hasCrmPerm, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':hasSocialCrmPerm },
         tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false },
         logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false }
       };
-      const access = ACCESS[role] || ACCESS.admin;
+      // Deny-all default for any unrecognized role — previously fell back
+      // to full admin access, which is a fail-open security gap: any
+      // app_role string that didn't exactly match one of the 5 known
+      // roles silently granted every tab, including Admin Center.
+      const DENY_ALL = { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false };
+      const access = ACCESS[role] || DENY_ALL;
       if (['dashboard','products','crm','hrm','accounting','admin','settings','ai-team'].includes(route) && access[route] !== true) {
         showAccessDenied();
         return;
@@ -148,7 +155,7 @@ const App = (() => {
     const isTailor = kind === 'tailor';
     const portalName = isTailor ? 'Karigar Workstation' : 'Logistics Workstation';
     const portalHref = isTailor ? 'tailor/index.html' : 'shipping/index.html';
-    const icon = isTailor ? '🪡' : '✈️';
+    const icon = isTailor ? '🧵' : '✈️';
     container.innerHTML = `
       <div class="card p-8 text-center animate-fade-in" style="max-width:520px;margin:60px auto">
         <div style="font-size:52px;margin-bottom:16px">${icon}</div>
@@ -607,14 +614,19 @@ const App = (() => {
 
   function applySidebarPermissions(user) {
     const appRole = user.appRole || user.app_role || 'admin';
+    const hasCrmPerm = !!(user.permissions && user.permissions.crm);
+    const hasSocialCrmPerm = !!(user.permissions && user.permissions.socialCrm);
     const ACCESS = {
       admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  tailorPortal:true,  logisticsPortal:true,  aiTeam:true  },
       operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:true,  aiTeam:false },
-      social_crm: { dashboard:true,  products:true,  crm:true,  hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true,  aiTeam: (user.permissions && user.permissions.socialCrm) ? true : false  },
+      social_crm: { dashboard:hasCrmPerm, products:hasCrmPerm, crm:hasCrmPerm, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:false, aiTeam:hasSocialCrmPerm },
       tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:false, aiTeam:false },
       logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true,  aiTeam:false }
     };
-    const access = ACCESS[appRole] || ACCESS.admin;
+    // Deny-all default for unrecognized roles -- see navigate() for why
+    // falling back to admin access was a real security gap.
+    const DENY_ALL = { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:false, aiTeam:false };
+    const access = ACCESS[appRole] || DENY_ALL;
     const routeKeyMap = { 'ai-team': 'aiTeam' };
 
     Utils.$$('.sidebar-section').forEach(section => {
