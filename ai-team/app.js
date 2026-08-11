@@ -166,10 +166,12 @@ async function renderGeneratedImage(prompt, containerEl) {
 
   try {
     const fullPrompt = prompt + ', South Asian bridal fashion, premium boutique aesthetic, high quality, editorial photography style';
+    const { data: sessionData } = await window._sbClient.auth.getSession();
+    const authToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
     const res = await fetch('/api/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: fullPrompt })
+      body: JSON.stringify({ prompt: fullPrompt, token: authToken })
     });
 
     const data = await res.json();
@@ -544,10 +546,12 @@ function handleKey(e) {
 }
 
 async function callClaude(system, messages) {
+  const { data: sessionData } = await window._sbClient.auth.getSession();
+  const authToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
   const response = await fetch('/api/ai-team', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ max_tokens: 1200, system, messages })
+    body: JSON.stringify({ max_tokens: 1200, system, messages, token: authToken })
   });
   if (!response.ok) {
     const errBody = await response.json().catch(() => ({}));

@@ -670,7 +670,14 @@ poojascouture.com.au`
       syncing = true;
       if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = '&#8635; Syncing...'; }
       try {
-        const res = await fetch('/api/tidycal-sync');
+        const client = Store.getClient();
+        const { data: sessionData } = await client.auth.getSession();
+        const authToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
+        const res = await fetch('/api/tidycal-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: authToken })
+        });
         const result = await res.json();
         if (result && result.ok) {
           if ((result.synced || 0) > 0 || (result.updated || 0) > 0) {
@@ -4769,10 +4776,13 @@ poojascouture.com.au`
       submitText: 'Remove Photo',
       onSubmit: async () => {
         try {
+          const client = Store.getClient();
+          const { data: sessionData } = await client.auth.getSession();
+          const authToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
           const res = await fetch('/api/delete-photo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ photoId })
+            body: JSON.stringify({ photoId, token: authToken })
           });
           const out = await res.json();
           if (!out.ok) throw new Error(out.error || 'Delete failed');
