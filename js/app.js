@@ -579,17 +579,19 @@ const App = (() => {
       if (role === 'logistics') { window.location.replace('shipping/index.html'); return; }
       loginOverlay.classList.remove('active');
       applySidebarPermissions(user);
-      // On reload/direct-URL-load, respect whatever route the user was
-      // last on (or is trying to reach) instead of always jumping to a
-      // "safe" default. This lets navigate()'s own permission check run
-      // against the ACTUAL requested route and show Access Denied when
-      // appropriate, rather than silently bouncing every reload to a
-      // default landing page and never exercising that check at all.
-      const CHECKED_ROUTES = ['dashboard','products','crm','hrm','accounting','admin','settings','ai-team'];
-      let lastRoute = null;
-      try { lastRoute = localStorage.getItem('pc_last_route'); } catch (e) {}
-      const target = CHECKED_ROUTES.includes(lastRoute) ? lastRoute : landingRouteFor(user);
-      navigate(target);
+      // Always compute a fresh landing route per user — do NOT trust
+      // pc_last_route here. That key isn't scoped per-user; on a shared
+      // browser/device it can hold whatever route the PREVIOUS person
+      // logged in was last on (e.g. an admin's 'dashboard'), and a
+      // different user logging in next would incorrectly inherit that
+      // route and hit Access Denied for a page they never asked to see.
+      // This app also has no real per-module URLs (pure JS-driven SPA,
+      // nothing in the address bar reflects the route), so there's no
+      // legitimate "user typed a specific URL" case to preserve here —
+      // navigate()'s own permission check still covers any future
+      // scenario where an unauthorized route gets requested directly
+      // (e.g. via devtools), it just won't fire from a stale reload.
+      navigate(landingRouteFor(user));
     } else {
       loginOverlay.classList.add('active');
     }

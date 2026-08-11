@@ -514,6 +514,10 @@ const Store = (() => {
     if (u) { try { await logAction('User Logged Out', 'System', `${u.name} logged out.`); } catch (e) {} }
     currentUser = null;
     localStorage.removeItem('pc_current_user');
+    // Also clear the last-visited-route marker — it isn't scoped per
+    // user, so leaving it behind lets the NEXT person who logs in on
+    // this browser/device inherit a route they may have no access to.
+    localStorage.removeItem('pc_last_route');
     try {
       await c.auth.signOut({ scope: 'local' });
     } catch (e) {}

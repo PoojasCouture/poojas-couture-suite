@@ -858,7 +858,7 @@ async function signOutSocialCrmUser() {
   } catch (e) { /* fall through to manual cleanup below regardless */ }
   try {
     localStorage.removeItem('pc_current_user');
-    localStorage.setItem('pc_last_route', 'dashboard');
+    localStorage.removeItem('pc_last_route');
     // Belt-and-braces: if auth.signOut() above failed silently (e.g. a
     // network blip), a stale Supabase session token left in localStorage
     // would let the main app's reconcileUser() log the user straight
