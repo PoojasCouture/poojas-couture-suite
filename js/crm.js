@@ -3813,23 +3813,102 @@ poojascouture.com.au`
             <option value="all">All</option>
             <option value="Active">Active</option>
             <option value="On Hold">On Hold</option>
-            <option value="Completed">Completed</option>
             <option value="Cancelled">Cancelled</option>
           </select>
           <div class="text-muted text-sm font-mono" id="project-count"></div>
         </div>
       </div>
+      <div class="d-flex gap-2 mb-4">
+        <button class="tab-btn active" id="proj-tab-active" data-projtab="active" style="font-size:13px;padding:6px 16px;border-radius:16px;font-weight:600;">Active</button>
+        <button class="tab-btn" id="proj-tab-completed" data-projtab="completed" style="font-size:13px;padding:6px 16px;border-radius:16px;font-weight:600;">✅ Completed</button>
+      </div>
       <div id="projects-list"></div>
     `;
+
+    let activeProjTab = 'active';
+    Utils.$('#proj-tab-active').addEventListener('click', () => { activeProjTab = 'active'; setProjTabUI(); renderList(); });
+    Utils.$('#proj-tab-completed').addEventListener('click', () => { activeProjTab = 'completed'; setProjTabUI(); renderList(); });
+
+    function setProjTabUI() {
+      Utils.$('#proj-tab-active').classList.toggle('active', activeProjTab === 'active');
+      Utils.$('#proj-tab-completed').classList.toggle('active', activeProjTab === 'completed');
+      // The status dropdown only makes sense for the Active tab — Completed
+      // is its own bucket, so hide the filter there to avoid two competing
+      // filters that could produce a confusing empty list.
+      Utils.$('#project-filter-status').closest('.filter-bar').style.display =
+        activeProjTab === 'completed' ? 'none' : '';
+    }
+
+    // A project counts as "completed" once its own status is Completed,
+    // OR every one of its sub-orders has reached Delivered/Completed —
+    // whichever happens first. Projects can be marked Completed manually
+    // even with a couple of sub-orders still trailing paperwork, and
+    // conversely all-garments-delivered is a real finish line even if
+    // nobody flipped the project's own status field afterward.
+    function isProjectComplete(proj, subOrders) {
+      if (proj.status === 'Completed') return true;
+      if (subOrders.length === 0) return false;
+      return subOrders.every(o => ['Delivered', 'Completed'].includes(o.status));
+    }
 
     const renderList = () => {
       const q = (Utils.$('#project-search').value||'').toLowerCase();
       const s = Utils.$('#project-filter-status').value;
-      const projects = allProjects.filter(p =>
-        (s==='all'||p.status===s) &&
-        (!q||(p.projectName||'').toLowerCase().includes(q)||(p.clientName||'').toLowerCase().includes(q))
-      );
+
+      const matchesSearch = (p) =>
+        !q || (p.projectName||'').toLowerCase().includes(q) || (p.clientName||'').toLowerCase().includes(q);
+
+      let projects;
+      if (activeProjTab === 'completed') {
+        projects = allProjects.filter(p => {
+          const subOrders = allOrders.filter(o => o.projectId === p.id);
+          return isProjectComplete(p, subOrders) && matchesSearch(p);
+        });
+      } else {
+        projects = allProjects.filter(p => {
+          const subOrders = allOrders.filter(o => o.projectId === p.id);
+          if (isProjectComplete(p, subOrders)) return false; // lives under Completed tab instead
+          return (s==='all'||p.status===s) && matchesSearch(p);
+        });
+      }
       Utils.$('#project-count').textContent = projects.length + ' of ' + allProjects.length;
+
+      // Completed tab: minimized single-line rows, click opens the full
+      // detail modal (viewProject) instead of the always-expanded card
+      // used on the Active tab.
+      if (activeProjTab === 'completed') {
+        let rowsHTML = '<div class="card p-0" style="overflow:hidden">';
+        if (projects.length === 0) {
+          rowsHTML += '<div class="p-8 text-center text-muted"><div class="empty-state">' +
+            '<div class="empty-state-icon">✅</div>' +
+            '<div class="empty-state-title">No completed projects yet</div>' +
+            '<div class="empty-state-text">Projects appear here once marked Completed or once every garment is Delivered.</div>' +
+            '</div></div>';
+        } else {
+          projects.slice().sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).forEach((proj, idx) => {
+            const subOrders = allOrders.filter(o => o.projectId === proj.id);
+            rowsHTML +=
+              '<div class="d-flex items-center justify-between p-3" style="cursor:pointer;' +
+                (idx > 0 ? 'border-top:1px solid var(--pc-border);' : '') +
+              '" onclick="CRM.viewProject(\'' + proj.id + '\')" title="Click for full details">' +
+                '<div class="d-flex items-center gap-3">' +
+                  '<span class="badge badge-success text-xs">✅ Completed</span>' +
+                  '<div>' +
+                    '<div class="font-medium">' + Utils.sanitizeHTML(proj.projectName) + '</div>' +
+                    '<div class="text-xs text-muted">' + Utils.sanitizeHTML(proj.clientName) +
+                      (proj.eventDate ? ' · ' + Utils.formatDate(proj.eventDate) : '') +
+                      ' · ' + subOrders.length + ' garment' + (subOrders.length !== 1 ? 's' : '') +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="font-mono text-sm text-muted">' + Utils.formatCurrency(proj.totalPrice) + '</div>' +
+              '</div>';
+          });
+        }
+        rowsHTML += '</div>';
+        Utils.$('#projects-list').innerHTML = rowsHTML;
+        return;
+      }
 
       // Build HTML using string concatenation to avoid nested template literal browser issues
       let projHTML = '<div class="d-flex flex-col gap-4">';
@@ -3907,6 +3986,7 @@ poojascouture.com.au`
     };
     Utils.$('#project-search').addEventListener('input', Utils.debounce(renderList));
     Utils.$('#project-filter-status').addEventListener('change', renderList);
+    setProjTabUI();
     renderList();
   }
 
