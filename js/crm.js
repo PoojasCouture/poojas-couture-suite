@@ -2610,6 +2610,11 @@ poojascouture.com.au`
           const introText = Utils.$('#pe-new-intro', modalEl).value.trim();
           if (!name || !introText) { Utils.showToast('Fill in the new template name and intro text.', 'error'); return false; }
           tplId = await savePhotoEmailTemplate(name, introText);
+          // Confirm the template save immediately and independently of the
+          // email send below — without this, a template that saved fine
+          // but then hit a send failure left the user with only a "Send
+          // failed" error, never told the new template itself was kept.
+          Utils.showToast(`Template "${name}" saved.`, 'success');
           intro = introText; tplName = name;
         } else {
           const tpl = templates.find(t => t.id === tplId);
