@@ -618,13 +618,6 @@ const Admin = (() => {
       .filter(([key]) => perms[key])
       .map(([, label]) => label);
 
-    const field = (label, value) => `
-      <div class="form-group">
-        <label class="form-label">${label}</label>
-        <div class="form-input" style="background: rgba(255,255,255,0.02); cursor: default;">${value || '—'}</div>
-      </div>
-    `;
-
     App.showModal({
       title: 'User Details',
       hideCancel: true,
@@ -632,25 +625,47 @@ const Admin = (() => {
       content: `
         <div class="form-group">
           <label class="form-label">Full Name</label>
-          <div class="form-input" style="background: rgba(255,255,255,0.02); cursor: default;">${Utils.sanitizeHTML(emp.name)}</div>
+          <input type="text" class="form-input" value="${Utils.sanitizeHTML(emp.name)}" disabled>
         </div>
         <div class="form-row">
-          ${field('Email Address', Utils.sanitizeHTML(emp.email || ''))}
-          ${field('Phone Number', Utils.sanitizeHTML(emp.phone || ''))}
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" class="form-input" value="${Utils.sanitizeHTML(emp.email || '')}" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone Number</label>
+            <input type="text" class="form-input" value="${Utils.sanitizeHTML(emp.phone || '')}" disabled>
+          </div>
         </div>
         <div class="form-row">
-          ${field('Role Title', Utils.sanitizeHTML(emp.role || ''))}
-          ${field('Department', Utils.sanitizeHTML(emp.department || ''))}
+          <div class="form-group">
+            <label class="form-label">Role Title</label>
+            <input type="text" class="form-input" value="${Utils.sanitizeHTML(emp.role || '')}" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Department</label>
+            <input type="text" class="form-input" value="${Utils.sanitizeHTML(emp.department || '')}" disabled>
+          </div>
         </div>
         <div class="form-row">
-          ${field('Location', Utils.sanitizeHTML(emp.location || ''))}
-          ${field('Join Date', emp.joinedDate ? Utils.formatDate(emp.joinedDate) : '')}
-        </div>
-        <div class="form-row">
-          ${field('Status', Utils.sanitizeHTML(emp.status || ''))}
-          ${field('System Role', Utils.sanitizeHTML(emp.appRole || emp.app_role || ''))}
+          <div class="form-group">
+            <label class="form-label">Location</label>
+            <input type="text" class="form-input" value="${Utils.sanitizeHTML(emp.location || '')}" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Join Date</label>
+            <input type="text" class="form-input" value="${emp.joinedDate ? Utils.formatDate(emp.joinedDate) : ''}" disabled>
+          </div>
         </div>
         <div class="form-group m-0">
+          <label class="form-label">Status</label>
+          <input type="text" class="form-input" value="${Utils.sanitizeHTML(emp.status || '')}" disabled>
+        </div>
+        <div class="form-group m-0 mt-3">
+          <label class="form-label">System Role</label>
+          <input type="text" class="form-input" value="${Utils.sanitizeHTML(emp.appRole || emp.app_role || '')}" disabled>
+        </div>
+        <div class="form-group m-0 mt-3">
           <label class="form-label">Portal Access</label>
           ${grantedPerms.length
             ? `<div class="d-flex flex-wrap gap-2 mt-1">${grantedPerms.map(p => `<span class="badge badge-gold">${p}</span>`).join('')}</div>`
