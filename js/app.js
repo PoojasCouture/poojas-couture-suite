@@ -665,6 +665,9 @@ const App = (() => {
     showModal({
       title: 'Change Password',
       content: `
+        <div class="text-xs text-muted mb-3" style="padding:10px 12px;border:1px solid var(--pc-border);border-radius:8px;background:rgba(255,255,255,0.02)">
+          ⚠️ Changing your password will sign you out immediately. You'll need to log in again with the new password.
+        </div>
         <form id="change-password-form" class="animate-fade-in-scale">
           <div class="form-group">
             <label class="form-label">New Password <span class="required">*</span></label>
@@ -720,8 +723,18 @@ const App = (() => {
             submitBtn.textContent = 'Update Password';
             return;
           }
-          Utils.showToast('Password updated.', 'success');
+          // updateUser() does NOT invalidate the current session token by
+          // itself — the old session would otherwise stay valid until it
+          // naturally expires, letting the user (or anyone with access to
+          // this browser) keep working under the OLD password's session
+          // as if nothing changed. Force an explicit sign-out so the new
+          // password is the only way back in, immediately.
           closeModal();
+          Utils.showToast('Password changed. Please log in again with your new password.', 'success');
+          setTimeout(async () => {
+            try { await Store.logout(); } catch (e) {}
+            location.reload();
+          }, 1200);
         }).catch((e) => {
           errBox.textContent = 'Network error: ' + e.message;
           errBox.style.display = 'block';
