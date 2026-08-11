@@ -579,7 +579,17 @@ const App = (() => {
       if (role === 'logistics') { window.location.replace('shipping/index.html'); return; }
       loginOverlay.classList.remove('active');
       applySidebarPermissions(user);
-      navigate(landingRouteFor(user));
+      // On reload/direct-URL-load, respect whatever route the user was
+      // last on (or is trying to reach) instead of always jumping to a
+      // "safe" default. This lets navigate()'s own permission check run
+      // against the ACTUAL requested route and show Access Denied when
+      // appropriate, rather than silently bouncing every reload to a
+      // default landing page and never exercising that check at all.
+      const CHECKED_ROUTES = ['dashboard','products','crm','hrm','accounting','admin','settings','ai-team'];
+      let lastRoute = null;
+      try { lastRoute = localStorage.getItem('pc_last_route'); } catch (e) {}
+      const target = CHECKED_ROUTES.includes(lastRoute) ? lastRoute : landingRouteFor(user);
+      navigate(target);
     } else {
       loginOverlay.classList.add('active');
     }
