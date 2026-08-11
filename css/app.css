@@ -1403,7 +1403,7 @@ div[style*="border:1px solid var(--pc-"] {
 /* ---------- Cards ---------- */
 .card {
   background: var(--pc-bg-card);
-  border: 1px solid var(--pc-border);
+  border: 1px solid var(--pc-gold, #d4af37);
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--pc-shadow-sm);
@@ -1458,7 +1458,7 @@ div[style*="border:1px solid var(--pc-"] {
 /* Stat Widget Card */
 .stat-card {
   background: var(--pc-bg-card);
-  border: 1px solid var(--pc-border);
+  border: 1px solid var(--pc-gold, #d4af37);
   border-radius: var(--radius-lg);
   padding: var(--sp-6);
   position: relative;
@@ -1850,7 +1850,7 @@ div[style*="border:1px solid var(--pc-"] {
 
 .modal {
   background: var(--pc-bg-modal);
-  border: 1px solid var(--pc-border);
+  border: 1px solid var(--pc-gold, #d4af37);
   border-radius: var(--radius-xl);
   box-shadow: var(--pc-shadow-xl);
   width: max-content;
