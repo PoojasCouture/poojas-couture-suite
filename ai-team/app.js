@@ -823,9 +823,22 @@ function checkAccess(isRetry) {
   if (!hasOtherAccess) {
     const backLink = document.querySelector('.back-link');
     if (backLink) {
-      backLink.textContent = (currentUser.name || currentUser.email || 'Account') + ' — Sign Out';
-      backLink.href = '#';
-      backLink.onclick = (e) => { e.preventDefault(); signOutSocialCrmUser(); };
+      // Replace the plain text link with the same avatar+name+role chip
+      // used in the main app's sidebar footer, wired to sign out on click
+      // instead of navigating anywhere.
+      const chip = document.createElement('div');
+      chip.className = 'sidebar-user';
+      chip.style.cursor = 'pointer';
+      chip.title = 'Sign out';
+      chip.innerHTML = `
+        <div class="sidebar-user-avatar" style="background-color:${_avatarColorFor(currentUser.name)};color:var(--pc-text-inverse, #fff)">${_initialsFor(currentUser.name)}</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name">${escapeHtml(currentUser.name || currentUser.email || 'Account')}</div>
+          <div class="sidebar-user-role">${escapeHtml(_roleTitleFor(currentUser))}</div>
+        </div>
+      `;
+      chip.addEventListener('click', () => signOutSocialCrmUser());
+      backLink.replaceWith(chip);
     }
 
     const brandHome = document.querySelector('.sidebar-brand-home');
@@ -856,6 +869,36 @@ async function signOutSocialCrmUser() {
       .forEach(k => localStorage.removeItem(k));
   } catch (e) {}
   window.location.href = '../index.html';
+}
+
+// Small self-contained copies of Utils.getInitials/getAvatarColor —
+// utils.js is not loaded in this portal, and pulling in the whole file
+// just for two one-line helpers isn't worth the extra dependency.
+function _initialsFor(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0] ? parts[0][0] : '';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase();
+}
+function _avatarColorFor(name) {
+  const palette = ['#c8905a', '#8f6ebe', '#5aa0be', '#be5a7a', '#6ebe8f', '#be9e5a'];
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return palette[Math.abs(hash) % palette.length];
+}
+function _roleTitleFor(user) {
+  const roleTitles = {
+    admin: 'Operations Director',
+    operations: 'Operations Manager',
+    social_crm: 'CRM & Social',
+    tailor: 'Master Tailor',
+    logistics: 'Logistics Manager'
+  };
+  const key = (user.appRole || user.app_role || user.role || '').toLowerCase();
+  const displayName = (user.name || '').toLowerCase();
+  if (displayName.includes('pooja')) return 'Managing Director';
+  return roleTitles[key] || user.role || '';
 }
 
 document.addEventListener('DOMContentLoaded', () => checkAccess(false));
