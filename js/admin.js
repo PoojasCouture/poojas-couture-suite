@@ -618,34 +618,43 @@ const Admin = (() => {
       .filter(([key]) => perms[key])
       .map(([, label]) => label);
 
-    const initials = Utils.getInitials(emp.name);
-    const avatarBg = Utils.getAvatarColor(emp.name);
+    const field = (label, value) => `
+      <div class="form-group">
+        <label class="form-label">${label}</label>
+        <div class="form-input" style="background: rgba(255,255,255,0.02); cursor: default;">${value || '—'}</div>
+      </div>
+    `;
 
     App.showModal({
       title: 'User Details',
       hideCancel: true,
       submitText: 'Close',
       content: `
-        <div class="d-flex items-center gap-3 mb-4">
-          <div class="avatar avatar-lg" style="background:${avatarBg};color:var(--pc-text-inverse)">${initials}</div>
-          <div>
-            <div class="font-bold text-lg">${Utils.sanitizeHTML(emp.name)}</div>
-            <div class="text-sm text-muted">${Utils.sanitizeHTML(emp.role || '')}${emp.department ? ' · ' + Utils.sanitizeHTML(emp.department) : ''}</div>
-          </div>
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <div class="form-input" style="background: rgba(255,255,255,0.02); cursor: default;">${Utils.sanitizeHTML(emp.name)}</div>
         </div>
-        <div class="d-flex flex-column gap-2 text-sm">
-          <div><span class="text-muted">Email:</span> ${Utils.sanitizeHTML(emp.email || '—')}</div>
-          <div><span class="text-muted">Phone:</span> ${Utils.sanitizeHTML(emp.phone || '—')}</div>
-          <div><span class="text-muted">Location:</span> ${Utils.sanitizeHTML(emp.location || '—')}</div>
-          <div><span class="text-muted">Status:</span> ${Utils.sanitizeHTML(emp.status || '—')}</div>
-          <div><span class="text-muted">Joined:</span> ${emp.joinedDate ? Utils.formatDate(emp.joinedDate) : '—'}</div>
-          <div><span class="text-muted">System Role:</span> ${Utils.sanitizeHTML(emp.appRole || emp.app_role || '—')}</div>
+        <div class="form-row">
+          ${field('Email Address', Utils.sanitizeHTML(emp.email || ''))}
+          ${field('Phone Number', Utils.sanitizeHTML(emp.phone || ''))}
         </div>
-        <div class="mt-4">
-          <div class="text-xs text-muted mb-2">Portal Access</div>
+        <div class="form-row">
+          ${field('Role Title', Utils.sanitizeHTML(emp.role || ''))}
+          ${field('Department', Utils.sanitizeHTML(emp.department || ''))}
+        </div>
+        <div class="form-row">
+          ${field('Location', Utils.sanitizeHTML(emp.location || ''))}
+          ${field('Join Date', emp.joinedDate ? Utils.formatDate(emp.joinedDate) : '')}
+        </div>
+        <div class="form-row">
+          ${field('Status', Utils.sanitizeHTML(emp.status || ''))}
+          ${field('System Role', Utils.sanitizeHTML(emp.appRole || emp.app_role || ''))}
+        </div>
+        <div class="form-group m-0">
+          <label class="form-label">Portal Access</label>
           ${grantedPerms.length
-            ? `<div class="d-flex flex-wrap gap-2">${grantedPerms.map(p => `<span class="badge badge-gold">${p}</span>`).join('')}</div>`
-            : `<div class="text-xs text-muted">No portal access granted.</div>`}
+            ? `<div class="d-flex flex-wrap gap-2 mt-1">${grantedPerms.map(p => `<span class="badge badge-gold">${p}</span>`).join('')}</div>`
+            : `<div class="text-xs text-muted mt-1">No portal access granted.</div>`}
         </div>
       `,
       onSubmit: () => true
