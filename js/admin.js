@@ -119,7 +119,7 @@ const Admin = (() => {
 
       tr.innerHTML = `
         <td>
-          <div class="user-cell">
+          <div class="user-cell" style="cursor:pointer" onclick="Admin.showUserDetails('${emp.id}')" title="View details">
             <div class="avatar avatar-sm" style="background: ${avatarBg}; color: var(--pc-text-inverse)">
               ${initials}
             </div>
@@ -601,9 +601,61 @@ const Admin = (() => {
     }
   }
 
+  // ==========================================
+  // USER DETAILS (view-only)
+  // ==========================================
+
+  function showUserDetails(empId) {
+    const emp = Store.getById(Store.COLLECTIONS.EMPLOYEES, empId);
+    if (!emp) return;
+
+    const perms = emp.permissions || {};
+    const permLabels = {
+      crm: 'Sales Dashboard (CRM)', hrm: 'Human Capital (HRM)', accounting: 'Accounting & Finance',
+      admin: 'Admin Center', socialCrm: 'Social CRM Studio', tailor: 'Tailor Portal', shipping: 'Shipping Portal'
+    };
+    const grantedPerms = Object.entries(permLabels)
+      .filter(([key]) => perms[key])
+      .map(([, label]) => label);
+
+    const initials = Utils.getInitials(emp.name);
+    const avatarBg = Utils.getAvatarColor(emp.name);
+
+    App.showModal({
+      title: 'User Details',
+      hideCancel: true,
+      submitText: 'Close',
+      content: `
+        <div class="d-flex items-center gap-3 mb-4">
+          <div class="avatar avatar-lg" style="background:${avatarBg};color:var(--pc-text-inverse)">${initials}</div>
+          <div>
+            <div class="font-bold text-lg">${Utils.sanitizeHTML(emp.name)}</div>
+            <div class="text-sm text-muted">${Utils.sanitizeHTML(emp.role || '')}${emp.department ? ' · ' + Utils.sanitizeHTML(emp.department) : ''}</div>
+          </div>
+        </div>
+        <div class="d-flex flex-column gap-2 text-sm">
+          <div><span class="text-muted">Email:</span> ${Utils.sanitizeHTML(emp.email || '—')}</div>
+          <div><span class="text-muted">Phone:</span> ${Utils.sanitizeHTML(emp.phone || '—')}</div>
+          <div><span class="text-muted">Location:</span> ${Utils.sanitizeHTML(emp.location || '—')}</div>
+          <div><span class="text-muted">Status:</span> ${Utils.sanitizeHTML(emp.status || '—')}</div>
+          <div><span class="text-muted">Joined:</span> ${emp.joinedDate ? Utils.formatDate(emp.joinedDate) : '—'}</div>
+          <div><span class="text-muted">System Role:</span> ${Utils.sanitizeHTML(emp.appRole || emp.app_role || '—')}</div>
+        </div>
+        <div class="mt-4">
+          <div class="text-xs text-muted mb-2">Portal Access</div>
+          ${grantedPerms.length
+            ? `<div class="d-flex flex-wrap gap-2">${grantedPerms.map(p => `<span class="badge badge-gold">${p}</span>`).join('')}</div>`
+            : `<div class="text-xs text-muted">No portal access granted.</div>`}
+        </div>
+      `,
+      onSubmit: () => true
+    });
+  }
+
   return {
     init,
     savePermissions,
-    showAddUserModal
+    showAddUserModal,
+    showUserDetails
   };
 })();
