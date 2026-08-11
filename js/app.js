@@ -646,11 +646,21 @@ const App = (() => {
     // ARE the actions. The generic modal-footer "Submit" button that
     // showModal always renders has no purpose here and did nothing when
     // clicked, which is confusing. Hide it for this specific modal.
-    const footer = document.querySelector('.modal-overlay.active .modal-footer');
+    //
+    // IMPORTANT: closeModal() removes an overlay from the DOM 250ms
+    // AFTER hiding it (for the fade-out transition), so if this menu is
+    // closed and reopened quickly, two elements with the same button IDs
+    // can briefly coexist. A plain #id lookup (document-wide) would grab
+    // whichever one comes first in the DOM — potentially the STALE one —
+    // and could cross-wire a click on one button to the other button's
+    // handler. Scoping every lookup to `.modal-overlay.active` (only the
+    // currently-visible overlay has that class) makes this impossible.
+    const activeOverlay = document.querySelector('.modal-overlay.active');
+    const footer = activeOverlay ? activeOverlay.querySelector('.modal-footer') : null;
     if (footer) footer.style.display = 'none';
 
-    const pwBtn = Utils.$('#user-menu-change-pw-btn');
-    const signOutBtn = Utils.$('#user-menu-signout-btn');
+    const pwBtn = activeOverlay ? activeOverlay.querySelector('#user-menu-change-pw-btn') : null;
+    const signOutBtn = activeOverlay ? activeOverlay.querySelector('#user-menu-signout-btn') : null;
     if (pwBtn) pwBtn.addEventListener('click', () => { closeModal(); setTimeout(showChangePasswordModal, 200); });
     if (signOutBtn) signOutBtn.addEventListener('click', () => {
       closeModal();
