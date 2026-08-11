@@ -638,6 +638,13 @@ const App = (() => {
         </div>
       `
     });
+    // This modal is an action menu, not a form — the two buttons above
+    // ARE the actions. The generic modal-footer "Submit" button that
+    // showModal always renders has no purpose here and did nothing when
+    // clicked, which is confusing. Hide it for this specific modal.
+    const footer = document.querySelector('.modal-overlay.active .modal-footer');
+    if (footer) footer.style.display = 'none';
+
     const pwBtn = Utils.$('#user-menu-change-pw-btn');
     const signOutBtn = Utils.$('#user-menu-signout-btn');
     if (pwBtn) pwBtn.addEventListener('click', () => { closeModal(); setTimeout(showChangePasswordModal, 200); });

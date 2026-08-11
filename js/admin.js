@@ -467,6 +467,7 @@ const Admin = (() => {
   function showAddUserModal() {
     App.showModal({
       title: 'Add User',
+      submitText: 'Create User',
       content: `
         <form id="add-user-form" class="animate-fade-in-scale">
           <div class="form-group">
@@ -490,7 +491,7 @@ const Admin = (() => {
             <label class="form-label">Role Title</label>
             <input type="text" name="role" class="form-input" placeholder="e.g. Social CRM">
           </div>
-          <div class="form-group">
+          <div class="form-group m-0">
             <label class="form-label">Portal Access</label>
             <div class="d-flex flex-wrap gap-3 mt-2">
               <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_crm"> Sales Dashboard (CRM)</label>
@@ -502,25 +503,24 @@ const Admin = (() => {
               <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_shipping"> Shipping Portal</label>
             </div>
           </div>
-          <div id="add-user-error" class="text-xs" style="color: var(--pc-danger, #c85a5a); display:none;"></div>
-          <div class="d-flex justify-end gap-2 mt-4">
-            <button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancel</button>
-            <button type="submit" class="btn btn-primary" id="add-user-submit-btn">Create User</button>
-          </div>
+          <div id="add-user-error" class="text-xs mt-2" style="color: var(--pc-danger, #c85a5a); display:none;"></div>
         </form>
-      `
-    });
-
-    const form = Utils.$('#add-user-form');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      await submitAddUser(form);
+      `,
+      // Note: showModal's onSubmit is not awaited by the caller, so this
+      // always returns false (never auto-closes) and closes the modal
+      // itself once the async create call actually resolves. Same
+      // pattern as App.showChangePasswordModal — keep them in sync.
+      onSubmit: (overlay) => {
+        submitAddUser(overlay);
+        return false;
+      }
     });
   }
 
-  async function submitAddUser(form) {
-    const errBox = Utils.$('#add-user-error');
-    const submitBtn = Utils.$('#add-user-submit-btn');
+  async function submitAddUser(overlay) {
+    const form = Utils.$('#add-user-form', overlay);
+    const errBox = Utils.$('#add-user-error', overlay);
+    const submitBtn = Utils.$('#modal-submit-btn', overlay);
     errBox.style.display = 'none';
 
     const fd = new FormData(form);
