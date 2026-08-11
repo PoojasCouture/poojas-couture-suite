@@ -886,7 +886,7 @@ poojascouture.com.au`
       <div class="card p-4 mb-4 animate-fade-in stagger-1" style="margin-top: 18px;">
         <div class="d-flex flex-wrap gap-2 items-center">
           ${chipGroups.map((g, idx) => `
-            <button class="btn btn-sm ${idx === 0 ? 'btn-primary' : 'btn-secondary'} order-filter-chip" data-stage="${g.id}">
+            <button class="btn btn-sm ${g.id === 'workshop' ? 'btn-primary' : 'btn-secondary'} order-filter-chip" data-stage="${g.id}">
               ${g.icon} ${g.title} <span class="badge badge-muted" style="margin-left:6px">${groupCounts[g.id]}</span>
             </button>
           `).join('')}
@@ -1050,7 +1050,7 @@ poojascouture.com.au`
       });
     });
 
-    renderCards('all');
+    renderCards('workshop');
   }
 
   // Generate next sequential order code for a product-type prefix.
