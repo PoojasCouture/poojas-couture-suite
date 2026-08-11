@@ -811,6 +811,29 @@ function checkAccess(isRetry) {
   workspace.classList.remove('d-none');
   updateSaveButton();
   renderMessages();
+
+  // Hide both "back to main app" paths (sidebar logo link + footer link)
+  // for users whose only permission is socialCrm — they have nowhere to
+  // go in the main app, so the link would just lead them into another
+  // Access Denied screen.
+  const perms = currentUser.permissions || {};
+  const hasOtherAccess = currentUser.appRole === 'admin' ||
+    !!(perms.crm || perms.hrm || perms.accounting || perms.admin);
+
+  if (!hasOtherAccess) {
+    const backLink = document.querySelector('.back-link');
+    if (backLink) backLink.style.display = 'none';
+
+    const brandHome = document.querySelector('.sidebar-brand-home');
+    if (brandHome) {
+      // Replace the anchor with a non-navigating span so the logo still
+      // renders but no longer links anywhere.
+      const span = document.createElement('span');
+      span.className = brandHome.className.replace('sidebar-brand-home', 'sidebar-brand-home sidebar-brand-home--static');
+      span.innerHTML = brandHome.innerHTML;
+      brandHome.replaceWith(span);
+    }
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => checkAccess(false));

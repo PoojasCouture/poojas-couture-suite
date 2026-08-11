@@ -552,6 +552,16 @@ const App = (() => {
     const role = user.appRole || user.app_role || 'admin';
     if (role === 'tailor') return 'workstation-tailor';
     if (role === 'logistics') return 'workstation-logistics';
+    if (role === 'social_crm') {
+      const hasCrmPerm = !!(user.permissions && user.permissions.crm);
+      const hasSocialCrmPerm = !!(user.permissions && user.permissions.socialCrm);
+      // Send socialCrm-only users straight to the Social CRM Studio
+      // instead of 'dashboard' — landing on 'dashboard' with no crm
+      // permission triggered a full app load followed by an Access
+      // Denied screen (the redirect to /ai-team/ only happens after
+      // navigate() runs, so the denial flashed first).
+      if (!hasCrmPerm && hasSocialCrmPerm) return 'ai-team';
+    }
     return 'dashboard';
   }
 
@@ -602,14 +612,109 @@ const App = (() => {
     const userTrigger = Utils.$('#sidebar-user-trigger');
     if (userTrigger) {
       userTrigger.addEventListener('click', () => {
+        showUserMenu();
+      });
+    }
+  }
+
+  function showUserMenu() {
+    showModal({
+      title: 'Account',
+      hideCancel: true,
+      content: `
+        <div class="d-flex flex-column gap-2">
+          <button type="button" class="btn btn-secondary" id="user-menu-change-pw-btn">Change Password</button>
+          <button type="button" class="btn btn-danger" id="user-menu-signout-btn">Sign Out</button>
+        </div>
+      `
+    });
+    const pwBtn = Utils.$('#user-menu-change-pw-btn');
+    const signOutBtn = Utils.$('#user-menu-signout-btn');
+    if (pwBtn) pwBtn.addEventListener('click', () => { closeModal(); setTimeout(showChangePasswordModal, 200); });
+    if (signOutBtn) signOutBtn.addEventListener('click', () => {
+      closeModal();
+      setTimeout(() => {
         showConfirm({
           title: 'Sign Out Operations',
           text: 'Are you sure you want to end your current dashboard session?',
           confirmText: 'Sign Out',
           onConfirm: async () => { await Store.logout(); location.reload(); }
         });
-      });
-    }
+      }, 200);
+    });
+  }
+
+  function showChangePasswordModal() {
+    showModal({
+      title: 'Change Password',
+      content: `
+        <form id="change-password-form" class="animate-fade-in-scale">
+          <div class="form-group">
+            <label class="form-label">New Password <span class="required">*</span></label>
+            <input type="password" name="newPassword" class="form-input" required minlength="8" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password <span class="required">*</span></label>
+            <input type="password" name="confirmPassword" class="form-input" required minlength="8" autocomplete="new-password">
+          </div>
+          <div id="change-password-error" class="text-xs" style="color: var(--pc-danger, #c85a5a); display:none;"></div>
+        </form>
+      `,
+      submitText: 'Update Password',
+      // Note: showModal's onSubmit is not awaited by the caller, so this
+      // handler always returns false (never auto-closes) and closes the
+      // modal itself once the async update actually resolves.
+      onSubmit: (overlay) => {
+        const form = Utils.$('#change-password-form', overlay);
+        const errBox = Utils.$('#change-password-error', overlay);
+        const submitBtn = Utils.$('#modal-submit-btn', overlay);
+        const fd = new FormData(form);
+        const newPassword = fd.get('newPassword') || '';
+        const confirmPassword = fd.get('confirmPassword') || '';
+
+        errBox.style.display = 'none';
+
+        if (newPassword.length < 8) {
+          errBox.textContent = 'Password must be at least 8 characters.';
+          errBox.style.display = 'block';
+          return false;
+        }
+        if (newPassword !== confirmPassword) {
+          errBox.textContent = 'Passwords do not match.';
+          errBox.style.display = 'block';
+          return false;
+        }
+
+        const client = Store.getClient();
+        if (!client) {
+          errBox.textContent = 'Supabase client not available.';
+          errBox.style.display = 'block';
+          return false;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Updating…';
+
+        client.auth.updateUser({ password: newPassword }).then(({ error }) => {
+          if (error) {
+            errBox.textContent = error.message || 'Failed to update password.';
+            errBox.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Update Password';
+            return;
+          }
+          Utils.showToast('Password updated.', 'success');
+          closeModal();
+        }).catch((e) => {
+          errBox.textContent = 'Network error: ' + e.message;
+          errBox.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Update Password';
+        });
+
+        return false;
+      }
+    });
   }
 
   function applySidebarPermissions(user) {
