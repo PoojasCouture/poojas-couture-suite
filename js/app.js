@@ -603,14 +603,16 @@ const App = (() => {
         try {
           const email = Utils.$('#login-email').value;
           const password = Utils.$('#login-password').value;
-          const user = await Store.login(email, password);
-          if (user) {
-            console.log('Login successful:', user);
+          const result = await Store.login(email, password);
+          if (result && result.person) {
+            console.log('Login successful:', result.person);
             await checkAuthSession();
-            Utils.showToast(`Welcome back, ${user.name}!`);
+            Utils.showToast(`Welcome back, ${result.person.name}!`);
           } else {
-            console.log('Login failed for', email);
-            Utils.showToast('Invalid email or password.', 'error');
+            const msg = (Store.LOGIN_ERROR_MESSAGES && Store.LOGIN_ERROR_MESSAGES[result && result.error])
+              || 'Invalid email or password.';
+            console.log('Login failed for', email, '—', result && result.error);
+            Utils.showToast(msg, 'error');
           }
         } catch (err) {
           console.error('Login error:', err);

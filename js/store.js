@@ -448,6 +448,15 @@ const Store = (() => {
     return null;
   }
 
+  // Shared login-error message text — single source of truth so any
+  // portal that has (or later grows) its own login form shows the exact
+  // same wording instead of each one maintaining its own copy.
+  const LOGIN_ERROR_MESSAGES = {
+    invalid_credentials: 'Incorrect email or password.',
+    no_profile: 'This login exists but has no staff profile set up. Contact your admin.',
+    auth_error: 'Could not sign in. Please try again.'
+  };
+
   async function login(email, password) {
     const c = client();
     const { data, error } = await c.auth.signInWithPassword({
@@ -456,7 +465,14 @@ const Store = (() => {
     });
     if (error || !data.user) {
       console.warn('Auth login failed:', error ? error.message : 'no user');
-      return null;
+      // Distinguish wrong-credentials from other auth failures (rate
+      // limit, unconfirmed email, network) so the login screen can show
+      // something more useful than a single generic message for every
+      // possible cause.
+      const code = error && (error.message || '').toLowerCase().includes('invalid login credentials')
+        ? 'invalid_credentials'
+        : 'auth_error';
+      return { person: null, error: code, rawMessage: error ? error.message : null };
     }
     try {
       await refresh('employees');
@@ -465,12 +481,17 @@ const Store = (() => {
     const person = findPersonByEmail(email);
     if (!person) {
       console.warn('Authenticated but no matching profile (employee/vendor) for', email);
-      return null;
+      // Real, distinct case from wrong password: the LOGIN succeeded
+      // (credentials are correct) but there's no employees/vendors row
+      // for this email, so the app has nothing to attach the session to.
+      // Telling the user "invalid password" here would be actively
+      // wrong and send them down the wrong troubleshooting path.
+      return { person: null, error: 'no_profile', rawMessage: null };
     }
     currentUser = person;
     localStorage.setItem('pc_current_user', JSON.stringify(person));
     logAction('User Logged In', 'System', `${person.name} logged in.`);
-    return person;
+    return { person, error: null, rawMessage: null };
   }
 
   function getCurrentUser() {
@@ -602,6 +623,7 @@ const Store = (() => {
 
   return {
     COLLECTIONS,
+    LOGIN_ERROR_MESSAGES,
     ready,
     getAll,
     getById,
