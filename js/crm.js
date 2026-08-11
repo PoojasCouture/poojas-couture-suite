@@ -917,6 +917,36 @@ poojascouture.com.au`
         return;
       }
 
+      // Completed orders: minimized single-line rows instead of full cards
+      // (same pattern used for the Projects tab's Completed view) — click
+      // opens the existing full-detail modal.
+      if (stageFilter === 'completed') {
+        grid.style.gridTemplateColumns = '1fr';
+        let rowsHTML = '<div class="card p-0" style="overflow:hidden">';
+        list.slice().sort((a,b) => new Date(b.deadline) - new Date(a.deadline)).forEach((o, idx) => {
+          rowsHTML +=
+            '<div class="d-flex items-center justify-between p-3" style="cursor:pointer;' +
+              (idx > 0 ? 'border-top:1px solid var(--pc-border);' : '') +
+            '" onclick="CRM.showOrderDetails(\'' + o.id + '\')" title="Click for full details">' +
+              '<div class="d-flex items-center gap-3">' +
+                '<span class="badge badge-success text-xs">🏁 Completed</span>' +
+                (o.orderCode ? '<span class="font-mono text-xs text-gold">' + Utils.sanitizeHTML(o.orderCode) + '</span>' : '') +
+                '<div>' +
+                  '<div class="font-medium">' + Utils.sanitizeHTML(o.title) + '</div>' +
+                  '<div class="text-xs text-muted">' + Utils.sanitizeHTML(o.clientName) +
+                    (o.deadline ? ' · ' + Utils.formatDateShort(o.deadline) : '') +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="font-mono text-sm text-muted">' + Utils.formatCurrency(o.price) + '</div>' +
+            '</div>';
+        });
+        rowsHTML += '</div>';
+        grid.innerHTML = rowsHTML;
+        return;
+      }
+      grid.style.gridTemplateColumns = 'repeat(auto-fill,minmax(280px,1fr))';
+
       // Statuses where deadline is no longer actionable
       const DONE_STATUSES = ['Ready','Shipped to Shashank','At Shashank','In Transit',
         'Awaiting Payment','Received in Australia','Final Fitting','Cleared for Delivery','Delivered','Completed'];
