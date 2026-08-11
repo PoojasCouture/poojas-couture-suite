@@ -44,12 +44,42 @@ export async function onRequestPost(context) {
       500
     );
   }
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return jsonResponse({ error: 'Server misconfiguration' }, 500);
+  }
 
   let body;
   try {
     body = await request.json();
   } catch (e) {
     return jsonResponse({ error: 'Invalid JSON body.' }, 400);
+  }
+
+  // This function calls the Anthropic API using your own billed API key.
+  // It previously had no authentication at all -- anyone who found this
+  // URL could run up unlimited API charges with zero login. Now requires
+  // a valid staff session with Social CRM / CRM access.
+  const token = body.token;
+  if (!token) {
+    return jsonResponse({ error: 'Missing auth token' }, 401);
+  }
+  const userRes = await fetch(env.SUPABASE_URL + '/auth/v1/user', {
+    headers: { 'Authorization': 'Bearer ' + token, 'apikey': env.SUPABASE_SERVICE_KEY }
+  });
+  if (!userRes.ok) {
+    return jsonResponse({ error: 'Invalid or expired session' }, 401);
+  }
+  const userData = await userRes.json();
+  const callerEmail = userData.email;
+  if (!callerEmail) {
+    return jsonResponse({ error: 'Could not resolve caller identity' }, 401);
+  }
+  const svcHeaders = { 'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_KEY, 'apikey': env.SUPABASE_SERVICE_KEY };
+  const empRes = await fetch(env.SUPABASE_URL + '/rest/v1/employees?email=eq.' + encodeURIComponent(callerEmail) + '&select=app_role', { headers: svcHeaders });
+  const empRows = empRes.ok ? await empRes.json() : [];
+  const role = empRows[0] ? empRows[0].app_role : null;
+  if (!['admin', 'operations', 'social_crm'].includes(role)) {
+    return jsonResponse({ error: 'Not authorized to use this feature' }, 403);
   }
 
   const { system, messages, max_tokens } = body;
