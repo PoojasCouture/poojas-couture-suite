@@ -841,11 +841,19 @@ function checkAccess(isRetry) {
 
 async function signOutSocialCrmUser() {
   try {
-    if (window._sbClient) await window._sbClient.auth.signOut();
-  } catch (e) { /* proceed with local cleanup regardless */ }
+    if (window._sbClient) await window._sbClient.auth.signOut({ scope: 'local' });
+  } catch (e) { /* fall through to manual cleanup below regardless */ }
   try {
     localStorage.removeItem('pc_current_user');
     localStorage.setItem('pc_last_route', 'dashboard');
+    // Belt-and-braces: if auth.signOut() above failed silently (e.g. a
+    // network blip), a stale Supabase session token left in localStorage
+    // would let the main app's reconcileUser() log the user straight
+    // back in and bounce them right back to this portal. Mirrors what
+    // Store.logout() does in js/store.js — must stay in sync with it.
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('sb-') || k === 'pc-suite-auth')
+      .forEach(k => localStorage.removeItem(k));
   } catch (e) {}
   window.location.href = '../index.html';
 }
