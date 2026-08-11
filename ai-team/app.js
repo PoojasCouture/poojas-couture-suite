@@ -812,28 +812,42 @@ function checkAccess(isRetry) {
   updateSaveButton();
   renderMessages();
 
-  // Hide both "back to main app" paths (sidebar logo link + footer link)
-  // for users whose only permission is socialCrm — they have nowhere to
-  // go in the main app, so the link would just lead them into another
-  // Access Denied screen.
+  // Users whose only permission is socialCrm have nowhere to go in the
+  // main app — "Back to Main App" would just land them on another
+  // Access Denied screen. Replace both nav-out paths (footer link +
+  // sidebar logo) with a user chip that signs them out instead.
   const perms = currentUser.permissions || {};
   const hasOtherAccess = currentUser.appRole === 'admin' ||
     !!(perms.crm || perms.hrm || perms.accounting || perms.admin);
 
   if (!hasOtherAccess) {
     const backLink = document.querySelector('.back-link');
-    if (backLink) backLink.style.display = 'none';
+    if (backLink) {
+      backLink.textContent = (currentUser.name || currentUser.email || 'Account') + ' — Sign Out';
+      backLink.href = '#';
+      backLink.onclick = (e) => { e.preventDefault(); signOutSocialCrmUser(); };
+    }
 
     const brandHome = document.querySelector('.sidebar-brand-home');
     if (brandHome) {
-      // Replace the anchor with a non-navigating span so the logo still
-      // renders but no longer links anywhere.
+      // Logo stays visible but no longer links to the main app.
       const span = document.createElement('span');
       span.className = brandHome.className.replace('sidebar-brand-home', 'sidebar-brand-home sidebar-brand-home--static');
       span.innerHTML = brandHome.innerHTML;
       brandHome.replaceWith(span);
     }
   }
+}
+
+async function signOutSocialCrmUser() {
+  try {
+    if (window._sbClient) await window._sbClient.auth.signOut();
+  } catch (e) { /* proceed with local cleanup regardless */ }
+  try {
+    localStorage.removeItem('pc_current_user');
+    localStorage.setItem('pc_last_route', 'dashboard');
+  } catch (e) {}
+  window.location.href = '../index.html';
 }
 
 document.addEventListener('DOMContentLoaded', () => checkAccess(false));
