@@ -2448,7 +2448,7 @@ div[style*="border:1px solid var(--pc-"] {
   right: 0;
   bottom: 0;
   background-color: var(--pc-bg-dark);
-  z-index: 1000;
+  z-index: 400;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2653,7 +2653,7 @@ div[style*="border:1px solid var(--pc-"] {
   right: 0;
   bottom: 0;
   background-color: var(--pc-bg-dark);
-  z-index: 1000;
+  z-index: 400;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2835,7 +2835,7 @@ div[style*="border:1px solid var(--pc-"] {
   right: 0;
   bottom: 0;
   background-color: var(--pc-bg-dark);
-  z-index: 1000;
+  z-index: 400;
   display: flex;
   align-items: center;
   justify-content: center;
