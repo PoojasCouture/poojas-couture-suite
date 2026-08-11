@@ -72,6 +72,10 @@ const Admin = (() => {
   // ==========================================
   
   function renderUsers(container, actions) {
+    actions.innerHTML = `
+      <button class="btn btn-primary" onclick="Admin.showAddUserModal()">+ Add User</button>
+    `;
+
     container.innerHTML = `
       <div class="card p-0">
         <div class="card-header">
@@ -456,8 +460,150 @@ const Admin = (() => {
     `;
   }
 
+  // ==========================================
+  // ADD USER (new login + employee record)
+  // ==========================================
+
+  function showAddUserModal() {
+    App.showModal({
+      title: 'Add User',
+      content: `
+        <form id="add-user-form" class="animate-fade-in-scale">
+          <div class="form-group">
+            <label class="form-label">Full Name <span class="required">*</span></label>
+            <input type="text" name="name" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email <span class="required">*</span></label>
+            <input type="email" name="email" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Temporary Password <span class="required">*</span></label>
+            <input type="text" name="password" class="form-input" required minlength="8" placeholder="Min 8 characters">
+            <div class="text-xs text-muted mt-1">Tell the user to change this after their first login.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Department</label>
+            <input type="text" name="department" class="form-input" placeholder="e.g. Operations">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Role Title</label>
+            <input type="text" name="role" class="form-input" placeholder="e.g. Social CRM">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Portal Access</label>
+            <div class="d-flex flex-wrap gap-3 mt-2">
+              <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_crm"> Sales Dashboard (CRM)</label>
+              <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_hrm"> Human Capital (HRM)</label>
+              <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_accounting"> Accounting</label>
+              <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_admin"> Admin Center</label>
+              <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_socialCrm"> Social CRM Studio</label>
+              <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_tailor"> Tailor Portal</label>
+              <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_shipping"> Shipping Portal</label>
+            </div>
+          </div>
+          <div id="add-user-error" class="text-xs" style="color: var(--pc-danger, #c85a5a); display:none;"></div>
+          <div class="d-flex justify-end gap-2 mt-4">
+            <button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="add-user-submit-btn">Create User</button>
+          </div>
+        </form>
+      `
+    });
+
+    const form = Utils.$('#add-user-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await submitAddUser(form);
+    });
+  }
+
+  async function submitAddUser(form) {
+    const errBox = Utils.$('#add-user-error');
+    const submitBtn = Utils.$('#add-user-submit-btn');
+    errBox.style.display = 'none';
+
+    const fd = new FormData(form);
+    const name = (fd.get('name') || '').trim();
+    const email = (fd.get('email') || '').trim();
+    const password = fd.get('password') || '';
+    const department = (fd.get('department') || '').trim();
+    const role = (fd.get('role') || '').trim();
+
+    const permissions = {
+      crm: !!fd.get('perm_crm'),
+      hrm: !!fd.get('perm_hrm'),
+      accounting: !!fd.get('perm_accounting'),
+      admin: !!fd.get('perm_admin'),
+      socialCrm: !!fd.get('perm_socialCrm'),
+      tailor: !!fd.get('perm_tailor'),
+      shipping: !!fd.get('perm_shipping')
+    };
+
+    if (!name || !email || !password) {
+      errBox.textContent = 'Name, email, and password are required.';
+      errBox.style.display = 'block';
+      return;
+    }
+    if (password.length < 8) {
+      errBox.textContent = 'Password must be at least 8 characters.';
+      errBox.style.display = 'block';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating…';
+
+    try {
+      const client = Store.getClient();
+      const { data: sessionData } = await client.auth.getSession();
+      const token = sessionData && sessionData.session ? sessionData.session.access_token : null;
+      if (!token) {
+        errBox.textContent = 'Your session has expired. Please log in again.';
+        errBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create User';
+        return;
+      }
+
+      const res = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, name, email, password, department, role, permissions })
+      });
+      const result = await res.json();
+
+      if (!result.ok) {
+        errBox.textContent = result.error || 'Failed to create user.';
+        errBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create User';
+        return;
+      }
+
+      // Refresh employees cache so the new row shows up immediately
+      if (Store.refresh) { try { await Store.refresh('employees'); } catch (e) {} }
+
+      Store.logAction(
+        'Created User',
+        'System',
+        `Created new login for ${name} (${email})`
+      );
+
+      Utils.showToast(`User ${name} created.`, 'success');
+      App.closeModal();
+      renderSubTab();
+    } catch (e) {
+      errBox.textContent = 'Network error: ' + e.message;
+      errBox.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create User';
+    }
+  }
+
   return {
     init,
-    savePermissions
+    savePermissions,
+    showAddUserModal
   };
 })();
