@@ -71,6 +71,13 @@ export async function onRequest(context) {
     if (!callerEmail) {
       return new Response(JSON.stringify({ ok: false, error: 'Could not resolve caller identity' }), { status: 401, headers: corsHeaders });
     }
+    // 13 Aug: originally removed social_crm entirely, then split into two
+    // roles same day per follow-up request -- social_crm (Sakshi) keeps
+    // the original broader access restored here; social_crm_limited
+    // (Aleem) stays excluded, confined to actual CRM scope only (clients,
+    // appointments, order_communications). This backend check is what
+    // actually matters for job_photos/upload-photo, since these functions
+    // use the service-role key and bypass RLS entirely.
     const allowedRoles = ['admin', 'operations', 'social_crm', 'tailor', 'logistics'];
     const empRes = await fetch(env.SUPABASE_URL + '/rest/v1/employees?email=eq.' + encodeURIComponent(callerEmail) + '&select=app_role', { headers: svcHeaders });
     const empRows = empRes.ok ? await empRes.json() : [];

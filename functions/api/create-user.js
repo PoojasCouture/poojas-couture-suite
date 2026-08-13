@@ -117,7 +117,11 @@ export async function onRequest(context) {
       email: email.trim().toLowerCase(),
       department: department || 'Operations',
       role: role || 'Staff',
-      app_role: permissions.admin ? 'admin' : (permissions.socialCrm ? 'social_crm' : 'operations'),
+      // Default new "Social CRM Studio" users to the restricted tier
+      // (CRM-only, no photos/stock) — matches the 13 Aug role split.
+      // Sakshi's broader 'social_crm' access is her own specific,
+      // already-granted exception, not the default going forward.
+      app_role: permissions.admin ? 'admin' : (permissions.socialCrm ? 'social_crm_limited' : 'operations'),
       permissions: fullPermissions
     })
   });

@@ -552,7 +552,11 @@ const App = (() => {
     const role = user.appRole || user.app_role || 'admin';
     if (role === 'tailor') return 'workstation-tailor';
     if (role === 'logistics') return 'workstation-logistics';
-    if (role === 'social_crm') {
+    // startsWith, not exact match — covers both 'social_crm' (Sakshi,
+    // full CRM+photos+stock scope) and 'social_crm_limited' (Aleem,
+    // CRM-only, split out 13 Aug so his access could be restricted
+    // without touching Sakshi's). Both land here the same way.
+    if (role.startsWith('social_crm')) {
       const hasCrmPerm = !!(user.permissions && user.permissions.crm);
       const hasSocialCrmPerm = !!(user.permissions && user.permissions.socialCrm);
       // Send socialCrm-only users straight to the Social CRM Studio

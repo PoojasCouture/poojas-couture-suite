@@ -66,7 +66,9 @@ export async function onRequest(context) {
   const empRes = await fetch(env.SUPABASE_URL + '/rest/v1/employees?email=eq.' + encodeURIComponent(callerEmail) + '&select=app_role', { headers: sbHeaders });
   const empRows = empRes.ok ? await empRes.json() : [];
   const role = empRows[0] ? empRows[0].app_role : null;
-  if (!['admin', 'operations', 'social_crm'].includes(role)) {
+  // social_crm and social_crm_limited both keep appointments access —
+  // appointments is CRM scope, kept for both after the 13 Aug role split.
+  if (!['admin', 'operations', 'social_crm', 'social_crm_limited'].includes(role)) {
     return new Response(JSON.stringify({ ok: false, error: 'Not authorized to sync TidyCal' }), { status: 403, headers: corsHeaders });
   }
 
