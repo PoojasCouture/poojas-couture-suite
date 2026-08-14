@@ -671,8 +671,98 @@ const Admin = (() => {
             ? `<div class="d-flex flex-wrap gap-2 mt-1">${grantedPerms.map(p => `<span class="badge badge-gold">${p}</span>`).join('')}</div>`
             : `<div class="text-xs text-muted mt-1">No portal access granted.</div>`}
         </div>
+        <div class="mt-4" style="border-top: 1px solid var(--pc-border); padding-top: 16px;">
+          <button type="button" class="btn btn-secondary btn-sm" id="user-details-reset-pw-btn">Reset Password</button>
+          <div class="text-xs text-muted mt-1">Sets a new password for this login directly -- no dashboard trip needed.</div>
+        </div>
       `,
       onSubmit: () => true
+    });
+
+    const resetBtn = document.querySelector('.modal-overlay.active #user-details-reset-pw-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        App.closeModal();
+        setTimeout(() => showResetPasswordModal(emp), 200);
+      });
+    }
+  }
+
+  function showResetPasswordModal(emp) {
+    App.showModal({
+      title: 'Reset Password \u2014 ' + emp.name,
+      submitText: 'Set New Password',
+      content: `
+        <div class="text-xs text-muted mb-3" style="padding:10px 12px;border:1px solid var(--pc-border);border-radius:8px;background:rgba(255,255,255,0.02)">
+          \u26a0\ufe0f This immediately replaces ${Utils.sanitizeHTML(emp.name)}'s current password. Tell them the new one directly -- it will not be emailed automatically.
+        </div>
+        <form id="reset-password-form">
+          <div class="form-group">
+            <label class="form-label">New Password <span class="required">*</span></label>
+            <input type="text" name="newPassword" class="form-input" required minlength="8" placeholder="Min 8 characters">
+          </div>
+          <div id="reset-password-error" class="text-xs" style="color: var(--pc-danger, #c85a5a); display:none;"></div>
+        </form>
+      `,
+      onSubmit: (overlay) => {
+        const form = Utils.$('#reset-password-form', overlay);
+        const errBox = Utils.$('#reset-password-error', overlay);
+        const submitBtn = Utils.$('#modal-submit-btn', overlay);
+        const fd = new FormData(form);
+        const newPassword = fd.get('newPassword') || '';
+
+        errBox.style.display = 'none';
+
+        if (newPassword.length < 8) {
+          errBox.textContent = 'Password must be at least 8 characters.';
+          errBox.style.display = 'block';
+          return false;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Setting\u2026';
+
+        (async () => {
+          try {
+            const client = Store.getClient();
+            const { data: sessionData } = await client.auth.getSession();
+            const token = sessionData && sessionData.session ? sessionData.session.access_token : null;
+            if (!token) {
+              errBox.textContent = 'Your session has expired. Please log in again.';
+              errBox.style.display = 'block';
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Set New Password';
+              return;
+            }
+
+            const res = await fetch('/api/admin-reset-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token, targetEmail: emp.email, newPassword })
+            });
+            const result = await res.json();
+
+            if (!result.ok) {
+              errBox.textContent = result.error || 'Failed to reset password.';
+              errBox.style.display = 'block';
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Set New Password';
+              return;
+            }
+
+            Store.logAction('Reset Password', 'System', `Reset password for ${emp.name} (${emp.email})`);
+            Utils.showToast(`Password reset for ${emp.name}.`, 'success');
+            App.closeModal();
+          } catch (e) {
+            errBox.textContent = 'Network error: ' + e.message;
+            errBox.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Set New Password';
+          }
+        })();
+
+        return false;
+      }
     });
   }
 
