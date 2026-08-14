@@ -779,7 +779,7 @@ function escapeHtml(str) {
 }
 
 // ── ACCESS CONTROL ──
-const ALLOWED_ROLES = ['admin', 'social_crm'];
+const ALLOWED_ROLES = ['admin', 'social_crm', 'social_crm_limited'];
 
 function checkAccess(isRetry) {
   const gateScreen = document.getElementById('gate-screen');
@@ -892,6 +892,7 @@ function _roleTitleFor(user) {
     admin: 'Operations Director',
     operations: 'Operations Manager',
     social_crm: 'CRM & Social',
+    social_crm_limited: 'CRM & Social',
     tailor: 'Master Tailor',
     logistics: 'Logistics Manager'
   };
