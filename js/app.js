@@ -89,6 +89,16 @@ const App = (() => {
         admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  'ai-team':true  },
         operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, 'ai-team':false },
         social_crm: { dashboard:hasCrmPerm, products:hasCrmPerm, crm:hasCrmPerm, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':hasSocialCrmPerm },
+        // Same shape as social_crm (Sakshi) — the real distinction between
+        // the two roles is enforced in Supabase RLS (what data each can
+        // touch once inside), not here. This map is only "which app tabs
+        // can you open at all" — social_crm_limited (Aleem) needs the same
+        // tab-level access as social_crm to reach Social CRM Studio; the
+        // 13 Aug role split never should have needed a change here, but
+        // this map has no fallback-to-a-similar-role logic, only exact
+        // string keys, so the new role name was invisible to it and fell
+        // through to DENY_ALL below.
+        social_crm_limited: { dashboard:hasCrmPerm, products:hasCrmPerm, crm:hasCrmPerm, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':hasSocialCrmPerm },
         tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false },
         logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false }
       };
@@ -786,6 +796,10 @@ const App = (() => {
       admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  tailorPortal:true,  logisticsPortal:true,  aiTeam:true  },
       operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:true,  aiTeam:false },
       social_crm: { dashboard:hasCrmPerm, products:hasCrmPerm, crm:hasCrmPerm, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:false, aiTeam:hasSocialCrmPerm },
+      // Same DENY_ALL trap as navigate()'s copy of this map — exact-string
+      // keys only, no fallback, so the new role name was invisible here
+      // too until added explicitly.
+      social_crm_limited: { dashboard:hasCrmPerm, products:hasCrmPerm, crm:hasCrmPerm, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:false, aiTeam:hasSocialCrmPerm },
       tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:false, aiTeam:false },
       logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true,  aiTeam:false }
     };
@@ -838,6 +852,7 @@ const App = (() => {
         admin:      'Operations Director',
         operations: 'Operations Manager',
         social_crm: 'CRM & Social',
+        social_crm_limited: 'CRM & Social',
         tailor:     'Master Tailor',
         logistics:  'Logistics Manager'
       };
