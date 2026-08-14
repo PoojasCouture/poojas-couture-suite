@@ -573,8 +573,21 @@ const App = (() => {
     const loginOverlay = Utils.$('#login-overlay');
     let user = Store.getCurrentUser();
 
-    if (!user && typeof Store.reconcileUser === 'function') {
-      try { user = await Store.reconcileUser(); } catch (e) { user = null; }
+    // Always reconcile against fresh Supabase data on load, not just when
+    // there's no cached user at all. The cached pc_current_user value can
+    // hold a STALE role/permissions object from before an admin changed
+    // it in the database -- e.g. Aleem's role split from 'social_crm' to
+    // 'social_crm_limited' didn't take effect for him until this fix,
+    // because his browser kept serving the old cached role forever until
+    // a manual logout forced a fresh login. This costs one extra
+    // lightweight fetch per page load; worth it so role/permission
+    // changes actually take effect on the next load, not "whenever the
+    // user happens to log out."
+    if (typeof Store.reconcileUser === 'function') {
+      try {
+        const fresh = await Store.reconcileUser();
+        if (fresh) user = fresh;
+      } catch (e) { /* fall back to whatever was cached, handled below */ }
     }
 
     if (user) {

@@ -599,6 +599,13 @@ const Store = (() => {
       const { data: authData } = await c.auth.getUser();
       if (authData && authData.user && authData.user.email) {
         const email = authData.user.email.toLowerCase();
+        // Refresh from Supabase first — this used to just search whatever
+        // was ALREADY in cache.employees, which on a fresh page load is
+        // either empty or (worse) still holding a stale role/permissions
+        // object from before an admin changed it in the database. A role
+        // change would silently never reach an already-logged-in user
+        // until they manually logged out, however long that took.
+        try { await refresh('employees'); await refresh('vendors'); } catch (e) {}
         const person = findPersonByEmail(email);
         if (person) {
           currentUser = person;
