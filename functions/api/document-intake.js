@@ -17,8 +17,28 @@
 // this function reuses the same key).
 // -----------------------------------------------------------------------
 
+import { validateFileType } from './_lib/fileSignature.js';
+
 const ANTHROPIC_VERSION = '2023-06-01';
 const MODEL = 'claude-sonnet-4-6';
+
+// Matches the intake-docs bucket's own allowed_mime_types exactly. The
+// bucket's allowlist only ever checked the DECLARED Content-Type header
+// on upload — this app-level check now verifies the actual bytes match
+// one of these, closing the gap the bucket config alone couldn't.
+const ALLOWED_TYPES = [
+  'image/jpeg', 'image/png', 'image/webp', 'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword'
+];
+const EXT_BY_MIME = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'application/pdf': 'pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/msword': 'doc'
+};
 
 function toCamel(s) { return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase()); }
 function toSnake(s) { return s.replace(/[A-Z]/g, c => '_' + c.toLowerCase()); }
@@ -98,12 +118,24 @@ export async function onRequest(context) {
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-        const ext = (fileName.split('.').pop() || 'bin').toLowerCase();
+        // Verify the ACTUAL file content — previously `mimeType` (the
+        // client's declared value in the request body) was used directly
+        // as the stored object's Content-Type with zero check against
+        // real bytes, and the file extension came straight from the
+        // client-supplied `fileName` with no relation to content either.
+        // Both are now derived from what the bytes actually are.
+        const check = validateFileType(bytes, ALLOWED_TYPES);
+        if (!check.valid) {
+          return fail('File rejected: ' + check.reason, 400);
+        }
+        const verifiedType = check.mimeType;
+
+        const ext = EXT_BY_MIME[verifiedType] || 'bin';
         const path = kind + 's/' + crypto.randomUUID() + '.' + ext;
 
         const upRes = await fetch(SB + '/storage/v1/object/intake-docs/' + path, {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + SVC, 'apikey': SVC, 'Content-Type': mimeType || 'application/octet-stream', 'x-upsert': 'false' },
+          headers: { 'Authorization': 'Bearer ' + SVC, 'apikey': SVC, 'Content-Type': verifiedType, 'x-upsert': 'false' },
           body: bytes
         });
         if (!upRes.ok) return fail('Storage upload failed: ' + (await upRes.text()).slice(0, 200), 502);
@@ -112,7 +144,7 @@ export async function onRequest(context) {
 
         const insertPayload = appToRow({
           kind, orderId: orderId || null, invoiceId: invoiceId || null,
-          fileName, fileUrl, mimeType: mimeType || 'application/octet-stream',
+          fileName, fileUrl, mimeType: verifiedType,
           extractionStatus: 'uploaded', uploadedBy: callerName
         });
         const insRes = await fetch(SB + '/rest/v1/intake_documents', {

@@ -451,10 +451,36 @@ const Store = (() => {
   // Shared login-error message text — single source of truth so any
   // portal that has (or later grows) its own login form shows the exact
   // same wording instead of each one maintaining its own copy.
+  //
+  // SECURITY REVISION: every code below now displays the SAME exact
+  // user-facing string, "Incorrect email or password", regardless of
+  // the real cause — wrong password, wrong email, rate-limited/locked
+  // account, or "valid credentials but no staff profile exists". This
+  // is deliberate: distinct wording per cause is an information-leak
+  // vector (an attacker or a curious insider can use different error
+  // text to figure out which part of a guess was right, or whether an
+  // account is real/locked). The real cause is still distinguishable
+  // internally — see the `error` code returned by login() below, which
+  // callers can log or act on programmatically — it's ONLY the text
+  // shown on screen that's now uniform.
+  //
+  // JUDGMENT CALL, FLAGGED EXPLICITLY: 'no_profile' used to show a
+  // different message ("no staff profile set up, contact your admin")
+  // because it's a real, different failure — the person's credentials
+  // ARE correct, there's just no employees/vendors row to attach them
+  // to. Collapsing the visible text loses that operational hint for a
+  // legitimate user hitting a genuine setup gap. Decided this still
+  // belongs in the generic bucket per the instruction to never reveal
+  // credential-validity distinctions — but the distinction is NOT lost,
+  // it's just moved: `error: 'no_profile'` is still returned to the
+  // caller and still logged (see login() below), so an admin checking
+  // console/audit logs can tell the difference even though the person
+  // at the login screen can't. Reconsider if this causes real support
+  // confusion in practice.
   const LOGIN_ERROR_MESSAGES = {
-    invalid_credentials: 'Incorrect email or password.',
-    no_profile: 'This login exists but has no staff profile set up. Contact your admin.',
-    auth_error: 'Could not sign in. Please try again.'
+    invalid_credentials: 'Incorrect email or password',
+    no_profile: 'Incorrect email or password',
+    auth_error: 'Incorrect email or password'
   };
 
   async function login(email, password) {
@@ -491,6 +517,24 @@ const Store = (() => {
     currentUser = person;
     localStorage.setItem('pc_current_user', JSON.stringify(person));
     logAction('User Logged In', 'System', `${person.name} logged in.`);
+
+    // Transparent bcrypt-cost rehash, fire-and-forget. Silently a no-op
+    // for accounts not flagged in employees.needs_password_rehash — this
+    // runs on every login but only does work when the flag is set. Never
+    // blocks or fails the login itself; the password is sent once, over
+    // the connection that's already open, and never stored or logged.
+    // See functions/api/rehash-password.js for the full rationale.
+    try {
+      const session = data.session;
+      if (session && session.access_token) {
+        fetch('/api/rehash-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: session.access_token, password })
+        }).catch(() => {}); // deliberately not awaited — must never delay or block login
+      }
+    } catch (e) {}
+
     return { person, error: null, rawMessage: null };
   }
 

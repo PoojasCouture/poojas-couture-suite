@@ -3,6 +3,16 @@
 // and records it in the job_photos table. Used by the tailor (karigar)
 // and shipping portals.
 //
+// SECURITY AUDIT PASS (this revision): the `mimeType` field in the
+// request body was previously trusted as-is — a client-declared string
+// used both to decide "is this an image" (a prefix check) and, more
+// importantly, as the literal Content-Type set on the stored object.
+// Neither check ever looked at the actual file bytes. Now the decoded
+// bytes are verified against known file signatures (see
+// _lib/fileSignature.js) before anything is stored, and the VERIFIED
+// type — never the client's claim — is what gets used as the storage
+// Content-Type and file extension. A mismatch is rejected outright.
+//
 // POST JSON body:
 // {
 //   imageBase64: "<base64 without data: prefix>",
@@ -19,6 +29,14 @@
 // }
 //
 // Required Cloudflare env vars: SUPABASE_URL, SUPABASE_SERVICE_KEY
+
+import { validateFileType } from './_lib/fileSignature.js';
+
+// Matches this endpoint's existing image-only scope (it always rejected
+// non-image mimeType strings, even though the job-photos bucket itself
+// also allows application/pdf for other callers like document intake).
+// Kept identical in spirit, just now enforced against real bytes.
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 
 export async function onRequest(context) {
   const { env, request } = context;
@@ -97,26 +115,38 @@ export async function onRequest(context) {
     if (imageBase64.length > 15 * 1024 * 1024) {
       return new Response(JSON.stringify({ ok: false, error: 'Image too large (max ~10MB). Please resize.' }), { status: 413, headers: corsHeaders });
     }
-    if (mimeType.indexOf('image/') !== 0) {
-      return new Response(JSON.stringify({ ok: false, error: 'Only images allowed' }), { status: 400, headers: corsHeaders });
-    }
+    // NOTE: the old `mimeType.indexOf('image/') !== 0` check is gone —
+    // it only ever looked at the client's claim. Real verification now
+    // happens below, against the decoded bytes.
 
     // Decode base64 to bytes
     const binary = atob(imageBase64.replace(/^data:[^,]+,/, ''));
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-    const ext = mimeType === 'image/png' ? 'png' : (mimeType === 'image/webp' ? 'webp' : 'jpg');
+    // Verify the ACTUAL file content, not the declared mimeType. Reject
+    // outright on mismatch or unrecognized bytes — never silently
+    // relabel and proceed. `verifiedType` (not `mimeType`, the client's
+    // claim) is what gets used from here on for both the storage
+    // Content-Type and the file extension.
+    const check = validateFileType(bytes, ALLOWED_TYPES);
+    if (!check.valid) {
+      return new Response(JSON.stringify({ ok: false, error: 'File rejected: ' + check.reason }), { status: 400, headers: corsHeaders });
+    }
+    const verifiedType = check.mimeType;
+
+    const ext = verifiedType === 'image/png' ? 'png' : (verifiedType === 'image/webp' ? 'webp' : (verifiedType === 'image/heic' ? 'heic' : 'jpg'));
     const folder = body.orderId ? ('orders/' + body.orderId) : (body.shipmentId ? ('shipments/' + body.shipmentId) : 'misc');
     const path = folder + '/' + crypto.randomUUID() + '.' + ext;
 
-    // 1. Upload to storage
+    // 1. Upload to storage — Content-Type is the VERIFIED type, never
+    //    the client-supplied `mimeType` from the request body.
     const upRes = await fetch(env.SUPABASE_URL + '/storage/v1/object/job-photos/' + path, {
       method: 'POST',
       headers: {
         'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_KEY,
         'apikey': env.SUPABASE_SERVICE_KEY,
-        'Content-Type': mimeType,
+        'Content-Type': verifiedType,
         'x-upsert': 'false'
       },
       body: bytes

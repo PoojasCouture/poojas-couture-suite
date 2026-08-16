@@ -638,8 +638,15 @@ const App = (() => {
             await checkAuthSession();
             Utils.showToast(`Welcome back, ${result.person.name}!`);
           } else {
+            // Fallback text kept identical to Store.LOGIN_ERROR_MESSAGES'
+            // values on purpose — previously said "Invalid email or
+            // password." (different wording, and would only ever be
+            // seen if `result.error` were an unrecognized code not in
+            // that map). Two different phrasings for what should be one
+            // uniform message was itself worth closing, not just the
+            // map's own values.
             const msg = (Store.LOGIN_ERROR_MESSAGES && Store.LOGIN_ERROR_MESSAGES[result && result.error])
-              || 'Invalid email or password.';
+              || 'Incorrect email or password';
             console.log('Login failed for', email, '—', result && result.error);
             Utils.showToast(msg, 'error');
           }

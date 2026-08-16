@@ -10,6 +10,26 @@
 // event, event_date, appointment_date, message, design (file, form-data only)
 //
 // Creates a new row in `clients` with status = 'New Lead' / source = 'Website Form'.
+//
+// SECURITY AUDIT PASS: this is the ONLY fully public, unauthenticated
+// upload path in the app. See the design-file handling block below for
+// the fix — real byte verification via _lib/fileSignature.js, a size
+// cap checked before reading the file into memory, and storage
+// Content-Type set from the verified type, never the client's claim.
+
+import { validateFileType } from './_lib/fileSignature.js';
+
+// A design reference could reasonably be a photo or a PDF mood-board —
+// matches what the job-photos bucket itself already allows for images
+// plus PDF (this endpoint never needs HEIC, so it's left out here even
+// though the bucket permits it for other callers).
+const ALLOWED_DESIGN_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const EXT_BY_MIME = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'application/pdf': 'pdf'
+};
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -126,33 +146,65 @@ export async function onRequestPost(context) {
 
     const [newClient] = await insertRes.json();
 
+    // SECURITY AUDIT PASS: this is the only fully public, unauthenticated
+    // upload path in the app — anyone can POST here, no login required,
+    // by design (it's the public "Reach Us" form). Previously it had NO
+    // app-level size or type check at all — the file's declared
+    // `designFile.type` was used directly as the stored Content-Type,
+    // and the ONLY backstop was the job-photos bucket's own
+    // allowed_mime_types (which checks the declared header, never the
+    // real bytes). Given this endpoint is the least-protected of the
+    // three upload paths in this app by a wide margin, it gets both a
+    // size check (checked via `.size` BEFORE reading the file into
+    // memory — cheaper than the other two upload endpoints manage,
+    // since a native File/Blob exposes size as metadata) and the same
+    // real-byte verification as upload-photo.js / document-intake.js.
+    //
+    // A rejected or oversized attachment does NOT fail the whole lead
+    // submission — the enquiry itself still gets captured, the file is
+    // just skipped. Losing a legitimate customer enquiry over a bad
+    // attachment would be a worse outcome than losing the attachment.
     if (designFile && designFile.size > 0) {
-      const filePath = `leads/${newClient.id}/${Date.now()}-${sanitizeFilename(designFile.name)}`;
-      const fileBuffer = await designFile.arrayBuffer();
+      const MAX_DESIGN_FILE_BYTES = 15 * 1024 * 1024; // matches job-photos bucket's own limit
+      if (designFile.size > MAX_DESIGN_FILE_BYTES) {
+        console.warn('contact-form-lead: design file rejected, too large', designFile.size, 'bytes, client', newClient.id);
+      } else {
+        const fileBuffer = await designFile.arrayBuffer();
+        const fileBytes = new Uint8Array(fileBuffer);
+        const check = validateFileType(fileBytes, ALLOWED_DESIGN_FILE_TYPES);
 
-      const uploadRes = await fetch(
-        `${supabaseUrl}/storage/v1/object/job-photos/${filePath}`,
-        {
-          method: "POST",
-          headers: {
-            "apikey": serviceKey,
-            "Authorization": `Bearer ${serviceKey}`,
-            "Content-Type": designFile.type || "application/octet-stream",
-          },
-          body: fileBuffer,
+        if (!check.valid) {
+          console.warn('contact-form-lead: design file rejected,', check.reason, 'client', newClient.id);
+        } else {
+          const ext = EXT_BY_MIME[check.mimeType] || 'bin';
+          const filePath = `leads/${newClient.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+
+          const uploadRes = await fetch(
+            `${supabaseUrl}/storage/v1/object/job-photos/${filePath}`,
+            {
+              method: "POST",
+              headers: {
+                "apikey": serviceKey,
+                "Authorization": `Bearer ${serviceKey}`,
+                // Verified type, never the client-declared designFile.type.
+                "Content-Type": check.mimeType,
+              },
+              body: fileBytes,
+            }
+          );
+
+          if (uploadRes.ok) {
+            await fetch(`${supabaseUrl}/rest/v1/clients?id=eq.${newClient.id}`, {
+              method: "PATCH",
+              headers: {
+                "apikey": serviceKey,
+                "Authorization": `Bearer ${serviceKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ design_reference_path: filePath }),
+            });
+          }
         }
-      );
-
-      if (uploadRes.ok) {
-        await fetch(`${supabaseUrl}/rest/v1/clients?id=eq.${newClient.id}`, {
-          method: "PATCH",
-          headers: {
-            "apikey": serviceKey,
-            "Authorization": `Bearer ${serviceKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ design_reference_path: filePath }),
-        });
       }
     }
 
