@@ -673,6 +673,9 @@ function handleKey(e) {
 
 async function callClaude(system, messages) {
   const authToken = await getAuthToken();
+  if (!authToken) {
+    throw new Error('Your session has expired or is missing. Please sign out and sign back in from the main app to refresh your login.');
+  }
   const response = await fetch('/api/ai-team', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
