@@ -702,7 +702,15 @@ async function callClaude(system, messages) {
     throw new Error(errBody.error || `Request failed (${response.status})`);
   }
   const data = await response.json();
-  return data.content?.[0]?.text || '';
+  if (Array.isArray(data.content)) {
+    const text = data.content
+      .filter(block => block.type === 'text' && typeof block.text === 'string')
+      .map(block => block.text)
+      .join('\n\n')
+      .trim();
+    if (text) return text;
+  }
+  return data.content?.[0]?.text || data.text || '';
 }
 
 function parseOrchestratorJSON(raw) {
