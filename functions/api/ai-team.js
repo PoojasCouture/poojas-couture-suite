@@ -21,9 +21,16 @@
 
 const ANTHROPIC_VERSION = '2023-06-01';
 const CANDIDATE_MODELS = [
+  'claude-5-sonnet-latest',
+  'claude-sonnet-5-latest',
+  'claude-sonnet-5',
+  'claude-5-sonnet',
+  'claude-4-5-haiku-latest',
+  'claude-haiku-4-5-latest',
+  'claude-haiku-4-5',
+  'claude-3-7-sonnet-latest',
   'claude-3-5-sonnet-latest',
   'claude-3-5-sonnet-20241022',
-  'claude-3-7-sonnet-latest',
   'claude-3-5-haiku-latest',
   'claude-3-haiku-20240307'
 ];
@@ -123,21 +130,21 @@ export async function onRequestPost(context) {
       }
 
       lastStatus = anthropicRes.status;
-      lastError = data?.error?.message || `Anthropic API error (${anthropicRes.status})`;
+      lastError = data?.error?.message || (typeof data?.error === 'string' ? data.error : JSON.stringify(data)) || `Anthropic API error (${anthropicRes.status})`;
 
       // If it's a model-not-found / permission error, continue to try the next model
-      const isModelIssue = (lastError || '').toLowerCase().includes('model') || anthropicRes.status === 404;
+      const isModelIssue = (lastError || '').toLowerCase().includes('model') && (anthropicRes.status === 404 || (lastError || '').toLowerCase().includes('not found') || (lastError || '').toLowerCase().includes('not have access'));
       if (!isModelIssue) {
-        // If it's another issue (e.g. invalid API key, credit balance, rate limit), return immediately
-        break;
+        // If it's another issue (e.g. credit balance, invalid key, rate limit), return immediately
+        return jsonResponse({ error: lastError, type: data?.error?.type, status: anthropicRes.status }, anthropicRes.status);
       }
     } catch (err) {
-      lastError = 'Failed to reach the Anthropic API.';
+      lastError = err?.message || 'Failed to reach the Anthropic API.';
       lastStatus = 502;
     }
   }
 
-  return jsonResponse({ error: lastError || 'Failed to reach the Anthropic API.' }, lastStatus);
+  return jsonResponse({ error: lastError || 'Failed to reach the Anthropic API.', status: lastStatus }, lastStatus);
 }
 
 // Reject anything that isn't a POST (GET, etc.) rather than letting it 404
