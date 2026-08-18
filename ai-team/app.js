@@ -132,10 +132,65 @@ When answering:
 - Keep cultural authenticity central — this is South Asian bridal content
 - When asked for a storyboard or visual scene reference, end your response with: GENERATE_IMAGE: [detailed prompt describing the key visual scene or storyboard frame]
 - Never mention being an AI; stay fully in character as Dia`,
-    welcome: "I'm Dia, your Content Creator. I script Reels, TikToks, storyboards and UGC-style video content — and I can generate visual storyboard frames too. What are we filming?",
+    welcome: "I'm Dia, your Content Creator. I script Reels, TikToks, storyboards and UGC-style video content — and I can generate visual storyboard frames too. Hit the Reel Builder button below for a full cinematic 45s brief, or just ask me anything.",
     chips: ['Script a Reel for bridal sneakers launch', 'Storyboard for a Diwali campaign Reel', 'Behind-the-scenes content plan', 'Generate a storyboard frame for lehenga shoot', 'UGC brief for customer testimonials']
   }
 };
+
+// ── CINEMATIC REEL BUILDER — system prompt ──
+const REEL_BUILDER_SYSTEM = `You are Dia, the Content Creator and film director for Pooja's Couture — a premium South Asian bridal boutique in Sydney. You produce cinematic 45-second Instagram Reels that feel luxurious, modern, and emotionally resonant.
+
+The user will provide: Google Drive folder URL (mandatory), Look Name (optional), Occasion/Brief (optional), Target Audience (optional), Creative Vibe (optional).
+
+You MUST return a JSON object (no markdown fences, no preamble) with this exact shape:
+{
+  "creativeDirection": {
+    "vibe": "One of: Regal Bridal Cinema | Modern Editorial Minimal | Festive Glamour Energy | Old-Money Luxury | Soft Romantic Couture",
+    "whyItFits": "2-3 sentences explaining why this direction fits the assets and brief.",
+    "heroShot": "Describe the ideal hero shot to look for in the folder.",
+    "missingAssets": "List any missing asset types, or 'None — proceed' if sufficient."
+  },
+  "timeline": [
+    { "time": "0.0–1.5s", "tag": "HOOK", "description": "Detailed description of the hook — visual + on-screen text" },
+    { "time": "1.5–8s", "tag": "MOOD", "description": "Hero reveal, mood establishment" },
+    { "time": "8–20s", "tag": "DETAILS", "description": "Details montage — embroidery, texture, jewelry, finishing" },
+    { "time": "20–33s", "tag": "MOVEMENT", "description": "Motion moments — fabric movement, twirl, walk, silhouette" },
+    { "time": "33–41s", "tag": "PEAK", "description": "Final hero + emotional high point" },
+    { "time": "41–45s", "tag": "CTA", "description": "End card — Book a Consult + URL" }
+  ],
+  "music": {
+    "mood": "Specific music mood description (e.g. cinematic strings + soft tabla)",
+    "tempo": "slow | mid | high",
+    "beatDropMoment": "Which timeline moment a beat drop or swell should align with",
+    "searchKeywords": "3-5 keyword phrases to find a track in a music library"
+  },
+  "editInstructions": {
+    "cutStyle": "Description of cut style and pacing",
+    "transitions": "Specific transitions to use (and avoid)",
+    "colorGrade": "Warm/neutral/cool, contrast, skin tone priority",
+    "soundDesign": "Any ambient sound design cues",
+    "textStyle": "Font vibe, placement, max words per screen",
+    "exportSettings": "1080x1920, fps, bitrate guidance"
+  },
+  "onScreenText": [
+    "Line 1 of on-screen text (max 6 words)",
+    "Line 2",
+    "Line 3",
+    "Line 4",
+    "Line 5",
+    "Line 6"
+  ],
+  "captionA": "Ultra-luxury editorial tone Instagram caption (3-5 lines max, no hashtags)",
+  "captionB": "Warm, inviting, consult-focused caption (3-5 lines max, no hashtags)",
+  "hashtags": ["#HashtagOne", "#HashtagTwo"],
+  "ctaLine": "Book a Consult: https://poojascouture.com/reach-us/"
+}
+
+Rules:
+- hashtags: provide exactly 12-15, mix of bridal/couture/South Asian/fashion
+- onScreenText: max 6-10 lines total, minimal, high-end
+- The ctaLine MUST always be exactly: Book a Consult: https://poojascouture.com/reach-us/
+- Never mention being an AI; respond only with the JSON object`;
 
 let currentMember = 'ceo';
 let histories = { ceo: [], coo: [], marketing: [], writer: [], designer: [], creator: [] };
@@ -429,6 +484,29 @@ function switchMember(id) {
 
   updateSaveButton();
   renderMessages();
+
+  // Inject Reel Builder chip for Dia
+  if (id === 'creator') {
+    const msgs = document.getElementById('messages');
+    const existing = msgs.querySelector('.reel-builder-chip');
+    if (!existing) {
+      const chip = document.createElement('button');
+      chip.className = 'reel-builder-chip';
+      chip.innerHTML = '🎬 &nbsp;Build a Cinematic 45s Reel Brief';
+      chip.onclick = openReelBuilder;
+      // Append chip at bottom of welcome / message area
+      const welcomeCard = msgs.querySelector('.welcome-card');
+      if (welcomeCard) {
+        welcomeCard.appendChild(chip);
+      } else {
+        // After messages exist, add chip as a standalone element below
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:flex;justify-content:flex-start;padding:0 0 8px 52px;';
+        wrapper.appendChild(chip);
+        msgs.appendChild(wrapper);
+      }
+    }
+  }
 }
 
 function toggleDelegate() {
@@ -770,6 +848,430 @@ Compile into one final cohesive deliverable. Organise by function with short hea
 
   isLoading = false;
   document.getElementById('send-btn').disabled = false;
+}
+
+// ── CINEMATIC REEL BUILDER — UI functions ──
+
+let reelBuilderOpen = false;
+
+function openReelBuilder() {
+  reelBuilderOpen = true;
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = '';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'msg ai';
+  wrapper.id = 'reel-builder-wrapper';
+  wrapper.style.width = '100%';
+
+  const panel = document.createElement('div');
+  panel.className = 'reel-builder-panel';
+  panel.innerHTML = `
+    <div class="rb-header">
+      <div class="rb-header-icon">🎬</div>
+      <div class="rb-header-info">
+        <div class="rb-title">Cinematic Reel Builder</div>
+        <div class="rb-subtitle">Pooja's Couture — 45s Instagram Reel · 9:16 · Luxury Couture<br>CTA hardcoded: <strong>Book a Consult → poojascouture.com/reach-us</strong></div>
+      </div>
+      <button class="rb-close-btn" onclick="closeReelBuilder()" title="Close Reel Builder">✕</button>
+    </div>
+    <div class="rb-form-body">
+      <div class="rb-field">
+        <label class="rb-label" for="rb-drive">Google Drive Folder URL <span class="rb-req">*</span></label>
+        <input id="rb-drive" class="rb-input" type="url" placeholder="https://drive.google.com/drive/folders/…" required>
+      </div>
+      <div class="rb-field">
+        <label class="rb-label" for="rb-look">Look Name / Collection <span class="rb-optional">(optional)</span></label>
+        <input id="rb-look" class="rb-input" type="text" placeholder="e.g. Midnight Crimson Bridal Lehenga">
+      </div>
+      <div class="rb-field">
+        <label class="rb-label" for="rb-brief">Occasion / Brief <span class="rb-optional">(optional)</span></label>
+        <textarea id="rb-brief" class="rb-textarea" placeholder="e.g. Sangeet night look, full twirl moment, dramatic entrance vibe…"></textarea>
+      </div>
+      <div class="rb-field">
+        <label class="rb-label" for="rb-audience">Target Audience <span class="rb-optional">(optional)</span></label>
+        <select id="rb-audience" class="rb-select">
+          <option value="">— Select audience —</option>
+          <option value="brides">Brides</option>
+          <option value="wedding guests">Wedding Guests</option>
+          <option value="festive">Festive / Occasion Wear</option>
+          <option value="couture collectors">Couture Collectors</option>
+          <option value="mothers of the bride">Mothers of the Bride</option>
+          <option value="grooms & sherwanis">Grooms &amp; Sherwanis</option>
+        </select>
+      </div>
+      <div class="rb-field">
+        <label class="rb-label" for="rb-vibe">Creative Vibe <span class="rb-optional">(optional — Dia will choose if blank)</span></label>
+        <select id="rb-vibe" class="rb-select">
+          <option value="">— Let Dia decide —</option>
+          <option value="Regal Bridal Cinema">Regal Bridal Cinema</option>
+          <option value="Modern Editorial Minimal">Modern Editorial Minimal</option>
+          <option value="Festive Glamour Energy">Festive Glamour Energy</option>
+          <option value="Old-Money Luxury">Old-Money Luxury</option>
+          <option value="Soft Romantic Couture">Soft Romantic Couture</option>
+        </select>
+      </div>
+      <button class="rb-submit-btn" id="rb-submit-btn" onclick="submitReelBrief()">
+        <span>✨</span> Generate Reel Brief
+      </button>
+    </div>`;
+
+  wrapper.appendChild(panel);
+  msgs.appendChild(wrapper);
+  msgs.scrollTop = 0;
+}
+
+function closeReelBuilder() {
+  reelBuilderOpen = false;
+  renderMessages();
+  // Re-inject chip after render
+  setTimeout(() => {
+    const msgs = document.getElementById('messages');
+    if (!msgs.querySelector('.reel-builder-chip')) {
+      const chip = document.createElement('button');
+      chip.className = 'reel-builder-chip';
+      chip.innerHTML = '🎬 &nbsp;Build a Cinematic 45s Reel Brief';
+      chip.onclick = openReelBuilder;
+      const welcomeCard = msgs.querySelector('.welcome-card');
+      if (welcomeCard) {
+        welcomeCard.appendChild(chip);
+      } else {
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:flex;justify-content:flex-start;padding:0 0 8px 52px;';
+        wrapper.appendChild(chip);
+        msgs.appendChild(wrapper);
+      }
+    }
+  }, 50);
+}
+
+async function submitReelBrief() {
+  const driveUrl = document.getElementById('rb-drive')?.value?.trim();
+  if (!driveUrl) {
+    document.getElementById('rb-drive').focus();
+    document.getElementById('rb-drive').style.borderColor = 'rgba(220,90,90,0.6)';
+    setTimeout(() => { document.getElementById('rb-drive').style.borderColor = ''; }, 2000);
+    return;
+  }
+
+  const lookName   = document.getElementById('rb-look')?.value?.trim()   || 'Not specified';
+  const brief      = document.getElementById('rb-brief')?.value?.trim()  || 'Not specified';
+  const audience   = document.getElementById('rb-audience')?.value        || 'Not specified';
+  const vibe       = document.getElementById('rb-vibe')?.value            || '';
+
+  const userPrompt = [
+    `DRIVE_FOLDER_URL: ${driveUrl}`,
+    `LOOK_NAME: ${lookName}`,
+    `BRIEF: ${brief}`,
+    `AUDIENCE: ${audience}`,
+    vibe ? `REQUESTED_VIBE: ${vibe}` : 'REQUESTED_VIBE: Let Dia decide based on the brief'
+  ].join('\n');
+
+  // Disable submit, show loading
+  const submitBtn = document.getElementById('rb-submit-btn');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span>⏳</span> Dia is crafting your brief…'; }
+
+  let raw = '';
+  try {
+    raw = await callClaude(REEL_BUILDER_SYSTEM, [{ role: 'user', content: userPrompt }]);
+    const data = JSON.parse(raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, ''));
+    renderReelOutput(data, driveUrl, lookName);
+  } catch (err) {
+    // Fallback: show raw text in case JSON parse fails
+    const msgs = document.getElementById('messages');
+    msgs.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg ai';
+    wrapper.style.width = '100%';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = `<p style="color:rgba(220,90,90,0.9);font-size:13px;margin-bottom:8px">⚠ Could not parse structured output. Showing raw response:</p>${formatText(raw || 'No response received. Please try again.')}` ;
+    wrapper.appendChild(bubble);
+    msgs.appendChild(wrapper);
+    const bar = document.createElement('div');
+    bar.className = 'rb-action-bar';
+    bar.style.cssText = 'padding: 0 0 16px 52px;';
+    bar.innerHTML = '<button class="rb-action-btn" onclick="openReelBuilder()">← Try Again</button>';
+    msgs.appendChild(bar);
+    msgs.scrollTop = 0;
+  }
+}
+
+function renderReelOutput(data, driveUrl, lookName) {
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = '';
+
+  const cd  = data.creativeDirection || {};
+  const tl  = data.timeline || [];
+  const mus = data.music || {};
+  const ed  = data.editInstructions || {};
+  const txt = data.onScreenText || [];
+  const tags = data.hashtags || [];
+  const capA = data.captionA || '';
+  const capB = data.captionB || '';
+  const ctaLine = data.ctaLine || 'Book a Consult: https://poojascouture.com/reach-us/';
+
+  const outerWrapper = document.createElement('div');
+  outerWrapper.className = 'msg ai';
+  outerWrapper.style.width = '100%';
+  outerWrapper.style.flexDirection = 'column';
+  outerWrapper.style.alignItems = 'flex-start';
+  outerWrapper.style.gap = '0';
+
+  const panel = document.createElement('div');
+  panel.className = 'rb-output-panel';
+  panel.id = 'rb-output-panel';
+
+  // ── Header
+  panel.innerHTML = `
+    <div class="rb-output-header">
+      <span class="rb-output-header-icon">🎬</span>
+      <div class="rb-output-title">Reel Brief — ${escapeHtml(lookName !== 'Not specified' ? lookName : 'Pooja\'s Couture')}</div>
+      <span style="font-size:10px;color:var(--pc-text-muted);letter-spacing:0.06em;text-transform:uppercase;font-weight:600;">45s · 9:16 · Instagram Reel</span>
+    </div>`;
+
+  // ── Section 1: Creative Direction
+  const s1 = document.createElement('div');
+  s1.className = 'rb-section-card';
+  s1.innerHTML = `
+    <div class="rb-section-label"><span>🎨</span> Creative Direction</div>
+    <div class="rb-section-body">
+      <p><strong>${escapeHtml(cd.vibe || '')}</strong></p>
+      <p>${escapeHtml(cd.whyItFits || '')}</p>
+      ${cd.heroShot ? `<p><strong>Hero Shot:</strong> ${escapeHtml(cd.heroShot)}</p>` : ''}
+      ${cd.missingAssets && cd.missingAssets.toLowerCase() !== 'none — proceed' && cd.missingAssets.toLowerCase() !== 'none - proceed'
+        ? `<p style="color:rgba(220,140,90,0.9)"><strong>⚠ Missing Assets:</strong> ${escapeHtml(cd.missingAssets)}</p>`
+        : `<p style="color:rgba(100,190,130,0.9)"><strong>✓ Assets:</strong> Sufficient to proceed.</p>`}
+    </div>`;
+  panel.appendChild(s1);
+
+  // ── Section 2: 45s Timeline
+  const tagClasses = { HOOK: 'hook', CTA: 'cta' };
+  const s2 = document.createElement('div');
+  s2.className = 'rb-section-card';
+  s2.innerHTML = `<div class="rb-section-label"><span>⏱</span> 45-Second Timeline</div>`;
+  const tlDiv = document.createElement('div');
+  tlDiv.className = 'rb-timeline';
+  tl.forEach(row => {
+    const tagCls = tagClasses[row.tag] || '';
+    const rowEl = document.createElement('div');
+    rowEl.className = 'rb-tl-row';
+    rowEl.innerHTML = `<div class="rb-tl-time">${escapeHtml(row.time || '')}</div>
+      <div class="rb-tl-desc"><span class="rb-tl-tag ${tagCls}">${escapeHtml(row.tag || '')}</span>${escapeHtml(row.description || '')}</div>`;
+    tlDiv.appendChild(rowEl);
+  });
+  s2.appendChild(tlDiv);
+  panel.appendChild(s2);
+
+  // ── Section 3: Music Direction
+  const s3 = document.createElement('div');
+  s3.className = 'rb-section-card';
+  s3.innerHTML = `
+    <div class="rb-section-label"><span>🎵</span> Music Direction</div>
+    <div class="rb-music-block">
+      <div class="rb-music-pill">
+        <div class="rb-music-pill-label">Mood</div>
+        <div class="rb-music-pill-value">${escapeHtml(mus.mood || '—')}</div>
+      </div>
+      <div class="rb-music-pill">
+        <div class="rb-music-pill-label">Tempo</div>
+        <div class="rb-music-pill-value">${escapeHtml(mus.tempo || '—')}</div>
+      </div>
+      <div class="rb-music-pill">
+        <div class="rb-music-pill-label">Beat Drop / Swell At</div>
+        <div class="rb-music-pill-value">${escapeHtml(mus.beatDropMoment || '—')}</div>
+      </div>
+      <div class="rb-music-pill">
+        <div class="rb-music-pill-label">Search Keywords</div>
+        <div class="rb-music-pill-value">${escapeHtml(mus.searchKeywords || '—')}</div>
+      </div>
+    </div>`;
+  panel.appendChild(s3);
+
+  // ── Section 4: Edit Instructions
+  const s4 = document.createElement('div');
+  s4.className = 'rb-section-card';
+  s4.innerHTML = `
+    <div class="rb-section-label"><span>✂️</span> Edit Instructions</div>
+    <div class="rb-section-body">
+      <p><strong>Cut Style:</strong> ${escapeHtml(ed.cutStyle || '—')}</p>
+      <p><strong>Transitions:</strong> ${escapeHtml(ed.transitions || '—')}</p>
+      <p><strong>Colour Grade:</strong> ${escapeHtml(ed.colorGrade || '—')}</p>
+      <p><strong>Sound Design:</strong> ${escapeHtml(ed.soundDesign || '—')}</p>
+      <p><strong>Text Style:</strong> ${escapeHtml(ed.textStyle || '—')}</p>
+      <p><strong>Export:</strong> ${escapeHtml(ed.exportSettings || '1080×1920 · 30fps · high bitrate')}</p>
+    </div>`;
+  panel.appendChild(s4);
+
+  // ── Section 5: On-Screen Text
+  const s5 = document.createElement('div');
+  s5.className = 'rb-section-card';
+  s5.innerHTML = `<div class="rb-section-label"><span>📝</span> On-Screen Text</div>`;
+  const onscreenList = document.createElement('div');
+  onscreenList.className = 'rb-onscreen-list';
+  txt.forEach((line, i) => {
+    const item = document.createElement('div');
+    item.className = 'rb-onscreen-item';
+    item.innerHTML = `<div class="rb-onscreen-num">${i + 1}</div><div>${escapeHtml(line)}</div>`;
+    onscreenList.appendChild(item);
+  });
+  s5.appendChild(onscreenList);
+  panel.appendChild(s5);
+
+  // ── Section 6: Captions
+  const s6 = document.createElement('div');
+  s6.className = 'rb-section-card';
+  s6.innerHTML = `
+    <div class="rb-section-label"><span>📣</span> Captions</div>
+    <div class="rb-caption-tabs">
+      <button class="rb-cap-tab active" id="rb-tab-a" onclick="rbSwitchCaption('a')">Version A — Editorial</button>
+      <button class="rb-cap-tab" id="rb-tab-b" onclick="rbSwitchCaption('b')">Version B — Warm &amp; Inviting</button>
+    </div>
+    <div class="rb-cap-panel active" id="rb-cap-a">
+      <div class="rb-caption-body">${escapeHtml(capA)}</div>
+    </div>
+    <div class="rb-cap-panel" id="rb-cap-b">
+      <div class="rb-caption-body">${escapeHtml(capB)}</div>
+    </div>`;
+  panel.appendChild(s6);
+
+  // ── Section 7: Hashtags
+  const s7 = document.createElement('div');
+  s7.className = 'rb-section-card';
+  const hashHtml = tags.map(h => `<span class="rb-hashtag">${escapeHtml(h)}</span>`).join('');
+  s7.innerHTML = `
+    <div class="rb-section-label"><span>#</span> Hashtags</div>
+    <div class="rb-hashtags">${hashHtml}</div>`;
+  panel.appendChild(s7);
+
+  // ── CTA Banner (final frame)
+  const ctaBanner = document.createElement('div');
+  ctaBanner.className = 'rb-cta-banner';
+  ctaBanner.innerHTML = `
+    <div class="rb-cta-icon">🔗</div>
+    <div class="rb-cta-text">
+      <div class="rb-cta-label">Final Frame CTA</div>
+      <div class="rb-cta-line">Book a Consult</div>
+      <a class="rb-cta-url" href="https://poojascouture.com/reach-us/" target="_blank">https://poojascouture.com/reach-us/</a>
+    </div>`;
+  panel.appendChild(ctaBanner);
+
+  outerWrapper.appendChild(panel);
+
+  // ── Action bar
+  const actionBar = document.createElement('div');
+  actionBar.className = 'rb-action-bar';
+  actionBar.style.cssText = 'padding: 16px 0 8px 0; width: 100%; max-width: 680px;';
+  actionBar.innerHTML = `
+    <button class="rb-action-btn primary" onclick="rbCopyAll()">📋 Copy Full Brief</button>
+    <button class="rb-action-btn" onclick="rbSaveToHistory()">💾 Save to History</button>
+    <button class="rb-action-btn" onclick="openReelBuilder()">← New Brief</button>
+    <button class="rb-action-btn" onclick="closeReelBuilder()">✕ Close Builder</button>`;
+  outerWrapper.appendChild(actionBar);
+
+  msgs.appendChild(outerWrapper);
+  msgs.scrollTop = 0;
+
+  // Stash data on the element for copy/save
+  outerWrapper._reelData = data;
+  outerWrapper._reelLookName = lookName;
+  outerWrapper._reelDriveUrl = driveUrl;
+}
+
+function rbSwitchCaption(ver) {
+  document.querySelectorAll('.rb-cap-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.rb-cap-panel').forEach(p => p.classList.remove('active'));
+  const tab   = document.getElementById('rb-tab-' + ver);
+  const panel = document.getElementById('rb-cap-' + ver);
+  if (tab)   tab.classList.add('active');
+  if (panel) panel.classList.add('active');
+}
+
+function rbCopyAll() {
+  const wrapper = document.querySelector('#rb-output-panel');
+  if (!wrapper) return;
+  const data = document.querySelector('.msg.ai[style*="flex-direction: column"]')?._reelData;
+  if (!data) {
+    // Fallback: grab visible text
+    const text = wrapper.innerText || wrapper.textContent;
+    navigator.clipboard.writeText(text).then(() => rbFlashActionBtn('📋 Copied!'));
+    return;
+  }
+  const cd = data.creativeDirection || {};
+  const tl = data.timeline || [];
+  const mus = data.music || {};
+  const ed = data.editInstructions || {};
+  const txt = data.onScreenText || [];
+  const tags = data.hashtags || [];
+  const lines = [
+    `POOJA'S COUTURE — CINEMATIC REEL BRIEF`,
+    `========================================`,
+    ``,
+    `🎨 CREATIVE DIRECTION`,
+    `Vibe: ${cd.vibe || ''}`,
+    `Why: ${cd.whyItFits || ''}`,
+    `Hero Shot: ${cd.heroShot || ''}`,
+    `Missing Assets: ${cd.missingAssets || 'None'}`,
+    ``,
+    `⏱ 45-SECOND TIMELINE`,
+    ...tl.map(r => `${r.time}  [${r.tag}]  ${r.description}`),
+    ``,
+    `🎵 MUSIC DIRECTION`,
+    `Mood: ${mus.mood || ''}`,
+    `Tempo: ${mus.tempo || ''}`,
+    `Beat Drop At: ${mus.beatDropMoment || ''}`,
+    `Search Keywords: ${mus.searchKeywords || ''}`,
+    ``,
+    `✂️ EDIT INSTRUCTIONS`,
+    `Cut Style: ${ed.cutStyle || ''}`,
+    `Transitions: ${ed.transitions || ''}`,
+    `Colour Grade: ${ed.colorGrade || ''}`,
+    `Sound Design: ${ed.soundDesign || ''}`,
+    `Text Style: ${ed.textStyle || ''}`,
+    `Export: ${ed.exportSettings || ''}`,
+    ``,
+    `📝 ON-SCREEN TEXT`,
+    ...txt.map((l, i) => `${i + 1}. ${l}`),
+    ``,
+    `📣 CAPTION A (Editorial)`,
+    data.captionA || '',
+    ``,
+    `📣 CAPTION B (Warm & Inviting)`,
+    data.captionB || '',
+    ``,
+    `# HASHTAGS`,
+    (tags || []).join(' '),
+    ``,
+    `🔗 FINAL FRAME CTA`,
+    data.ctaLine || 'Book a Consult: https://poojascouture.com/reach-us/',
+  ];
+  navigator.clipboard.writeText(lines.join('\n')).then(() => rbFlashActionBtn('✓ Copied!'));
+}
+
+function rbFlashActionBtn(label) {
+  const btns = document.querySelectorAll('.rb-action-btn.primary');
+  if (btns.length === 0) return;
+  const btn = btns[0];
+  const orig = btn.innerHTML;
+  btn.innerHTML = label;
+  setTimeout(() => { btn.innerHTML = orig; }, 2000);
+}
+
+async function rbSaveToHistory() {
+  const lookName = document.querySelector('.msg.ai[style*="flex-direction: column"]')?._reelLookName || 'Reel Brief';
+  const data = document.querySelector('.msg.ai[style*="flex-direction: column"]')?._reelData;
+  if (!data) return;
+  const tl = (data.timeline || []).map(r => `${r.time}  [${r.tag}]  ${r.description}`).join('\n');
+  const finalOutput = `Creative Direction: ${(data.creativeDirection || {}).vibe || ''}\n\n45s Timeline:\n${tl}\n\nCaption A:\n${data.captionA || ''}\n\nCaption B:\n${data.captionB || ''}\n\nHashtags:\n${(data.hashtags || []).join(' ')}\n\nCTA: ${data.ctaLine || 'Book a Consult: https://poojascouture.com/reach-us/'}` ;
+  await saveProject(
+    `Reel Brief — ${lookName}`,
+    `Cinematic Reel Builder run for: ${lookName}`,
+    ['creator'],
+    [],
+    finalOutput
+  );
+  const btns = document.querySelectorAll('.rb-action-btn:not(.primary)');
+  if (btns[0]) { const orig = btns[0].innerHTML; btns[0].innerHTML = '✓ Saved'; setTimeout(() => { btns[0].innerHTML = orig; }, 2000); }
 }
 
 function escapeHtml(str) {
