@@ -221,7 +221,8 @@ async function renderGeneratedImage(prompt, containerEl) {
 
   try {
     const fullPrompt = prompt + ', South Asian bridal fashion, premium boutique aesthetic, high quality, editorial photography style';
-    const { data: sessionData } = await window._sbClient.auth.getSession();
+    const sb = await getSupabaseClient();
+    const { data: sessionData } = await sb.auth.getSession().catch(() => ({ data: null }));
     const authToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
     const res = await fetch('/api/generate-image', {
       method: 'POST',
@@ -259,8 +260,11 @@ async function renderGeneratedImage(prompt, containerEl) {
 // ── SUPABASE HISTORY ──
 async function getSupabaseClient() {
   if (window._sbClient) return window._sbClient;
-  window._sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
-  return window._sbClient;
+  if (typeof supabase !== 'undefined' && typeof SUPABASE_CONFIG !== 'undefined') {
+    window._sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    return window._sbClient;
+  }
+  return null;
 }
 
 async function saveProject(title, request, agents, contributions, finalOutput) {
@@ -624,8 +628,16 @@ function handleKey(e) {
 }
 
 async function callClaude(system, messages) {
-  const { data: sessionData } = await window._sbClient.auth.getSession();
-  const authToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
+  const sb = await getSupabaseClient();
+  let authToken = null;
+  if (sb && sb.auth) {
+    try {
+      const { data: sessionData } = await sb.auth.getSession();
+      authToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
+    } catch (e) {
+      console.warn('Could not get Supabase auth token:', e);
+    }
+  }
   const response = await fetch('/api/ai-team', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1314,6 +1326,7 @@ function checkAccess(isRetry) {
   gateScreen.classList.add('d-none');
   gateScreen.classList.remove('active');
   workspace.classList.remove('d-none');
+  getSupabaseClient();
   updateSaveButton();
   renderMessages();
 
