@@ -221,9 +221,7 @@ async function renderGeneratedImage(prompt, containerEl) {
 
   try {
     const fullPrompt = prompt + ', South Asian bridal fashion, premium boutique aesthetic, high quality, editorial photography style';
-    const sb = await getSupabaseClient();
-    const { data: sessionData } = await sb.auth.getSession().catch(() => ({ data: null }));
-    const authToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
+    const authToken = await getAuthToken();
     const res = await fetch('/api/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -257,12 +255,58 @@ async function renderGeneratedImage(prompt, containerEl) {
   }
 }
 
-// ── SUPABASE HISTORY ──
+// ── SUPABASE HISTORY & AUTH ──
 async function getSupabaseClient() {
   if (window._sbClient) return window._sbClient;
-  if (typeof supabase !== 'undefined' && typeof SUPABASE_CONFIG !== 'undefined') {
-    window._sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+  if (window.__pcSupabaseClient) {
+    window._sbClient = window.__pcSupabaseClient;
     return window._sbClient;
+  }
+  if (typeof supabase !== 'undefined' && typeof SUPABASE_CONFIG !== 'undefined') {
+    window._sbClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
+      auth: {
+        storageKey: 'pc-suite-auth', // matches main app store.js
+        persistSession: true,
+        autoRefreshToken: true
+      }
+    });
+    window.__pcSupabaseClient = window._sbClient;
+    return window._sbClient;
+  }
+  return null;
+}
+
+async function getAuthToken() {
+  const sb = await getSupabaseClient();
+  if (sb && sb.auth) {
+    try {
+      const { data: sessionData } = await sb.auth.getSession();
+      if (sessionData?.session?.access_token) {
+        return sessionData.session.access_token;
+      }
+    } catch (e) {
+      console.warn('Could not get session from sb.auth:', e);
+    }
+  }
+  // Direct fallback from localStorage (storageKey: pc-suite-auth)
+  try {
+    const raw = localStorage.getItem('pc-suite-auth');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.access_token) return parsed.access_token;
+      if (parsed?.currentSession?.access_token) return parsed.currentSession.access_token;
+    }
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('sb-') || key.includes('-auth-token'))) {
+        try {
+          const val = JSON.parse(localStorage.getItem(key));
+          if (val?.access_token) return val.access_token;
+        } catch (err) {}
+      }
+    }
+  } catch (e) {
+    console.warn('Fallback token extraction failed:', e);
   }
   return null;
 }
@@ -628,16 +672,7 @@ function handleKey(e) {
 }
 
 async function callClaude(system, messages) {
-  const sb = await getSupabaseClient();
-  let authToken = null;
-  if (sb && sb.auth) {
-    try {
-      const { data: sessionData } = await sb.auth.getSession();
-      authToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
-    } catch (e) {
-      console.warn('Could not get Supabase auth token:', e);
-    }
-  }
+  const authToken = await getAuthToken();
   const response = await fetch('/api/ai-team', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
