@@ -820,13 +820,14 @@ async function runDelegationPipeline(text) {
 
     const details = document.createElement('details');
     details.className = 'agent-contribution';
+    details.open = true; // expanded so user immediately sees output
     const imagePrompt = agent.canGenerateImages ? extractImagePrompt(output) : null;
     const cleanOutput = imagePrompt ? stripImageTag(output) : output;
     details.innerHTML = `
       <summary>
         <span style="font-size:14px">${agent.emoji}</span>
         <span>${agent.name} — contribution ready</span>
-        <span class="chevron">▶</span>
+        <span class="chevron">▼</span>
       </summary>
       <div class="contribution-body" id="contrib-body-${i}">${formatText(cleanOutput)}</div>`;
 
