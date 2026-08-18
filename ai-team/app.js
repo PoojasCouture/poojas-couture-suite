@@ -675,8 +675,9 @@ async function sendMessage() {
     appendBubble('assistant', reply || 'Sorry, I could not generate a response right now.');
     setAgentStatus(id, 'done');
   } catch (err) {
+    console.error('AI Team request error:', err);
     removeTyping();
-    appendBubble('assistant', 'There was an error connecting. Please try again.');
+    appendBubble('assistant', `⚠️ ${err.message || 'There was an error connecting. Please try again.'}`);
     setAgentStatus(id, 'error');
   }
   isLoading = false;
@@ -709,6 +710,7 @@ async function runDelegationPipeline(text) {
     if (!plan.delegations || !Array.isArray(plan.delegations) || plan.delegations.length === 0) throw new Error('empty plan');
     setAgentStatus('ceo', 'done', 'Delegated');
   } catch (err) {
+    console.error('Orchestrator delegation failed, falling back to direct reply:', err);
     stageWrapper.remove();
     showTyping();
     try {
@@ -718,8 +720,9 @@ async function runDelegationPipeline(text) {
       appendBubble('assistant', reply);
       setAgentStatus('ceo', 'done');
     } catch (e) {
+      console.error('Direct fallback request error:', e);
       removeTyping();
-      appendBubble('assistant', 'There was an error connecting. Please try again.');
+      appendBubble('assistant', `⚠️ ${e.message || 'There was an error connecting. Please try again.'}`);
       setAgentStatus('ceo', 'error');
     }
     isLoading = false;

@@ -20,7 +20,7 @@
 import { validateFileType } from './_lib/fileSignature.js';
 
 const ANTHROPIC_VERSION = '2023-06-01';
-const MODEL = 'claude-sonnet-4-6';
+const MODEL = 'claude-3-5-sonnet-20241022';
 
 // Matches the intake-docs bucket's own allowed_mime_types exactly. The
 // bucket's allowlist only ever checked the DECLARED Content-Type header

@@ -20,7 +20,7 @@
 // after you delete the line.
 
 const ANTHROPIC_VERSION = '2023-06-01';
-const MODEL = 'claude-sonnet-4-6';
+const MODEL = 'claude-3-5-sonnet-20241022';
 const MAX_TOKENS_CAP = 2000; // hard ceiling regardless of what the client asks for
 
 function jsonResponse(body, status = 200) {
