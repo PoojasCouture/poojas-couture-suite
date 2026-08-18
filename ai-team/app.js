@@ -687,7 +687,7 @@ function handleKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 }
 
-async function callClaude(system, messages) {
+async function callClaude(system, messages, maxTokens = 2500) {
   const authToken = await getAuthToken();
   if (!authToken) {
     throw new Error('Your session has expired or is missing. Please sign out and sign back in from the main app to refresh your login.');
@@ -695,7 +695,7 @@ async function callClaude(system, messages) {
   const response = await fetch('/api/ai-team', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ max_tokens: 1200, system, messages, token: authToken })
+    body: JSON.stringify({ max_tokens: maxTokens, system, messages, token: authToken })
   });
   if (!response.ok) {
     const errBody = await response.json().catch(() => ({}));
@@ -1023,6 +1023,85 @@ function closeReelBuilder() {
   }, 50);
 }
 
+function repairTruncatedJSON(jsonStr) {
+  let inString = false;
+  let isEscaped = false;
+  let stack = [];
+
+  for (let i = 0; i < jsonStr.length; i++) {
+    const ch = jsonStr[i];
+    if (isEscaped) {
+      isEscaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      isEscaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (ch === '{' || ch === '[') {
+        stack.push(ch);
+      } else if (ch === '}' || ch === ']') {
+        const last = stack[stack.length - 1];
+        if ((ch === '}' && last === '{') || (ch === ']' && last === '[')) {
+          stack.pop();
+        }
+      }
+    }
+  }
+
+  let repaired = jsonStr;
+  if (inString) repaired += '"';
+  repaired = repaired.replace(/,\s*$/, '');
+  while (stack.length > 0) {
+    const open = stack.pop();
+    if (open === '{') repaired += '}';
+    else if (open === '[') repaired += ']';
+  }
+  return repaired;
+}
+
+function extractAndParseJSON(raw) {
+  if (!raw || typeof raw !== 'string') throw new Error('Empty response');
+  let text = raw.trim();
+
+  // Attempt 1: Direct clean
+  try {
+    const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    return JSON.parse(cleaned);
+  } catch (e) {}
+
+  // Attempt 2: Extract between first { and last }
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const jsonSubstring = text.substring(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(jsonSubstring);
+    } catch (e) {
+      try {
+        const sanitized = jsonSubstring.replace(/,\s*([}\]])/g, '$1');
+        return JSON.parse(sanitized);
+      } catch (err2) {}
+    }
+  }
+
+  // Attempt 3: Truncated JSON auto-repair
+  if (firstBrace !== -1) {
+    try {
+      const fromFirstBrace = text.substring(firstBrace);
+      const repaired = repairTruncatedJSON(fromFirstBrace);
+      return JSON.parse(repaired);
+    } catch (e) {}
+  }
+
+  throw new Error('No valid JSON object found in response');
+}
+
 async function submitReelBrief() {
   const driveUrl = document.getElementById('rb-drive')?.value?.trim();
   if (!driveUrl) {
@@ -1051,10 +1130,11 @@ async function submitReelBrief() {
 
   let raw = '';
   try {
-    raw = await callClaude(REEL_BUILDER_SYSTEM, [{ role: 'user', content: userPrompt }]);
-    const data = JSON.parse(raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, ''));
+    raw = await callClaude(REEL_BUILDER_SYSTEM, [{ role: 'user', content: userPrompt }], 3500);
+    const data = extractAndParseJSON(raw);
     renderReelOutput(data, driveUrl, lookName);
   } catch (err) {
+    console.error('Reel builder parse error:', err, 'Raw response:', raw);
     // Fallback: show raw text in case JSON parse fails
     const msgs = document.getElementById('messages');
     msgs.innerHTML = '';

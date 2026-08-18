@@ -34,7 +34,7 @@ const CANDIDATE_MODELS = [
   'claude-3-5-haiku-latest',
   'claude-3-haiku-20240307'
 ];
-const MAX_TOKENS_CAP = 2000; // hard ceiling regardless of what the client asks for
+const MAX_TOKENS_CAP = 4096; // allow full generation for detailed directorial briefs
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
