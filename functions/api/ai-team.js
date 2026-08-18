@@ -20,7 +20,13 @@
 // after you delete the line.
 
 const ANTHROPIC_VERSION = '2023-06-01';
-const MODEL = 'claude-3-5-sonnet-20241022';
+const CANDIDATE_MODELS = [
+  'claude-3-5-sonnet-latest',
+  'claude-3-5-sonnet-20241022',
+  'claude-3-7-sonnet-latest',
+  'claude-3-5-haiku-latest',
+  'claude-3-haiku-20240307'
+];
 const MAX_TOKENS_CAP = 2000; // hard ceiling regardless of what the client asks for
 
 function jsonResponse(body, status = 200) {
@@ -90,36 +96,48 @@ export async function onRequestPost(context) {
 
   const cappedMaxTokens = Math.min(Number(max_tokens) || 1200, MAX_TOKENS_CAP);
 
-  try {
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
-        'anthropic-version': ANTHROPIC_VERSION
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: cappedMaxTokens,
-        system: system || undefined,
-        messages
-      })
-    });
+  let lastError = null;
+  let lastStatus = 500;
 
-    const data = await anthropicRes.json();
+  for (const modelName of CANDIDATE_MODELS) {
+    try {
+      const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': env.ANTHROPIC_API_KEY,
+          'anthropic-version': ANTHROPIC_VERSION
+        },
+        body: JSON.stringify({
+          model: modelName,
+          max_tokens: cappedMaxTokens,
+          system: system || undefined,
+          messages
+        })
+      });
 
-    if (!anthropicRes.ok) {
-      return jsonResponse(
-        { error: data?.error?.message || `Anthropic API error (${anthropicRes.status})` },
-        anthropicRes.status
-      );
+      const data = await anthropicRes.json();
+
+      if (anthropicRes.ok) {
+        return jsonResponse(data, 200);
+      }
+
+      lastStatus = anthropicRes.status;
+      lastError = data?.error?.message || `Anthropic API error (${anthropicRes.status})`;
+
+      // If it's a model-not-found / permission error, continue to try the next model
+      const isModelIssue = (lastError || '').toLowerCase().includes('model') || anthropicRes.status === 404;
+      if (!isModelIssue) {
+        // If it's another issue (e.g. invalid API key, credit balance, rate limit), return immediately
+        break;
+      }
+    } catch (err) {
+      lastError = 'Failed to reach the Anthropic API.';
+      lastStatus = 502;
     }
-
-    return jsonResponse(data, 200);
-
-  } catch (err) {
-    return jsonResponse({ error: 'Failed to reach the Anthropic API.' }, 502);
   }
+
+  return jsonResponse({ error: lastError || 'Failed to reach the Anthropic API.' }, lastStatus);
 }
 
 // Reject anything that isn't a POST (GET, etc.) rather than letting it 404
