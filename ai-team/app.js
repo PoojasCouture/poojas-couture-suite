@@ -281,11 +281,27 @@ async function getAuthToken() {
   if (sb && sb.auth) {
     try {
       const { data: sessionData } = await sb.auth.getSession();
-      if (sessionData?.session?.access_token) {
-        return sessionData.session.access_token;
+      const session = sessionData?.session;
+      if (session?.access_token) {
+        // Auto-refresh if token is expired or expiring in under 5 minutes
+        const expiresAt = session.expires_at; // timestamp in seconds
+        const now = Math.floor(Date.now() / 1000);
+        if (expiresAt && (expiresAt - now < 300)) {
+          const { data: refData } = await sb.auth.refreshSession().catch(() => ({ data: null }));
+          if (refData?.session?.access_token) {
+            return refData.session.access_token;
+          }
+        }
+        return session.access_token;
+      } else {
+        // Attempt session refresh in case token expired while page was open
+        const { data: refData } = await sb.auth.refreshSession().catch(() => ({ data: null }));
+        if (refData?.session?.access_token) {
+          return refData.session.access_token;
+        }
       }
     } catch (e) {
-      console.warn('Could not get session from sb.auth:', e);
+      console.warn('Could not get or refresh session from sb.auth:', e);
     }
   }
   // Direct fallback from localStorage (storageKey: pc-suite-auth)
@@ -1337,14 +1353,33 @@ function escapeHtml(str) {
 // ── ACCESS CONTROL ──
 const ALLOWED_ROLES = ['admin', 'social_crm', 'social_crm_limited'];
 
-function checkAccess(isRetry) {
+async function checkAccess(isRetry) {
   const gateScreen = document.getElementById('gate-screen');
   const gateMessage = document.getElementById('gate-message');
   const gateActions = document.getElementById('gate-actions');
   const workspace = document.getElementById('ai-team-workspace');
 
+  const sb = await getSupabaseClient();
   let currentUser = null;
   try { currentUser = JSON.parse(localStorage.getItem('pc_current_user')); } catch (e) {}
+
+  // If pc_current_user is missing, try to seamlessly restore from active Supabase session
+  if (!currentUser && sb && sb.auth) {
+    try {
+      const { data: userData } = await sb.auth.getUser();
+      if (userData?.user?.email) {
+        const email = userData.user.email.toLowerCase();
+        const { data: empRows } = await sb.from('employees').select('*').eq('email', email).limit(1);
+        if (empRows && empRows[0]) {
+          currentUser = empRows[0];
+          currentUser.appRole = empRows[0].app_role || empRows[0].role;
+          localStorage.setItem('pc_current_user', JSON.stringify(currentUser));
+        }
+      }
+    } catch (e) {
+      console.warn('Session auto-restore from Supabase failed:', e);
+    }
+  }
 
   if (!currentUser && !isRetry) { setTimeout(() => checkAccess(true), 400); return; }
 
@@ -1365,7 +1400,6 @@ function checkAccess(isRetry) {
   gateScreen.classList.add('d-none');
   gateScreen.classList.remove('active');
   workspace.classList.remove('d-none');
-  getSupabaseClient();
   updateSaveButton();
   renderMessages();
 
