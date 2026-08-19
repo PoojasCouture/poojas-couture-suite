@@ -1,19 +1,27 @@
 // functions/api/drive-folder-images.js
 // -----------------------------------------------------------------------
-// Fetches actual image bytes (base64-encoded) from an arbitrary,
-// user-supplied Google Drive folder URL. Built specifically to close a
-// gap in the Cinematic Reel Builder (ai-team/app.js): that feature asked
-// for a Drive folder URL but only ever sent the URL to Claude as a text
-// string — nothing ever actually opened the folder, so "heroShot" and
-// "missingAssets" in its output were generic guesses, not real analysis.
+// Fetches actual image bytes (base64-encoded) from one or more
+// user-supplied Google Drive folder URLs, pooling results across all of
+// them. Built specifically to close a gap in the Cinematic Reel Builder
+// (ai-team/app.js): that feature asked for a Drive folder URL but only
+// ever sent the URL to Claude as a text string — nothing ever actually
+// opened the folder, so "heroShot" and "missingAssets" in its output
+// were generic guesses, not real analysis.
+//
+// MULTI-FOLDER: shoots/photos are often scattered across several Drive
+// folders rather than one tidy folder. Rather than building full-account
+// Drive search (a real OAuth project — login flow, token storage, token
+// refresh — out of scope for a "no new cost" ask), this accepts a list
+// of folder links and pools images from all of them. Same sharing model
+// as before (each folder still needs "Anyone with the link can view"),
+// just more than one at a time.
 //
 // This is a SEPARATE function from brand-assets.js on purpose, even
-// though both list a Drive folder's images via the same API. That
-// function is scoped to one fixed folder (the brand asset library) and
-// returns thumbnail URLs for a UI picker. This one accepts ANY folder a
-// staff member pastes in (a specific shoot's folder, different every
-// time), and returns actual image BYTES ready to hand to Claude as
-// vision input — a different shape for a different purpose.
+// though both list Drive folder images via the same API. That function
+// is scoped to one fixed folder (the brand asset library) and returns
+// thumbnail URLs for a UI picker. This one accepts ANY folders a staff
+// member pastes in, and returns actual image BYTES ready to hand to
+// Claude as vision input — a different shape for a different purpose.
 //
 // AUTH: same pattern as ai-team.js — this only makes sense to call from
 // an already-authenticated AI Team portal session, so it requires one
@@ -22,13 +30,16 @@
 // Required Cloudflare env vars: SUPABASE_URL, SUPABASE_SERVICE_KEY,
 //   GOOGLE_DRIVE_API_KEY (already configured — same key brand-assets.js uses)
 //
-// POST JSON body: { token, driveUrl }
+// POST JSON body: { token, driveUrls: string[] }
 // -----------------------------------------------------------------------
 
-const MAX_IMAGES = 6; // keeps the Claude request size/cost reasonable — this
-                       // is meant to give the model a representative sense of
-                       // the shoot, not ingest an entire folder
-const THUMB_WIDTH = 800; // matches brand-assets.js's own default size
+const MAX_FOLDERS = 6;        // ceiling on how many folder links one request processes
+const MAX_PER_FOLDER = 5;     // no single folder can crowd out the others
+const MAX_TOTAL_IMAGES = 12;  // overall cap — keeps the Claude request size/cost
+                               // reasonable; this is meant to give the model a
+                               // representative pool to choose from, not ingest
+                               // every photo that exists
+const THUMB_WIDTH = 800;      // matches brand-assets.js's own default size
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -58,8 +69,37 @@ function extractFolderId(input) {
   return null;
 }
 
+/**
+ * List up to `limit` image files in one Drive folder. Returns
+ * { ok:true, files } or { ok:false, reason } — never throws, so one bad
+ * folder in a multi-folder request can be reported and skipped without
+ * taking down the whole request.
+ */
+async function listFolderImages(folderId, apiKey, limit) {
+  const params = new URLSearchParams({
+    q: `'${folderId}' in parents and mimeType contains 'image/' and trashed = false`,
+    key: apiKey,
+    fields: 'files(id,name,mimeType)',
+    pageSize: String(limit * 3), // over-fetch a bit so a mixed-quality folder still yields `limit` usable ones
+    orderBy: 'name',
+    supportsAllDrives: 'true',
+    includeItemsFromAllDrives: 'true'
+  });
+  try {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`);
+    if (!res.ok) {
+      return { ok: false, reason: `Could not read this folder (${res.status}) — check it's shared "Anyone with the link can view".` };
+    }
+    const data = await res.json();
+    const allFiles = data.files || [];
+    return { ok: true, files: allFiles.slice(0, limit), totalInFolder: allFiles.length };
+  } catch (err) {
+    return { ok: false, reason: 'Failed to reach the Drive API: ' + String(err) };
+  }
+}
+
 export async function onRequestPost(context) {
-  const { request, env } = context;
+  const { env, request } = context;
 
   if (!env.GOOGLE_DRIVE_API_KEY) {
     return jsonResponse({ error: 'GOOGLE_DRIVE_API_KEY is not set in the Pages environment.' }, 500);
@@ -89,54 +129,79 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: 'Not authorized to use this feature' }, 403);
   }
 
-  const folderId = extractFolderId(body.driveUrl);
-  if (!folderId) {
-    return jsonResponse({ error: 'Could not find a folder ID in that URL. Paste the folder\'s share link, or its ID directly.' }, 400);
+  // --- Parse and validate the folder list ---
+  const rawUrls = Array.isArray(body.driveUrls) ? body.driveUrls : [];
+  if (rawUrls.length === 0) {
+    return jsonResponse({ error: 'At least one Drive folder URL is required.' }, 400);
   }
+  const urlsToProcess = rawUrls.slice(0, MAX_FOLDERS);
 
-  // --- List images in the folder (same Drive API pattern as brand-assets.js) ---
-  const params = new URLSearchParams({
-    q: `'${folderId}' in parents and mimeType contains 'image/' and trashed = false`,
-    key: env.GOOGLE_DRIVE_API_KEY,
-    fields: 'files(id,name,mimeType)',
-    pageSize: String(MAX_IMAGES * 3), // over-fetch a bit so a mixed-quality
-                                       // folder still yields MAX_IMAGES usable ones
-    orderBy: 'name',
-    supportsAllDrives: 'true',
-    includeItemsFromAllDrives: 'true'
-  });
+  const folderResults = []; // per-folder outcome, always reported — never silently dropped
+  const seenIds = new Set();
 
-  let listData;
-  try {
-    const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`);
-    if (!listRes.ok) {
-      const detail = await listRes.text();
-      // Common real-world cause: folder isn't shared "anyone with link" yet.
-      return jsonResponse({ error: `Could not read that Drive folder (${listRes.status}). Check it's shared "Anyone with the link can view".`, detail }, 502);
+  for (const rawUrl of urlsToProcess) {
+    const folderId = extractFolderId(rawUrl);
+    if (!folderId) {
+      folderResults.push({ input: rawUrl, ok: false, reason: 'Could not find a folder ID in that URL.' });
+      continue;
     }
-    listData = await listRes.json();
-  } catch (err) {
-    return jsonResponse({ error: 'Failed to reach the Drive API', detail: String(err) }, 502);
+    if (seenIds.has(folderId)) {
+      folderResults.push({ input: rawUrl, folderId, ok: false, reason: 'Duplicate of another folder already in this request.' });
+      continue;
+    }
+    seenIds.add(folderId);
+
+    const listResult = await listFolderImages(folderId, env.GOOGLE_DRIVE_API_KEY, MAX_PER_FOLDER);
+    if (!listResult.ok) {
+      folderResults.push({ input: rawUrl, folderId, ok: false, reason: listResult.reason });
+      continue;
+    }
+    if (listResult.files.length === 0) {
+      folderResults.push({ input: rawUrl, folderId, ok: false, reason: 'No images found in this folder (or it isn\'t shared publicly yet).' });
+      continue;
+    }
+    folderResults.push({
+      input: rawUrl, folderId, ok: true,
+      files: listResult.files, totalInFolder: listResult.totalInFolder
+    });
   }
 
-  const files = (listData.files || []).slice(0, MAX_IMAGES);
-  if (files.length === 0) {
-    return jsonResponse({ error: 'No images found in that folder (or it isn\'t shared publicly yet).', count: 0, images: [] }, 200);
+  // --- Pool candidate files across all successfully-read folders, capped overall ---
+  const candidates = [];
+  for (const fr of folderResults) {
+    if (!fr.ok) continue;
+    for (const f of fr.files) {
+      if (candidates.length >= MAX_TOTAL_IMAGES) break;
+      candidates.push({ ...f, sourceFolderId: fr.folderId });
+    }
   }
 
-  // --- Fetch actual bytes for each image, base64-encode for Claude ---
+  if (candidates.length === 0) {
+    // Every folder failed or was empty — this is a hard stop, not a
+    // silent proceed-without-photos. See ai-team/app.js's handling of
+    // this response for why.
+    return jsonResponse({
+      error: 'Could not find any usable images across the folder(s) provided.',
+      count: 0,
+      images: [],
+      folderResults
+    }, 200);
+  }
+
+  // --- Fetch actual bytes for each candidate, base64-encode for Claude ---
   const images = [];
-  const failures = [];
-  for (const f of files) {
+  const fetchFailures = [];
+  for (const f of candidates) {
     try {
       const thumbRes = await fetch(`https://drive.google.com/thumbnail?id=${f.id}&sz=w${THUMB_WIDTH}`);
-      if (!thumbRes.ok) { failures.push(f.name); continue; }
+      if (!thumbRes.ok) { fetchFailures.push(f.name); continue; }
       const buf = await thumbRes.arrayBuffer();
       const bytes = new Uint8Array(buf);
       let binary = '';
       for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
       images.push({
         name: f.name,
+        sourceFolderId: f.sourceFolderId,
         // Drive's thumbnail endpoint always serves JPEG regardless of the
         // source file's original format — declaring anything else here
         // would be exactly the kind of unverified claim the rest of this
@@ -145,20 +210,21 @@ export async function onRequestPost(context) {
         base64: btoa(binary)
       });
     } catch (e) {
-      failures.push(f.name);
+      fetchFailures.push(f.name);
     }
   }
 
   return jsonResponse({
-    folderId,
-    totalImagesInFolder: (listData.files || []).length,
+    foldersRequested: urlsToProcess.length,
+    foldersSucceeded: folderResults.filter(f => f.ok).length,
     count: images.length,
     images,
-    truncated: (listData.files || []).length > MAX_IMAGES,
-    failures: failures.length ? failures : undefined
+    folderResults, // full per-folder detail — which worked, which didn't, and why
+    fetchFailures: fetchFailures.length ? fetchFailures : undefined
   });
 }
 
 export async function onRequestGet() {
   return jsonResponse({ error: 'Use POST.' }, 405);
 }
+

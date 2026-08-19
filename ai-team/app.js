@@ -958,8 +958,9 @@ function openReelBuilder() {
     </div>
     <div class="rb-form-body">
       <div class="rb-field">
-        <label class="rb-label" for="rb-drive">Google Drive Folder URL <span class="rb-req">*</span></label>
-        <input id="rb-drive" class="rb-input" type="url" placeholder="https://drive.google.com/drive/folders/…" required>
+        <label class="rb-label" for="rb-drive">Google Drive Folder URL(s) <span class="rb-req">*</span></label>
+        <textarea id="rb-drive" class="rb-textarea" placeholder="Paste one or more folder links, one per line — e.g.&#10;https://drive.google.com/drive/folders/…&#10;https://drive.google.com/drive/folders/…" required></textarea>
+        <div class="rb-hint">Photos scattered across a few shoots? Paste each folder's share link on its own line — up to 6 folders.</div>
       </div>
       <div id="rb-error" class="rb-error" style="display:none;"></div>
       <div class="rb-field">
@@ -1106,20 +1107,22 @@ function extractAndParseJSON(raw) {
   throw new Error('No valid JSON object found in response');
 }
 
-function showReelBriefError(message) {
+function showReelBriefError(message, isWarning = false) {
   const errBox = document.getElementById('rb-error');
   if (errBox) {
-    errBox.textContent = '⚠ ' + message;
+    errBox.textContent = (isWarning ? '⚠ ' : '⚠ ') + message;
+    errBox.classList.toggle('rb-error-warning', isWarning);
     errBox.style.display = 'block';
   }
 }
 
 async function submitReelBrief() {
-  const driveUrl = document.getElementById('rb-drive')?.value?.trim();
+  const rawDriveInput = document.getElementById('rb-drive')?.value || '';
+  const driveUrls = rawDriveInput.split('\n').map(s => s.trim()).filter(Boolean);
   const errBox = document.getElementById('rb-error');
   if (errBox) errBox.style.display = 'none';
 
-  if (!driveUrl) {
+  if (driveUrls.length === 0) {
     document.getElementById('rb-drive').focus();
     document.getElementById('rb-drive').style.borderColor = 'rgba(220,90,90,0.6)';
     setTimeout(() => { document.getElementById('rb-drive').style.borderColor = ''; }, 2000);
@@ -1133,17 +1136,20 @@ async function submitReelBrief() {
 
   const submitBtn = document.getElementById('rb-submit-btn');
 
-  // ── Fetch the ACTUAL photos from the Drive folder before asking Dia
-  // anything. Previously the folder URL was only ever sent to Claude as
-  // a text string — nothing opened it, so "heroShot" / "missingAssets"
-  // were generic guesses. This is the fix: real bytes, attached as real
-  // image content, so the analysis is grounded in what's actually there.
+  // ── Fetch the ACTUAL photos from every Drive folder pasted in, before
+  // asking Dia anything. Previously the folder URL was only ever sent to
+  // Claude as a text string — nothing opened it, so "heroShot" /
+  // "missingAssets" were generic guesses. This is the fix: real bytes
+  // pooled across however many folders the shoot is scattered across,
+  // attached as real image content, so the analysis is grounded in
+  // what's actually there.
   //
-  // Deliberately NOT falling back to a text-only guess if this fails —
-  // that would silently reintroduce the exact gap being closed here. If
-  // the folder can't be read, the user finds out now, with a specific
-  // reason, instead of getting a confidently-wrong brief.
-  if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span>⏳</span> Opening your Drive folder…'; }
+  // Deliberately NOT falling back to a text-only guess if EVERY folder
+  // fails — that would silently reintroduce the exact gap being closed
+  // here. If some folders fail but at least one works, that's shown as
+  // a visible warning, not hidden — the brief still gets built, but the
+  // user knows it's based on partial input.
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = `<span>⏳</span> Opening ${driveUrls.length} Drive folder(s)…`; }
 
   const authToken = await getAuthToken();
   if (!authToken) {
@@ -1157,32 +1163,50 @@ async function submitReelBrief() {
     const imgRes = await fetch('/api/drive-folder-images', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: authToken, driveUrl })
+      body: JSON.stringify({ token: authToken, driveUrls })
     });
     imageData = await imgRes.json();
     if (!imgRes.ok) {
-      showReelBriefError(imageData.error || `Could not read that Drive folder (${imgRes.status}).`);
+      showReelBriefError(imageData.error || `Could not read those Drive folders (${imgRes.status}).`);
       if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span>✨</span> Generate Reel Brief'; }
       return;
     }
     if (!imageData.images || imageData.images.length === 0) {
-      showReelBriefError('No images found in that folder — check the link and that it\'s shared "Anyone with the link can view".');
+      // Every folder failed or was empty — build a specific reason from
+      // folderResults rather than a generic message, so the user knows
+      // exactly which link(s) to fix.
+      const reasons = (imageData.folderResults || [])
+        .map(fr => `• ${fr.input}: ${fr.reason}`)
+        .join('\n');
+      showReelBriefError('No usable images found across any of those folders.' + (reasons ? '\n' + reasons : ''));
       if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span>✨</span> Generate Reel Brief'; }
       return;
     }
   } catch (err) {
-    showReelBriefError('Could not reach the Drive folder. Check your connection and try again.');
+    showReelBriefError('Could not reach the Drive folders. Check your connection and try again.');
     if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span>✨</span> Generate Reel Brief'; }
     return;
   }
 
+  // Partial success — some folders worked, some didn't. Surface it as a
+  // visible (non-blocking) warning rather than hide it.
+  const failedFolders = (imageData.folderResults || []).filter(fr => !fr.ok);
+  if (failedFolders.length > 0) {
+    const reasons = failedFolders.map(fr => `• ${fr.input}: ${fr.reason}`).join('\n');
+    showReelBriefError(
+      `Proceeding with ${imageData.foldersSucceeded}/${imageData.foldersRequested} folder(s) — the rest couldn't be read:\n${reasons}`,
+      /* isWarning */ true
+    );
+  }
+
+  const folderCount = imageData.foldersSucceeded || 1;
   const textPrompt = [
-    `You have been shown ${imageData.count} real photo(s) from the shoot folder above` +
-      (imageData.truncated ? ` (folder has ${imageData.totalImagesInFolder} total — showing a representative sample).` : '.'),
+    `You have been shown ${imageData.count} real photo(s) pooled from ${folderCount} Drive folder(s) — look at them directly.`,
     `LOOK_NAME: ${lookName}`,
     `BRIEF: ${brief}`,
     `AUDIENCE: ${audience}`,
-    vibe ? `REQUESTED_VIBE: ${vibe}` : 'REQUESTED_VIBE: Let Dia decide based on the brief and the actual photos'
+    vibe ? `REQUESTED_VIBE: ${vibe}` : 'REQUESTED_VIBE: Let Dia decide based on the brief and the actual photos',
+    'Since these photos may come from more than one shoot/folder, prioritize the ones that best fit the brief and vibe rather than assuming they are all the same look.'
   ].join('\n');
 
   // Multi-modal content: real image blocks + the text brief, in the
@@ -1203,7 +1227,12 @@ async function submitReelBrief() {
   try {
     raw = await callClaude(REEL_BUILDER_SYSTEM, [{ role: 'user', content }], 3500);
     const data = extractAndParseJSON(raw);
-    renderReelOutput(data, driveUrl, lookName);
+    renderReelOutput(data, driveUrls, lookName, {
+      count: imageData.count,
+      foldersRequested: imageData.foldersRequested,
+      foldersSucceeded: imageData.foldersSucceeded,
+      folderResults: imageData.folderResults
+    });
   } catch (err) {
     console.error('Reel builder parse error:', err, 'Raw response:', raw);
     // Fallback: show raw text in case JSON parse fails
@@ -1226,7 +1255,7 @@ async function submitReelBrief() {
   }
 }
 
-function renderReelOutput(data, driveUrl, lookName) {
+function renderReelOutput(data, driveUrls, lookName, sourceInfo) {
   const msgs = document.getElementById('messages');
   msgs.innerHTML = '';
 
@@ -1251,13 +1280,26 @@ function renderReelOutput(data, driveUrl, lookName) {
   panel.className = 'rb-output-panel';
   panel.id = 'rb-output-panel';
 
+  // Persistent note on what this brief was actually built from — doesn't
+  // disappear the way a pre-submit warning banner would once this output
+  // replaces it. Only shown when relevant (some folder failed, or
+  // multiple folders were pooled) — no need to clutter a clean single-
+  // folder, all-succeeded run with a note nobody needs.
+  const failedFolderDetails = sourceInfo && sourceInfo.folderResults
+    ? sourceInfo.folderResults.filter(fr => !fr.ok).map(fr => `${escapeHtml(fr.input)} — ${escapeHtml(fr.reason)}`).join('<br>')
+    : '';
+  const sourceNote = sourceInfo && (sourceInfo.foldersSucceeded < sourceInfo.foldersRequested || sourceInfo.foldersRequested > 1)
+    ? `<div class="rb-source-note">Sourced from ${sourceInfo.count} photo(s) across ${sourceInfo.foldersSucceeded}/${sourceInfo.foldersRequested} folder(s) provided.${failedFolderDetails ? '<br><span class="rb-source-note-fail">Could not read:</span><br>' + failedFolderDetails : ''}</div>`
+    : '';
+
   // ── Header
   panel.innerHTML = `
     <div class="rb-output-header">
       <span class="rb-output-header-icon">🎬</span>
       <div class="rb-output-title">Reel Brief — ${escapeHtml(lookName !== 'Not specified' ? lookName : 'Pooja\'s Couture')}</div>
       <span style="font-size:10px;color:var(--pc-text-muted);letter-spacing:0.06em;text-transform:uppercase;font-weight:600;">45s · 9:16 · Instagram Reel</span>
-    </div>`;
+    </div>
+    ${sourceNote}`;
 
   // ── Section 1: Creative Direction
   const s1 = document.createElement('div');

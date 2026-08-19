@@ -4125,6 +4125,28 @@ div[style*="border:1px solid var(--pc-"] {
 /* Required asterisk */
 .portal-ai-team .rb-req { color: rgb(220,140,90); margin-left: 2px; }
 
+/* Small helper text under a field, e.g. multi-folder Drive input hint */
+.portal-ai-team .rb-hint {
+  font-size: 12px;
+  color: var(--pc-text-muted);
+  margin-top: var(--sp-2);
+  line-height: 1.4;
+}
+
+/* Persistent "what this brief was built from" note inside the final
+   output — survives even though the pre-submit warning banner (.rb-error)
+   gets wiped when the output panel replaces it. */
+.portal-ai-team .rb-source-note {
+  font-size: 11px;
+  color: var(--pc-text-muted);
+  padding: var(--sp-2) var(--sp-4);
+  line-height: 1.5;
+}
+.portal-ai-team .rb-source-note-fail {
+  color: rgb(220,140,90);
+  font-weight: 600;
+}
+
 /* Reel Builder error banner — shown when the Drive folder can't be read
    (not shared, no images, bad URL). Deliberately visible and specific
    rather than a silent fallback. */
@@ -4137,6 +4159,12 @@ div[style*="border:1px solid var(--pc-"] {
   color: rgb(230,150,150);
   font-size: 13px;
   line-height: 1.5;
+  white-space: pre-line;
+}
+.portal-ai-team .rb-error.rb-error-warning {
+  background: rgba(220,160,90,0.1);
+  border-color: rgba(220,160,90,0.35);
+  color: rgb(230,190,150);
 }
 
 /* ── Submit button ── */
