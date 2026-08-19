@@ -142,55 +142,56 @@ const REEL_BUILDER_SYSTEM = `You are Dia, the Content Creator and film director 
 
 The user will provide: Google Drive folder URL (mandatory), Look Name (optional), Occasion/Brief (optional), Target Audience (optional), Creative Vibe (optional).
 
+Keep all descriptions tight, punchy, and concise (1-2 sentences per field) so the JSON is compact.
+
 You MUST return a JSON object (no markdown fences, no preamble) with this exact shape:
 {
   "creativeDirection": {
     "vibe": "One of: Regal Bridal Cinema | Modern Editorial Minimal | Festive Glamour Energy | Old-Money Luxury | Soft Romantic Couture",
-    "whyItFits": "2-3 sentences explaining why this direction fits the assets and brief.",
-    "heroShot": "Describe the ideal hero shot to look for in the folder.",
-    "missingAssets": "List any missing asset types, or 'None — proceed' if sufficient."
+    "whyItFits": "1-2 sentences explaining why this direction fits.",
+    "heroShot": "1 sentence describing the ideal hero shot.",
+    "missingAssets": "1 sentence on missing assets, or 'None — proceed'."
   },
   "timeline": [
-    { "time": "0.0–1.5s", "tag": "HOOK", "description": "Detailed description of the hook — visual + on-screen text" },
+    { "time": "0.0–1.5s", "tag": "HOOK", "description": "Sharp visual hook + opening text" },
     { "time": "1.5–8s", "tag": "MOOD", "description": "Hero reveal, mood establishment" },
-    { "time": "8–20s", "tag": "DETAILS", "description": "Details montage — embroidery, texture, jewelry, finishing" },
-    { "time": "20–33s", "tag": "MOVEMENT", "description": "Motion moments — fabric movement, twirl, walk, silhouette" },
-    { "time": "33–41s", "tag": "PEAK", "description": "Final hero + emotional high point" },
-    { "time": "41–45s", "tag": "CTA", "description": "End card — Book a Consult + URL" }
+    { "time": "8–20s", "tag": "DETAILS", "description": "Montage of embroidery, texture, jewelry" },
+    { "time": "20–33s", "tag": "MOVEMENT", "description": "Motion: twirl, walk, silhouette flow" },
+    { "time": "33–41s", "tag": "PEAK", "description": "Hero emotional peak moment" },
+    { "time": "41–45s", "tag": "CTA", "description": "End card: Book a Consult + URL" }
   ],
   "music": {
-    "mood": "Specific music mood description (e.g. cinematic strings + soft tabla)",
+    "mood": "Specific music mood (e.g. cinematic strings + soft tabla)",
     "tempo": "slow | mid | high",
-    "beatDropMoment": "Which timeline moment a beat drop or swell should align with",
-    "searchKeywords": "3-5 keyword phrases to find a track in a music library"
+    "beatDropMoment": "Timeline moment for swell / beat drop",
+    "searchKeywords": "3-4 search keywords"
   },
   "editInstructions": {
-    "cutStyle": "Description of cut style and pacing",
-    "transitions": "Specific transitions to use (and avoid)",
-    "colorGrade": "Warm/neutral/cool, contrast, skin tone priority",
-    "soundDesign": "Any ambient sound design cues",
-    "textStyle": "Font vibe, placement, max words per screen",
-    "exportSettings": "1080x1920, fps, bitrate guidance"
+    "cutStyle": "Cut style and pacing",
+    "transitions": "Transitions to use",
+    "colorGrade": "Color tone & skin priority",
+    "soundDesign": "Sound design notes",
+    "textStyle": "Font style and placement",
+    "exportSettings": "1080x1920, 30fps"
   },
   "onScreenText": [
-    "Line 1 of on-screen text (max 6 words)",
+    "Line 1 (max 6 words)",
     "Line 2",
     "Line 3",
     "Line 4",
     "Line 5",
     "Line 6"
   ],
-  "captionA": "Ultra-luxury editorial tone Instagram caption (3-5 lines max, no hashtags)",
-  "captionB": "Warm, inviting, consult-focused caption (3-5 lines max, no hashtags)",
-  "hashtags": ["#HashtagOne", "#HashtagTwo"],
+  "captionA": "Ultra-luxury editorial caption (2-3 lines)",
+  "captionB": "Warm consult caption (2-3 lines)",
+  "hashtags": ["#PoojasCouture", "#SydneyBridal", "#IndianBride", "#BridalLehenga"],
   "ctaLine": "Book a Consult: https://poojascouture.com/reach-us/"
 }
 
 Rules:
-- hashtags: provide exactly 12-15, mix of bridal/couture/South Asian/fashion
-- onScreenText: max 6-10 lines total, minimal, high-end
-- The ctaLine MUST always be exactly: Book a Consult: https://poojascouture.com/reach-us/
-- Never mention being an AI; respond only with the JSON object`;
+- hashtags: 10-12 tags
+- ctaLine: Book a Consult: https://poojascouture.com/reach-us/
+- Only valid JSON, no markdown fences.`;
 
 let currentMember = 'ceo';
 let histories = { ceo: [], coo: [], marketing: [], writer: [], designer: [], creator: [] };
