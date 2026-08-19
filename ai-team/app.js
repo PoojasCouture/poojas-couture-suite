@@ -140,7 +140,9 @@ When answering:
 // ── CINEMATIC REEL BUILDER — system prompt ──
 const REEL_BUILDER_SYSTEM = `You are Dia, the Content Creator and film director for Pooja's Couture — a premium South Asian bridal boutique in Sydney. You produce cinematic 45-second Instagram Reels that feel luxurious, modern, and emotionally resonant.
 
-The user will provide: Google Drive folder URL (mandatory), Look Name (optional), Occasion/Brief (optional), Target Audience (optional), Creative Vibe (optional).
+You will be shown actual photos from the shoot folder, attached as images in this message — look at them directly. The user will also provide: Look Name (optional), Occasion/Brief (optional), Target Audience (optional), Creative Vibe (optional).
+
+Base "heroShot" and "missingAssets" on what you actually see in the attached photos, not a generic guess — name real details (colours, poses, settings, garment features) you can see. If something in the timeline would need a shot type that isn't present in the photos shown, say so plainly in "missingAssets" rather than assuming it exists.
 
 Keep all descriptions tight, punchy, and concise (1-2 sentences per field) so the JSON is compact.
 
@@ -959,6 +961,7 @@ function openReelBuilder() {
         <label class="rb-label" for="rb-drive">Google Drive Folder URL <span class="rb-req">*</span></label>
         <input id="rb-drive" class="rb-input" type="url" placeholder="https://drive.google.com/drive/folders/…" required>
       </div>
+      <div id="rb-error" class="rb-error" style="display:none;"></div>
       <div class="rb-field">
         <label class="rb-label" for="rb-look">Look Name / Collection <span class="rb-optional">(optional)</span></label>
         <input id="rb-look" class="rb-input" type="text" placeholder="e.g. Midnight Crimson Bridal Lehenga">
@@ -1103,8 +1106,19 @@ function extractAndParseJSON(raw) {
   throw new Error('No valid JSON object found in response');
 }
 
+function showReelBriefError(message) {
+  const errBox = document.getElementById('rb-error');
+  if (errBox) {
+    errBox.textContent = '⚠ ' + message;
+    errBox.style.display = 'block';
+  }
+}
+
 async function submitReelBrief() {
   const driveUrl = document.getElementById('rb-drive')?.value?.trim();
+  const errBox = document.getElementById('rb-error');
+  if (errBox) errBox.style.display = 'none';
+
   if (!driveUrl) {
     document.getElementById('rb-drive').focus();
     document.getElementById('rb-drive').style.borderColor = 'rgba(220,90,90,0.6)';
@@ -1117,21 +1131,77 @@ async function submitReelBrief() {
   const audience   = document.getElementById('rb-audience')?.value        || 'Not specified';
   const vibe       = document.getElementById('rb-vibe')?.value            || '';
 
-  const userPrompt = [
-    `DRIVE_FOLDER_URL: ${driveUrl}`,
+  const submitBtn = document.getElementById('rb-submit-btn');
+
+  // ── Fetch the ACTUAL photos from the Drive folder before asking Dia
+  // anything. Previously the folder URL was only ever sent to Claude as
+  // a text string — nothing opened it, so "heroShot" / "missingAssets"
+  // were generic guesses. This is the fix: real bytes, attached as real
+  // image content, so the analysis is grounded in what's actually there.
+  //
+  // Deliberately NOT falling back to a text-only guess if this fails —
+  // that would silently reintroduce the exact gap being closed here. If
+  // the folder can't be read, the user finds out now, with a specific
+  // reason, instead of getting a confidently-wrong brief.
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span>⏳</span> Opening your Drive folder…'; }
+
+  const authToken = await getAuthToken();
+  if (!authToken) {
+    showReelBriefError('Your session has expired. Please sign out and back in, then try again.');
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span>✨</span> Generate Reel Brief'; }
+    return;
+  }
+
+  let imageData;
+  try {
+    const imgRes = await fetch('/api/drive-folder-images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: authToken, driveUrl })
+    });
+    imageData = await imgRes.json();
+    if (!imgRes.ok) {
+      showReelBriefError(imageData.error || `Could not read that Drive folder (${imgRes.status}).`);
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span>✨</span> Generate Reel Brief'; }
+      return;
+    }
+    if (!imageData.images || imageData.images.length === 0) {
+      showReelBriefError('No images found in that folder — check the link and that it\'s shared "Anyone with the link can view".');
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span>✨</span> Generate Reel Brief'; }
+      return;
+    }
+  } catch (err) {
+    showReelBriefError('Could not reach the Drive folder. Check your connection and try again.');
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span>✨</span> Generate Reel Brief'; }
+    return;
+  }
+
+  const textPrompt = [
+    `You have been shown ${imageData.count} real photo(s) from the shoot folder above` +
+      (imageData.truncated ? ` (folder has ${imageData.totalImagesInFolder} total — showing a representative sample).` : '.'),
     `LOOK_NAME: ${lookName}`,
     `BRIEF: ${brief}`,
     `AUDIENCE: ${audience}`,
-    vibe ? `REQUESTED_VIBE: ${vibe}` : 'REQUESTED_VIBE: Let Dia decide based on the brief'
+    vibe ? `REQUESTED_VIBE: ${vibe}` : 'REQUESTED_VIBE: Let Dia decide based on the brief and the actual photos'
   ].join('\n');
 
-  // Disable submit, show loading
-  const submitBtn = document.getElementById('rb-submit-btn');
-  if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span>⏳</span> Dia is crafting your brief…'; }
+  // Multi-modal content: real image blocks + the text brief, in the
+  // shape Anthropic's Messages API expects. callClaude() forwards
+  // `messages` to the backend unmodified, and the backend forwards it
+  // to Anthropic unmodified — no backend change needed for this to work.
+  const content = [
+    ...imageData.images.map(img => ({
+      type: 'image',
+      source: { type: 'base64', media_type: img.mediaType, data: img.base64 }
+    })),
+    { type: 'text', text: textPrompt }
+  ];
+
+  if (submitBtn) { submitBtn.innerHTML = `<span>⏳</span> Dia is analyzing ${imageData.count} photo(s) and crafting your brief…`; }
 
   let raw = '';
   try {
-    raw = await callClaude(REEL_BUILDER_SYSTEM, [{ role: 'user', content: userPrompt }], 3500);
+    raw = await callClaude(REEL_BUILDER_SYSTEM, [{ role: 'user', content }], 3500);
     const data = extractAndParseJSON(raw);
     renderReelOutput(data, driveUrl, lookName);
   } catch (err) {

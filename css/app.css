@@ -4125,6 +4125,20 @@ div[style*="border:1px solid var(--pc-"] {
 /* Required asterisk */
 .portal-ai-team .rb-req { color: rgb(220,140,90); margin-left: 2px; }
 
+/* Reel Builder error banner — shown when the Drive folder can't be read
+   (not shared, no images, bad URL). Deliberately visible and specific
+   rather than a silent fallback. */
+.portal-ai-team .rb-error {
+  margin: 0 0 var(--sp-4) 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: 8px;
+  background: rgba(220,90,90,0.1);
+  border: 1px solid rgba(220,90,90,0.35);
+  color: rgb(230,150,150);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 /* ── Submit button ── */
 .portal-ai-team .rb-submit-btn {
   display: flex;
