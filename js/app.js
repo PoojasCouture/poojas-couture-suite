@@ -582,6 +582,7 @@ const App = (() => {
   async function checkAuthSession() {
     const loginOverlay = Utils.$('#login-overlay');
     let user = Store.getCurrentUser();
+    const hadCachedUser = !!user;
 
     // Always reconcile against fresh Supabase data on load, not just when
     // there's no cached user at all. The cached pc_current_user value can
@@ -593,11 +594,42 @@ const App = (() => {
     // lightweight fetch per page load; worth it so role/permission
     // changes actually take effect on the next load, not "whenever the
     // user happens to log out."
+    let reconciled = false;
     if (typeof Store.reconcileUser === 'function') {
       try {
         const fresh = await Store.reconcileUser();
-        if (fresh) user = fresh;
-      } catch (e) { /* fall back to whatever was cached, handled below */ }
+        if (fresh) { user = fresh; reconciled = true; }
+      } catch (e) { /* treated as reconciliation failure below, same as fresh === null */ }
+    } else {
+      // No reconcile function at all — nothing to confirm against, so
+      // don't punish an old build for missing this. Only a real, failed
+      // reconciliation attempt (below) forces a logout.
+      reconciled = true;
+    }
+
+    // THE ACTUAL BUG THIS FIXES: previously, if reconcileUser() failed —
+    // which happens on every load where the Supabase session has
+    // genuinely expired, not occasionally — `user` silently stayed equal
+    // to the STALE localStorage-cached object from the top of this
+    // function. That stale object still has a real name/role on it, so
+    // the code below took the "user is logged in" branch: hid the login
+    // screen and rendered the full dashboard, using a session token that
+    // was actually dead. Every subsequent data query went out under that
+    // dead token, got silently rejected by RLS, and came back as zero
+    // rows — not an error, just an empty-looking business. A page
+    // refresh alone never fixed this, because a fresh reload just
+    // re-reads the same stale cache and re-fails the same reconciliation
+    // in the same way. Only an explicit sign-out (which clears
+    // pc_current_user entirely) forced a genuinely new session.
+    //
+    // Fix: a cached identity that couldn't be reconciled is not a valid
+    // login. Clear it and show the real login screen — the same honest
+    // state as never having logged in — instead of a dashboard that
+    // looks normal but is quietly showing nothing real.
+    if (hadCachedUser && !reconciled) {
+      console.warn('checkAuthSession: cached user could not be reconciled against a live session — treating as logged out.');
+      Store.setCurrentUser(null); // clears both in-memory state and the pc_current_user cache
+      user = null;
     }
 
     if (user) {
@@ -623,6 +655,7 @@ const App = (() => {
       loginOverlay.classList.add('active');
     }
   }
+
 
   function setupAuthListeners() {
     const loginForm = Utils.$('#login-form');
