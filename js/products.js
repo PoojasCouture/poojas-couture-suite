@@ -134,6 +134,7 @@ const Products = (() => {
   const getSales = () => (Store.getAll(Store.COLLECTIONS.SALES) || []).filter(Boolean);
   const getSaleItems = () => (Store.getAll(Store.COLLECTIONS.SALE_ITEMS) || []).filter(Boolean);
   const getCheckouts = () => (Store.getAll(Store.COLLECTIONS.PRODUCT_CHECKOUTS) || []).filter(Boolean);
+  const getBorrowers = () => (Store.getAll(Store.COLLECTIONS.BORROWERS) || []).filter(Boolean);
 
   // isPartOfSet only matters for Bridal Set / Groom Set (categories
   // with a parentSku AND subcategories); it's ignored for every other
@@ -206,6 +207,7 @@ const Products = (() => {
           <button class="btn btn-secondary" id="btn-sales-history">📊 Sales History</button>
           <button class="btn btn-secondary" id="btn-record-sale">💵 Record Sale</button>
           <button class="btn btn-secondary" id="btn-manage-vendors">🏭 Vendors</button>
+          <button class="btn btn-secondary" id="btn-manage-borrowers">👥 Borrowers</button>
           <button class="btn btn-primary" id="btn-add-product">+ Add Product</button>
         </div>
       </div>
@@ -282,6 +284,7 @@ const Products = (() => {
     // Wire controls
     Utils.$('#btn-add-product').addEventListener('click', () => showProductModal());
     Utils.$('#btn-manage-vendors').addEventListener('click', () => showVendorsListModal());
+    Utils.$('#btn-manage-borrowers').addEventListener('click', () => showBorrowersListModal());
     Utils.$('#btn-record-sale').addEventListener('click', () => showRecordSaleModal());
     Utils.$('#btn-sales-history').addEventListener('click', () => showSalesHistoryModal());
     Utils.$('#btn-shoot-log').addEventListener('click', () => showShootLogModal());
@@ -1481,7 +1484,8 @@ const Products = (() => {
       <div class="form-group" style="background:var(--pc-bg-card);border:1px solid var(--pc-border-gold);border-radius:8px;padding:var(--sp-3);margin-bottom:var(--sp-3);">
         <div class="text-xs text-gold font-semibold mb-1">📸 Currently out for a shoot</div>
         ${row('Borrower', activeCheckout.borrowerName)}
-        ${row('Contact', activeCheckout.borrowerContact)}
+        ${row('Phone', activeCheckout.borrowerPhone)}
+        ${row('Email', activeCheckout.borrowerEmail)}
         ${row('Purpose', activeCheckout.purpose)}
         ${row('Checked Out', Utils.formatDate(activeCheckout.checkedOutDate))}
         ${row('Expected Back', activeCheckout.expectedReturnDate ? Utils.formatDate(activeCheckout.expectedReturnDate) : 'Not set')}
@@ -1572,26 +1576,171 @@ const Products = (() => {
   // status flag, so history isn't lost the moment an item comes back.
   // ============================================================
 
+  // ============================================================
+  // BORROWERS -- reusable people who take pieces out for shoots.
+  // Same CRUD shape as Vendors, deliberately: one dropdown + "+ New"
+  // pattern used consistently everywhere something reusable gets
+  // picked in this app, so it behaves the same way every time.
+  // ============================================================
+
+  function showBorrowerModal(borrowerId = null, onSaved = null) {
+    const editing = !!borrowerId;
+    const b = editing ? getBorrowers().find(x => x.id === borrowerId) : {};
+    if (editing && !b) { Utils.showToast('Borrower not found.', 'error'); return; }
+
+    const formHTML = `
+      <form id="borrower-form" class="d-flex flex-col gap-3">
+        <div class="form-group">
+          <label class="form-label">Name <span class="required">*</span></label>
+          <input type="text" name="name" class="form-input" required value="${Utils.sanitizeHTML(b.name || '')}">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="text" name="phone" class="form-input" value="${Utils.sanitizeHTML(b.phone || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-input" value="${Utils.sanitizeHTML(b.email || '')}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-input" rows="2" placeholder="e.g. Instagram handle, usual purpose">${Utils.sanitizeHTML(b.notes || '')}</textarea>
+        </div>
+      </form>
+    `;
+
+    App.showModal({
+      title: editing ? 'Edit Borrower' : 'Add New Borrower',
+      content: formHTML,
+      submitText: editing ? 'Save Changes' : 'Add Borrower',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#borrower-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const fd = new FormData(form);
+        const payload = {
+          name: fd.get('name').trim(),
+          phone: (fd.get('phone') || '').trim() || null,
+          email: (fd.get('email') || '').trim() || null,
+          notes: (fd.get('notes') || '').trim() || null
+        };
+        try {
+          let saved;
+          if (editing) {
+            const updateResult = await Store.update(Store.COLLECTIONS.BORROWERS, borrowerId, payload);
+            if (!updateResult) return false;
+            saved = Object.assign({ id: borrowerId }, payload);
+            Utils.showToast('Borrower updated.');
+          } else {
+            saved = await Store.create(Store.COLLECTIONS.BORROWERS, payload);
+            if (!saved) return false;
+            Utils.showToast('Borrower added.');
+          }
+          if (typeof onSaved === 'function') onSaved(saved);
+          return true;
+        } catch (e) {
+          Utils.showToast('Save failed: ' + e.message, 'error');
+          return false;
+        }
+      }
+    });
+  }
+
+  function showBorrowersListModal() {
+    const borrowers = getBorrowers().slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const rows = borrowers.length === 0
+      ? '<tr><td colspan="4" class="text-center text-muted">No borrowers yet. Click "+ Add Borrower" to create one.</td></tr>'
+      : borrowers.map(b => `
+          <tr onclick="Products.editBorrower('${b.id}')" style="cursor:pointer">
+            <td class="font-semibold text-xs">${Utils.sanitizeHTML(b.name || '\u2014')}</td>
+            <td class="text-xs">${Utils.sanitizeHTML(b.phone || '\u2014')}</td>
+            <td class="text-xs">${Utils.sanitizeHTML(b.email || '\u2014')}</td>
+            <td style="text-align:right"><button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation(); Products.deleteBorrower('${b.id}')" title="Delete">\u2715</button></td>
+          </tr>
+        `).join('');
+
+    const content = `
+      <div class="d-flex justify-between items-center mb-3">
+        <span class="text-sm text-muted">${borrowers.length} borrower${borrowers.length === 1 ? '' : 's'}</span>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-add-borrower-inline">+ Add Borrower</button>
+      </div>
+      <div class="table-container" style="border:none;max-height:60vh;overflow-y:auto;">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+
+    App.showModal({
+      title: 'Manage Borrowers',
+      content,
+      submitText: 'Close',
+      hideCancel: true,
+      onSubmit: () => true,
+      modalSize: 'modal-lg'
+    });
+
+    setTimeout(() => {
+      const btn = document.querySelector('#btn-add-borrower-inline');
+      if (btn) btn.addEventListener('click', () => showBorrowerModal(null, () => showBorrowersListModal()));
+    }, 50);
+  }
+
+  function editBorrower(id) { showBorrowerModal(id, () => showBorrowersListModal()); }
+
+  function deleteBorrower(id) {
+    const b = getBorrowers().find(x => x.id === id);
+    if (!b) return;
+    App.showConfirm({
+      title: 'Delete Borrower',
+      text: `Delete "${b.name}"? Past checkout history stays intact -- this only removes them from future pick-lists.`,
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        try {
+          await Store.delete(Store.COLLECTIONS.BORROWERS, id);
+          Utils.showToast('Borrower deleted.');
+          showBorrowersListModal();
+        } catch (e) {
+          Utils.showToast('Delete failed: ' + e.message, 'error');
+        }
+      }
+    });
+  }
+
   function showCheckoutModal(productId) {
     const p = Store.getById(Store.COLLECTIONS.PRODUCTS, productId);
     if (!p) { Utils.showToast('Product not found.', 'error'); return; }
+
+    const borrowers = getBorrowers().slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     const content = `
       <form id="checkout-form" class="d-flex flex-col gap-3">
         <div class="text-sm text-muted mb-2">${Utils.sanitizeHTML(p.sku || '')} — ${Utils.sanitizeHTML(p.title || 'Untitled')}</div>
         <div class="form-group">
-          <label class="form-label">Borrower Name <span class="required">*</span></label>
-          <input type="text" name="borrowerName" class="form-input" required placeholder="Who is taking this out?">
+          <label class="form-label">Borrower <span class="required">*</span></label>
+          <div class="d-flex gap-2">
+            <select name="borrowerId" id="co-borrower" class="form-select" required style="flex:1">
+              <option value="">— Select or add a borrower —</option>
+              ${borrowers.map(b => `<option value="${b.id}">${Utils.sanitizeHTML(b.name || 'Unnamed')}</option>`).join('')}
+            </select>
+            <button type="button" class="btn btn-secondary btn-sm" id="co-add-borrower-btn" title="Add a new borrower">+ New</button>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Contact</label>
-            <input type="text" name="borrowerContact" class="form-input" placeholder="Phone, email, or Instagram handle">
+            <label class="form-label">Phone</label>
+            <input type="text" name="borrowerPhone" id="co-phone" class="form-input" placeholder="Auto-fills from borrower, editable">
           </div>
           <div class="form-group">
-            <label class="form-label">Purpose</label>
-            <input type="text" name="purpose" class="form-input" placeholder="e.g. Instagram shoot, magazine feature">
+            <label class="form-label">Email</label>
+            <input type="email" name="borrowerEmail" id="co-email" class="form-input" placeholder="Auto-fills from borrower, editable">
           </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Purpose</label>
+          <input type="text" name="purpose" class="form-input" placeholder="e.g. Instagram shoot, magazine feature">
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -1618,11 +1767,19 @@ const Products = (() => {
         const form = Utils.$('#checkout-form', modalEl);
         if (!form.checkValidity()) { form.reportValidity(); return false; }
         const fd = new FormData(form);
+        const borrowerId = fd.get('borrowerId');
+        const borrower = borrowers.concat(getBorrowers()).find(b => b.id === borrowerId);
+        if (!borrower) { Utils.showToast('Select a borrower.', 'error'); return false; }
         try {
           await Store.create(Store.COLLECTIONS.PRODUCT_CHECKOUTS, {
             productId,
-            borrowerName: fd.get('borrowerName').trim(),
-            borrowerContact: (fd.get('borrowerContact') || '').trim() || null,
+            borrowerId,
+            // Snapshot the name/phone/email as entered at checkout time --
+            // same convention as sale_items keeping a description snapshot,
+            // so editing or deleting a borrower later never rewrites history.
+            borrowerName: borrower.name,
+            borrowerPhone: (fd.get('borrowerPhone') || '').trim() || null,
+            borrowerEmail: (fd.get('borrowerEmail') || '').trim() || null,
             purpose: (fd.get('purpose') || '').trim() || null,
             checkedOutDate: fd.get('checkedOutDate') || new Date().toISOString().slice(0, 10),
             expectedReturnDate: fd.get('expectedReturnDate') || null,
@@ -1639,6 +1796,41 @@ const Products = (() => {
         }
       }
     });
+
+    setTimeout(() => {
+      const select = document.querySelector('#co-borrower');
+      const phoneInput = document.querySelector('#co-phone');
+      const emailInput = document.querySelector('#co-email');
+
+      // Selecting an existing borrower auto-fills Phone/Email -- both
+      // stay editable in case the contact info is different this time.
+      if (select) {
+        select.addEventListener('change', () => {
+          const b = getBorrowers().find(x => x.id === select.value);
+          phoneInput.value = b ? (b.phone || '') : '';
+          emailInput.value = b ? (b.email || '') : '';
+        });
+      }
+
+      // "+ New" borrower -- quick-add without leaving this form, same
+      // pattern as "+ New" supplier on the product form. On save,
+      // refreshes this dropdown, selects the new borrower, and fills
+      // Phone/Email from what was just entered.
+      const addBtn = document.querySelector('#co-add-borrower-btn');
+      if (addBtn && select) {
+        addBtn.addEventListener('click', () => {
+          showBorrowerModal(null, (newBorrower) => {
+            const opt = document.createElement('option');
+            opt.value = newBorrower.id;
+            opt.textContent = newBorrower.name || 'Unnamed';
+            select.appendChild(opt);
+            select.value = newBorrower.id;
+            phoneInput.value = newBorrower.phone || '';
+            emailInput.value = newBorrower.email || '';
+          });
+        });
+      }
+    }, 50);
   }
 
   function markCheckoutReturned(checkoutId) {
@@ -1784,6 +1976,9 @@ const Products = (() => {
     showCheckoutModal,
     markCheckoutReturned,
     showShootLogModal,
-    removeSaleItem
+    removeSaleItem,
+    showBorrowersListModal,
+    editBorrower,
+    deleteBorrower
   };
 })();
