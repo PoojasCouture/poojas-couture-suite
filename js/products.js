@@ -316,7 +316,7 @@ const Products = (() => {
       : 'badge-warning';
 
     tbody.innerHTML = list.map(p => `
-      <tr onclick="Products.editProduct('${p.id}')" style="cursor:pointer">
+      <tr onclick="Products.viewProduct('${p.id}')" style="cursor:pointer">
         <td class="font-mono text-xs">${Utils.sanitizeHTML(p.sku || '—')}</td>
         <td>
           <div class="font-medium">${Utils.sanitizeHTML(p.title)}</div>
@@ -476,7 +476,7 @@ const Products = (() => {
     const rows = vendors.length === 0
       ? '<tr><td colspan="5" class="text-center text-muted">No vendors yet. Click "+ Add Vendor" to create one.</td></tr>'
       : vendors.map(v => `
-          <tr onclick="Products.editVendor('${v.id}')" style="cursor:pointer">
+          <tr onclick="Products.viewVendor('${v.id}')" style="cursor:pointer">
             <td class="font-semibold text-xs">${Utils.sanitizeHTML(v.businessName || '\u2014')}</td>
             <td class="text-xs">${Utils.sanitizeHTML(v.vendorType || '\u2014')}</td>
             <td class="text-xs">${Utils.sanitizeHTML(v.contactName || v.phone || v.email || '\u2014')}</td>
@@ -510,6 +510,50 @@ const Products = (() => {
     setTimeout(() => {
       const btn = document.querySelector('#btn-add-vendor-inline');
       if (btn) btn.addEventListener('click', () => showVendorModal(null, () => showVendorsListModal()));
+    }, 50);
+  }
+
+  function viewVendor(id) {
+    const v = getVendors().find(x => x.id === id);
+    if (!v) { Utils.showToast('Vendor not found.', 'error'); return; }
+
+    const row = (label, value) => value
+      ? `<div class="d-flex justify-content-between text-sm mb-1"><span class="text-muted">${label}</span><span>${Utils.sanitizeHTML(String(value))}</span></div>`
+      : '';
+
+    const content = `
+      <div class="mb-3">
+        <div class="font-semibold" style="font-size:16px;">${Utils.sanitizeHTML(v.businessName || 'Unnamed vendor')}</div>
+        <span class="badge badge-${v.status==='Active'?'success':'muted'} text-xs mt-1">${Utils.sanitizeHTML(v.status || 'Active')}</span>
+      </div>
+      <div class="form-group" style="background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:8px;padding:var(--sp-3);">
+        ${row('Contact Name', v.contactName)}
+        ${row('Vendor Type', v.vendorType)}
+        ${row('Email', v.email)}
+        ${row('Phone', v.phone)}
+        ${row('Specialty', v.specialty)}
+        ${row('Location', v.location)}
+      </div>
+      <div class="mt-3">
+        ${row('GST Number', v.gstNumber)}
+        ${row('Payment Terms', v.paymentTerms)}
+        ${row('Default Shipping Route', v.defaultRoute)}
+        ${row('Shipping Cost Borne By', v.shipsCostBorneBy)}
+      </div>
+      ${v.notes ? `<div class="text-sm mt-3"><span class="text-muted">Notes:</span> ${Utils.sanitizeHTML(v.notes)}</div>` : ''}
+    `;
+
+    App.showModal({
+      title: 'Vendor Details',
+      content,
+      submitText: 'Close',
+      cancelText: '✏️ Edit',
+      onSubmit: () => true
+    });
+
+    setTimeout(() => {
+      const cancelBtn = document.querySelector('#modal-cancel-btn');
+      if (cancelBtn) cancelBtn.addEventListener('click', () => showVendorModal(id, () => showVendorsListModal()));
     }, 50);
   }
 
@@ -1269,6 +1313,83 @@ const Products = (() => {
     }, 50);
   }
 
+  function viewProduct(id) {
+    const p = Store.getById(Store.COLLECTIONS.PRODUCTS, id);
+    if (!p) { Utils.showToast('Product not found.', 'error'); return; }
+    const vendor = p.vendorId ? getVendors().find(v => v.id === p.vendorId) : null;
+    const profit = (p.price || 0) - (p.costPrice || 0);
+    const margin = p.price > 0 ? (profit / p.price) * 100 : 0;
+
+    const row = (label, value) => value
+      ? `<div class="d-flex justify-content-between text-sm mb-1"><span class="text-muted">${label}</span><span>${Utils.sanitizeHTML(String(value))}</span></div>`
+      : '';
+
+    const content = `
+      <div class="d-flex gap-4 mb-4">
+        <div style="width:96px;height:96px;border-radius:8px;overflow:hidden;background:var(--pc-bg-card);flex-shrink:0;display:flex;align-items:center;justify-content:center;${p.photoUrl ? 'cursor:zoom-in' : ''}" ${p.photoUrl ? `onclick="Products.openPhotoLightbox('${Utils.sanitizeHTML(p.photoUrl)}')"` : ''}>
+          ${p.photoUrl ? `<img src="${Utils.sanitizeHTML(p.photoUrl)}" style="width:100%;height:100%;object-fit:cover;">` : '<span style="font-size:28px;">📷</span>'}
+        </div>
+        <div>
+          <div class="font-mono text-xs text-gold">${Utils.sanitizeHTML(p.sku || '—')}</div>
+          <div class="font-semibold" style="font-size:16px;">${Utils.sanitizeHTML(p.title || 'Untitled')}</div>
+          <div class="text-xs text-muted">${Utils.sanitizeHTML(p.category || '')}${p.subcategory ? ' — ' + Utils.sanitizeHTML(p.subcategory) : ''}</div>
+          <span class="badge ${p.status==='In Stock'?'badge-success':p.status==='Sold'?'badge-muted':'badge-warning'} text-xs mt-1">${Utils.sanitizeHTML(p.status || '')}</span>
+        </div>
+      </div>
+      ${p.description ? `<div class="text-sm mb-3">${Utils.sanitizeHTML(p.description)}</div>` : ''}
+      <div class="form-group" style="background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:8px;padding:var(--sp-3);">
+        ${row('Cost Price', Utils.formatCurrency(p.costPrice || 0))}
+        ${row('Selling Price', Utils.formatCurrency(p.price || 0))}
+        ${row('Gross Profit', Utils.formatCurrency(profit))}
+        ${row('Gross Margin', margin.toFixed(1) + '%')}
+      </div>
+      <div class="mt-3">
+        ${row('Color', p.color)}
+        ${row('Size', p.size)}
+        ${row('Fabric', p.fabric)}
+        ${row('Embellishment / Work', p.embellishment)}
+        ${row('Location', p.location)}
+        ${row('Quantity', p.trackQuantity ? (p.quantity ?? 0) : null)}
+        ${row('Supplier', vendor ? vendor.businessName : null)}
+        ${row('Date Received', p.dateReceived ? Utils.formatDate(p.dateReceived) : null)}
+        ${row('Condition', p.condition)}
+        ${row('Rack / Bag', p.rackOrBag)}
+      </div>
+    `;
+
+    App.showModal({
+      title: 'Product Details',
+      content,
+      submitText: p.status === 'Sold' ? '↩ Return to Inventory' : 'Close',
+      cancelText: '✏️ Edit',
+      onSubmit: async () => {
+        if (p.status !== 'Sold') return true; // plain Close
+        // Undoes the "Sold" status set by Record Sale -- puts the item
+        // back into normal circulation. Does not attempt to reverse the
+        // sale record itself, only the product's own status.
+        try {
+          await Store.update(Store.COLLECTIONS.PRODUCTS, id, { status: 'In Stock' });
+          Utils.showToast('Returned to inventory.');
+          render();
+          return true;
+        } catch (e) {
+          Utils.showToast('Update failed: ' + e.message, 'error');
+          return false;
+        }
+      }
+    });
+
+    // The Cancel button already reads "Edit" (cancelText above); its
+    // built-in behavior is just closing the modal, so add opening the
+    // real editable form as well -- showProductModal() closes this one
+    // for us, same pattern already used for the Vendors list -> edit ->
+    // back-to-list flow.
+    setTimeout(() => {
+      const cancelBtn = document.querySelector('#modal-cancel-btn');
+      if (cancelBtn) cancelBtn.addEventListener('click', () => showProductModal(id));
+    }, 50);
+  }
+
   function editProduct(id) { showProductModal(id); }
 
   function deleteProduct(id) {
@@ -1338,11 +1459,13 @@ const Products = (() => {
     init,
     editProduct,
     deleteProduct,
+    viewProduct,
     showProductModal,
     showReport,
     openPhotoLightbox,
     showVendorsListModal,
     editVendor,
-    deleteVendor
+    deleteVendor,
+    viewVendor
   };
 })();
