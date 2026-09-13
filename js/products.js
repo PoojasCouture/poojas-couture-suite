@@ -316,7 +316,7 @@ const Products = (() => {
       : 'badge-warning';
 
     tbody.innerHTML = list.map(p => `
-      <tr>
+      <tr onclick="Products.editProduct('${p.id}')" style="cursor:pointer">
         <td class="font-mono text-xs">${Utils.sanitizeHTML(p.sku || '—')}</td>
         <td>
           <div class="font-medium">${Utils.sanitizeHTML(p.title)}</div>
@@ -328,11 +328,8 @@ const Products = (() => {
         <td class="font-mono text-xs">${p.trackQuantity ? (p.quantity ?? 0) : '—'}</td>
         <td class="text-xs">${Utils.sanitizeHTML(p.location || 'Showroom')}</td>
         <td><span class="badge ${statusBadge(p.status)} text-xs">${Utils.sanitizeHTML(p.status)}</span></td>
-        <td>
-          <div class="table-actions justify-end">
-            <button class="btn btn-secondary btn-sm" onclick="Products.editProduct('${p.id}')">Edit</button>
-            <button class="btn btn-danger btn-sm" onclick="Products.deleteProduct('${p.id}')">Delete</button>
-          </div>
+        <td style="text-align:right">
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); Products.deleteProduct('${p.id}')" title="Delete">✕</button>
         </td>
       </tr>
     `).join('');
@@ -479,12 +476,12 @@ const Products = (() => {
     const rows = vendors.length === 0
       ? '<tr><td colspan="5" class="text-center text-muted">No vendors yet. Click "+ Add Vendor" to create one.</td></tr>'
       : vendors.map(v => `
-          <tr>
+          <tr onclick="Products.editVendor('${v.id}')" style="cursor:pointer">
             <td class="font-semibold text-xs">${Utils.sanitizeHTML(v.businessName || '\u2014')}</td>
             <td class="text-xs">${Utils.sanitizeHTML(v.vendorType || '\u2014')}</td>
             <td class="text-xs">${Utils.sanitizeHTML(v.contactName || v.phone || v.email || '\u2014')}</td>
             <td><span class="badge badge-${v.status==='Active'?'success':'muted'} text-xs">${Utils.sanitizeHTML(v.status || 'Active')}</span></td>
-            <td style="text-align:right"><button type="button" class="btn btn-secondary btn-sm" onclick="Products.editVendor('${v.id}')">Edit</button></td>
+            <td style="text-align:right"><button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation(); Products.deleteVendor('${v.id}')" title="Delete">✕</button></td>
           </tr>
         `).join('');
 
@@ -517,6 +514,25 @@ const Products = (() => {
   }
 
   function editVendor(id) { showVendorModal(id, () => showVendorsListModal()); }
+
+  function deleteVendor(id) {
+    const v = getVendors().find(x => x.id === id);
+    if (!v) return;
+    App.showConfirm({
+      title: 'Delete Vendor',
+      text: `Delete "${v.businessName}"? This cannot be undone.`,
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        try {
+          await Store.delete(Store.COLLECTIONS.VENDORS, id);
+          Utils.showToast('Vendor deleted.');
+          showVendorsListModal();
+        } catch (e) {
+          Utils.showToast('Delete failed: ' + e.message, 'error');
+        }
+      }
+    });
+  }
 
   // ============================================================
   // RECORD SALE -- sells one or more products in a single transaction.
@@ -653,9 +669,19 @@ const Products = (() => {
 
             const prod = Store.getById(Store.COLLECTIONS.PRODUCTS, item.productId);
             if (prod && prod.trackQuantity) {
+              // Multi-unit stock (Footwear, Purse, Jewellery, etc.) --
+              // decrement the count, only flip to Out of Stock at zero,
+              // since other units of the same product may still remain.
               const newQty = Math.max(0, (prod.quantity || 0) - item.qty);
               const newStatus = newQty === 0 ? 'Out of Stock' : (prod.status === 'Out of Stock' ? 'In Stock' : prod.status);
               await Store.update(Store.COLLECTIONS.PRODUCTS, item.productId, { quantity: newQty, status: newStatus });
+            } else if (prod) {
+              // Unique one-off piece (Bridal Set, Groom Set, Dresses,
+              // Anarkali, etc.) -- there is only ever one of it, so
+              // selling it marks the item itself Sold, not a quantity
+              // change. Without this, a sold unique piece stayed marked
+              // "In Stock" forever.
+              await Store.update(Store.COLLECTIONS.PRODUCTS, item.productId, { status: 'Sold' });
             }
           }
 
@@ -1316,6 +1342,7 @@ const Products = (() => {
     showReport,
     openPhotoLightbox,
     showVendorsListModal,
-    editVendor
+    editVendor,
+    deleteVendor
   };
 })();
