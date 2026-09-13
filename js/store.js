@@ -54,6 +54,7 @@ const Store = (() => {
     ORDERS: 'orders',
     EMPLOYEES: 'employees',
     VENDORS: 'vendors',
+    PRODUCT_CHECKOUTS: 'product_checkouts',
     ATTENDANCE: 'attendance',
     LEAVES: 'leaves',
     PAYROLL: 'payroll',
@@ -79,7 +80,7 @@ const Store = (() => {
   const PRELOAD_TABLES = [
     'clients','appointments','orders','employees','attendance','leaves',
     'payroll','invoices','expenses','audit_logs','products','sales',
-    'sale_items','shipments','order_tailors','emails','vendors','order_projects',
+    'sale_items','shipments','order_tailors','emails','vendors','product_checkouts','order_projects',
     'client_changes','photo_requests','job_photos','order_communications'
   ];
 

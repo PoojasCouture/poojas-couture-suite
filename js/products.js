@@ -63,7 +63,7 @@ const Products = (() => {
     'Accessory': { parentSku: 'ACC', subcategories: null }
   };
   const CATEGORIES = Object.keys(CATEGORY_TREE);
-  const STATUSES = ['In Stock', 'Reserved', 'Sold', 'Returned', 'Out of Stock'];
+  const STATUSES = ['In Stock', 'Reserved', 'Sold', 'Out for Shoot', 'Returned', 'Out of Stock'];
   // Categories that hold multiple stocked units. Bridal Set / Groom Set /
   // Dresses are unique, one-off pieces (like the real products already
   // in the system), so they're deliberately not in this list, matching
@@ -133,6 +133,7 @@ const Products = (() => {
   const getVendors = () => (Store.getAll(Store.COLLECTIONS.VENDORS) || []).filter(Boolean);
   const getSales = () => (Store.getAll(Store.COLLECTIONS.SALES) || []).filter(Boolean);
   const getSaleItems = () => (Store.getAll(Store.COLLECTIONS.SALE_ITEMS) || []).filter(Boolean);
+  const getCheckouts = () => (Store.getAll(Store.COLLECTIONS.PRODUCT_CHECKOUTS) || []).filter(Boolean);
 
   // isPartOfSet only matters for Bridal Set / Groom Set (categories
   // with a parentSku AND subcategories); it's ignored for every other
@@ -201,6 +202,7 @@ const Products = (() => {
           <p class="page-subtitle">Track stock, ready-made pieces, bridal sneakers, purses and accessories</p>
         </div>
         <div class="page-actions">
+          <button class="btn btn-secondary" id="btn-shoot-log">📸 Shoot Log</button>
           <button class="btn btn-secondary" id="btn-sales-history">📊 Sales History</button>
           <button class="btn btn-secondary" id="btn-record-sale">💵 Record Sale</button>
           <button class="btn btn-secondary" id="btn-manage-vendors">🏭 Vendors</button>
@@ -282,6 +284,7 @@ const Products = (() => {
     Utils.$('#btn-manage-vendors').addEventListener('click', () => showVendorsListModal());
     Utils.$('#btn-record-sale').addEventListener('click', () => showRecordSaleModal());
     Utils.$('#btn-sales-history').addEventListener('click', () => showSalesHistoryModal());
+    Utils.$('#btn-shoot-log').addEventListener('click', () => showShootLogModal());
     Utils.$('#btn-export-products').addEventListener('click', exportCSV);
 
     const searchEl = Utils.$('#product-search');
@@ -1345,6 +1348,12 @@ const Products = (() => {
     const vendor = p.vendorId ? getVendors().find(v => v.id === p.vendorId) : null;
     const profit = (p.price || 0) - (p.costPrice || 0);
     const margin = p.price > 0 ? (profit / p.price) * 100 : 0;
+    // Active shoot checkout, if any -- the record itself, not just the
+    // status flag, so who has it and when it's due back is visible.
+    const activeCheckout = p.status === 'Out for Shoot'
+      ? getCheckouts().find(c => c.productId === id && c.status === 'Out')
+      : null;
+    const canCheckOut = p.status === 'In Stock' || p.status === 'Reserved';
 
     const row = (label, value) => value
       ? `<div class="d-flex justify-content-between text-sm mb-1"><span class="text-muted">${label}</span><span>${Utils.sanitizeHTML(String(value))}</span></div>`
@@ -1360,8 +1369,18 @@ const Products = (() => {
           <div class="font-semibold" style="font-size:16px;">${Utils.sanitizeHTML(p.title || 'Untitled')}</div>
           <div class="text-xs text-muted">${Utils.sanitizeHTML(p.category || '')}${p.subcategory ? ' — ' + Utils.sanitizeHTML(p.subcategory) : ''}</div>
           <span class="badge ${p.status==='In Stock'?'badge-success':p.status==='Sold'?'badge-muted':'badge-warning'} text-xs mt-1">${Utils.sanitizeHTML(p.status || '')}</span>
+          ${canCheckOut ? `<div class="mt-1"><a href="javascript:void(0)" onclick="Products.showCheckoutModal('${id}')" style="color:var(--pc-gold);text-decoration:underline;font-size:12px;">📸 Check out for a shoot</a></div>` : ''}
         </div>
       </div>
+      ${activeCheckout ? `
+      <div class="form-group" style="background:var(--pc-bg-card);border:1px solid var(--pc-border-gold);border-radius:8px;padding:var(--sp-3);margin-bottom:var(--sp-3);">
+        <div class="text-xs text-gold font-semibold mb-1">📸 Currently out for a shoot</div>
+        ${row('Borrower', activeCheckout.borrowerName)}
+        ${row('Contact', activeCheckout.borrowerContact)}
+        ${row('Purpose', activeCheckout.purpose)}
+        ${row('Checked Out', Utils.formatDate(activeCheckout.checkedOutDate))}
+        ${row('Expected Back', activeCheckout.expectedReturnDate ? Utils.formatDate(activeCheckout.expectedReturnDate) : 'Not set')}
+      </div>` : ''}
       ${p.description ? `<div class="text-sm mb-3">${Utils.sanitizeHTML(p.description)}</div>` : ''}
       <div class="form-group" style="background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:8px;padding:var(--sp-3);">
         ${row('Cost Price', Utils.formatCurrency(p.costPrice || 0))}
@@ -1383,20 +1402,32 @@ const Products = (() => {
       </div>
     `;
 
+    const submitLabel = p.status === 'Sold' ? '↩ Return to Inventory'
+      : p.status === 'Out for Shoot' ? '✓ Mark Returned from Shoot'
+      : 'Close';
+
     App.showModal({
       title: 'Product Details',
       content,
-      submitText: p.status === 'Sold' ? '↩ Return to Inventory' : 'Close',
+      submitText: submitLabel,
       cancelText: '✏️ Edit',
       onSubmit: async () => {
-        if (p.status !== 'Sold') return true; // plain Close
-        // Undoes the "Sold" status set by Record Sale -- puts the item
-        // back into normal circulation. Does not attempt to reverse the
-        // sale record itself, only the product's own status.
         try {
-          await Store.update(Store.COLLECTIONS.PRODUCTS, id, { status: 'In Stock' });
-          Utils.showToast('Returned to inventory.');
-          render();
+          if (p.status === 'Sold') {
+            // Undoes the "Sold" status set by Record Sale -- puts the
+            // item back into normal circulation. Does not attempt to
+            // reverse the sale record itself, only the product's status.
+            await Store.update(Store.COLLECTIONS.PRODUCTS, id, { status: 'In Stock' });
+            Utils.showToast('Returned to inventory.');
+            render();
+          } else if (p.status === 'Out for Shoot' && activeCheckout) {
+            await Store.update(Store.COLLECTIONS.PRODUCT_CHECKOUTS, activeCheckout.id, {
+              status: 'Returned', actualReturnDate: new Date().toISOString().slice(0, 10)
+            });
+            await Store.update(Store.COLLECTIONS.PRODUCTS, id, { status: 'In Stock' });
+            Utils.showToast('Marked returned from shoot.');
+            render();
+          }
           return true;
         } catch (e) {
           Utils.showToast('Update failed: ' + e.message, 'error');
@@ -1414,6 +1445,146 @@ const Products = (() => {
       const cancelBtn = document.querySelector('#modal-cancel-btn');
       if (cancelBtn) cancelBtn.addEventListener('click', () => showProductModal(id));
     }, 50);
+  }
+
+  // ============================================================
+  // SHOOT CHECKOUT TRACKING
+  // ------------------------------------------------------------
+  // Real business need: dresses/pieces go out for photo shoots and
+  // there was no way to track who has one or whether it came back.
+  // Uses a dedicated product_checkouts table (its own full record --
+  // borrower, contact, purpose, dates out/back) rather than just a
+  // status flag, so history isn't lost the moment an item comes back.
+  // ============================================================
+
+  function showCheckoutModal(productId) {
+    const p = Store.getById(Store.COLLECTIONS.PRODUCTS, productId);
+    if (!p) { Utils.showToast('Product not found.', 'error'); return; }
+
+    const content = `
+      <form id="checkout-form" class="d-flex flex-col gap-3">
+        <div class="text-sm text-muted mb-2">${Utils.sanitizeHTML(p.sku || '')} — ${Utils.sanitizeHTML(p.title || 'Untitled')}</div>
+        <div class="form-group">
+          <label class="form-label">Borrower Name <span class="required">*</span></label>
+          <input type="text" name="borrowerName" class="form-input" required placeholder="Who is taking this out?">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Contact</label>
+            <input type="text" name="borrowerContact" class="form-input" placeholder="Phone, email, or Instagram handle">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Purpose</label>
+            <input type="text" name="purpose" class="form-input" placeholder="e.g. Instagram shoot, magazine feature">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Checked Out Date</label>
+            <input type="date" name="checkedOutDate" class="form-input" value="${new Date().toISOString().slice(0,10)}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Expected Return Date</label>
+            <input type="date" name="expectedReturnDate" class="form-input">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-input" rows="2"></textarea>
+        </div>
+      </form>
+    `;
+
+    App.showModal({
+      title: '📸 Check Out for a Shoot',
+      content,
+      submitText: 'Check Out',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#checkout-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const fd = new FormData(form);
+        try {
+          await Store.create(Store.COLLECTIONS.PRODUCT_CHECKOUTS, {
+            productId,
+            borrowerName: fd.get('borrowerName').trim(),
+            borrowerContact: (fd.get('borrowerContact') || '').trim() || null,
+            purpose: (fd.get('purpose') || '').trim() || null,
+            checkedOutDate: fd.get('checkedOutDate') || new Date().toISOString().slice(0, 10),
+            expectedReturnDate: fd.get('expectedReturnDate') || null,
+            status: 'Out',
+            notes: (fd.get('notes') || '').trim() || null
+          });
+          await Store.update(Store.COLLECTIONS.PRODUCTS, productId, { status: 'Out for Shoot' });
+          Utils.showToast('Checked out for shoot.');
+          render();
+          return true;
+        } catch (e) {
+          Utils.showToast('Check-out failed: ' + e.message, 'error');
+          return false;
+        }
+      }
+    });
+  }
+
+  function markCheckoutReturned(checkoutId) {
+    const checkout = getCheckouts().find(c => c.id === checkoutId);
+    if (!checkout) return;
+    App.showConfirm({
+      title: 'Mark Returned',
+      text: `Mark this piece as returned from ${checkout.borrowerName}?`,
+      confirmText: 'Mark Returned',
+      onConfirm: async () => {
+        try {
+          await Store.update(Store.COLLECTIONS.PRODUCT_CHECKOUTS, checkoutId, {
+            status: 'Returned', actualReturnDate: new Date().toISOString().slice(0, 10)
+          });
+          await Store.update(Store.COLLECTIONS.PRODUCTS, checkout.productId, { status: 'In Stock' });
+          Utils.showToast('Marked returned.');
+          showShootLogModal();
+        } catch (e) {
+          Utils.showToast('Update failed: ' + e.message, 'error');
+        }
+      }
+    });
+  }
+
+  function showShootLogModal() {
+    const checkouts = getCheckouts().slice().sort((a, b) => {
+      // Currently-out items first, then by most recent checkout date.
+      if (a.status === 'Out' && b.status !== 'Out') return -1;
+      if (a.status !== 'Out' && b.status === 'Out') return 1;
+      return new Date(b.checkedOutDate || 0) - new Date(a.checkedOutDate || 0);
+    });
+
+    const rows = checkouts.length === 0
+      ? '<tr><td colspan="6" class="text-center text-muted">No shoot check-outs recorded yet.</td></tr>'
+      : checkouts.map(c => {
+          const prod = Store.getById(Store.COLLECTIONS.PRODUCTS, c.productId);
+          const isOut = c.status === 'Out';
+          return `
+            <tr>
+              <td class="text-xs">${prod ? `<a href="javascript:void(0)" onclick="Products.viewProduct('${prod.id}')" style="color:var(--pc-gold);text-decoration:underline;cursor:pointer;">${Utils.sanitizeHTML(prod.sku || '')} — ${Utils.sanitizeHTML(prod.title || 'Untitled')}</a>` : '<span class="text-muted">(product removed)</span>'}</td>
+              <td class="text-xs">${Utils.sanitizeHTML(c.borrowerName || '\u2014')}</td>
+              <td class="text-xs">${Utils.formatDate(c.checkedOutDate)}</td>
+              <td class="text-xs">${c.expectedReturnDate ? Utils.formatDate(c.expectedReturnDate) : '\u2014'}</td>
+              <td><span class="badge ${isOut ? 'badge-warning' : 'badge-success'} text-xs">${isOut ? 'Out' : 'Returned ' + Utils.formatDate(c.actualReturnDate)}</span></td>
+              <td style="text-align:right">${isOut ? `<button type="button" class="btn btn-secondary btn-sm" onclick="Products.markCheckoutReturned('${c.id}')">✓ Mark Returned</button>` : ''}</td>
+            </tr>`;
+        }).join('');
+
+    App.showModal({
+      title: '📸 Shoot Log',
+      content: `<div class="table-container" style="border:none;max-height:60vh;overflow-y:auto;">
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Borrower</th><th>Out Date</th><th>Expected Back</th><th>Status</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`,
+      submitText: 'Close',
+      hideCancel: true,
+      onSubmit: () => true,
+      modalSize: 'modal-lg'
+    });
   }
 
   function editProduct(id) { showProductModal(id); }
@@ -1494,6 +1665,9 @@ const Products = (() => {
     showVendorsListModal,
     editVendor,
     deleteVendor,
-    viewVendor
+    viewVendor,
+    showCheckoutModal,
+    markCheckoutReturned,
+    showShootLogModal
   };
 })();
