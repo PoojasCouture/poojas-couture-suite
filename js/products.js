@@ -179,6 +179,28 @@ const Products = (() => {
     }
     searchTerm = '';
     render();
+    _handleGoogleContactsRedirect();
+  }
+
+  // Google sends the browser back to '/' with ?google_contacts=... after
+  // the OAuth callback function finishes. Show what happened, then strip
+  // the query string so refreshing the page doesn't re-show the toast.
+  function _handleGoogleContactsRedirect() {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('google_contacts');
+    if (!result) return;
+    if (result === 'connected') {
+      const account = params.get('account');
+      Utils.showToast('Google Contacts connected' + (account ? ' (' + account + ').' : '.'));
+    } else if (result === 'error') {
+      const reason = params.get('reason') || 'unknown';
+      Utils.showToast('Google Contacts connection failed: ' + reason, 'error');
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete('google_contacts');
+    url.searchParams.delete('account');
+    url.searchParams.delete('reason');
+    window.history.replaceState({}, '', url.toString());
   }
 
   function getProducts() {
@@ -1583,9 +1605,129 @@ const Products = (() => {
   // picked in this app, so it behaves the same way every time.
   // ============================================================
 
-  function showBorrowerModal(borrowerId = null, onSaved = null) {
+  // ============================================================
+  // GOOGLE CONTACTS -- lets Pooja pick a Borrower from her real phone
+  // contacts instead of typing name/phone/email by hand. No native
+  // browser contact picker exists on iPhone (Apple has never shipped
+  // one, on any browser), so this goes through a real Google sign-in
+  // instead, which works identically on any device. The refresh token
+  // this produces is stored server-side only and never reaches the
+  // browser -- see functions/api/google-contacts-*.js.
+  // ============================================================
+
+  const GOOGLE_CLIENT_ID = '817941713656-lmpiosfv4fiun54lv1mm70jv926b871i.apps.googleusercontent.com';
+  const GOOGLE_REDIRECT_URI = 'https://poojas-couture-suite.pages.dev/api/google-contacts-callback';
+
+  function connectGoogleContacts() {
+    const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    url.searchParams.set('client_id', GOOGLE_CLIENT_ID);
+    url.searchParams.set('redirect_uri', GOOGLE_REDIRECT_URI);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('scope', 'https://www.googleapis.com/auth/contacts.readonly');
+    // Both required to guarantee a refresh_token comes back -- Google
+    // only issues one on the very first consent otherwise, and this
+    // needs to work correctly even if Pooja has to reconnect later.
+    url.searchParams.set('access_type', 'offline');
+    url.searchParams.set('prompt', 'consent');
+    window.location.href = url.toString();
+  }
+
+  async function _fetchGoogleContactsStatus() {
+    try {
+      const res = await fetch('/api/google-contacts-status');
+      return await res.json();
+    } catch (e) {
+      return { connected: false };
+    }
+  }
+
+  function showGoogleContactsPickerModal() {
+    App.showModal({
+      title: '📇 Import from Google Contacts',
+      content: '<div class="text-center text-muted p-6">Loading your contacts\u2026</div>',
+      submitText: 'Close',
+      hideCancel: true,
+      onSubmit: () => true,
+      modalSize: 'modal-lg'
+    });
+
+    fetch('/api/google-contacts-list')
+      .then(res => res.json().then(data => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        const body = document.querySelector('.modal-body') || document.querySelector('#modal-content');
+        if (!body) return;
+
+        if (!ok || data.error === 'not_connected' || data.error === 'reauth_required') {
+          body.innerHTML = `
+            <div class="text-center p-6">
+              <p class="text-muted mb-3">${data.error === 'reauth_required' ? 'Google access needs to be reconnected.' : 'Not connected to Google Contacts yet.'}</p>
+              <button type="button" class="btn btn-primary" id="gc-connect-btn">Connect Google Contacts</button>
+            </div>`;
+          const btn = document.querySelector('#gc-connect-btn');
+          if (btn) btn.addEventListener('click', connectGoogleContacts);
+          return;
+        }
+        if (!ok || data.error) {
+          body.innerHTML = `<div class="text-center p-6 text-danger">Could not load contacts: ${Utils.sanitizeHTML(data.error || 'unknown error')}</div>`;
+          return;
+        }
+
+        const contacts = data.contacts || [];
+        body.innerHTML = `
+          <input type="text" id="gc-search" class="form-input mb-3" placeholder="Search contacts by name\u2026" autofocus>
+          <div id="gc-list" class="table-container" style="border:none;max-height:50vh;overflow-y:auto;">
+            <table class="data-table">
+              <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th></th></tr></thead>
+              <tbody id="gc-list-body"></tbody>
+            </table>
+          </div>
+        `;
+
+        const renderRows = (filter) => {
+          const term = (filter || '').toLowerCase();
+          const filtered = contacts.filter(c => c.name.toLowerCase().includes(term));
+          const tbody = document.querySelector('#gc-list-body');
+          if (!tbody) return;
+          tbody.innerHTML = filtered.length === 0
+            ? '<tr><td colspan="4" class="text-center text-muted">No matching contacts.</td></tr>'
+            : filtered.slice(0, 200).map((c, i) => `
+                <tr>
+                  <td class="text-xs">${Utils.sanitizeHTML(c.name)}</td>
+                  <td class="text-xs">${Utils.sanitizeHTML(c.phone || '\u2014')}</td>
+                  <td class="text-xs">${Utils.sanitizeHTML(c.email || '\u2014')}</td>
+                  <td style="text-align:right"><button type="button" class="btn btn-secondary btn-sm" data-gc-index="${i}">Select</button></td>
+                </tr>`).join('');
+
+          tbody.querySelectorAll('[data-gc-index]').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const picked = filtered[Number(btn.dataset.gcIndex)];
+              // Pre-fills the real Add Borrower form rather than
+              // silently creating a record -- same principle used
+              // everywhere else in this app: auto-fill, but the person
+              // reviews and confirms before it's saved.
+              showBorrowerModal(null, () => showBorrowersListModal(), {
+                name: picked.name, phone: picked.phone || '', email: picked.email || ''
+              });
+            });
+          });
+        };
+
+        renderRows('');
+        const searchInput = document.querySelector('#gc-search');
+        if (searchInput) searchInput.addEventListener('input', () => renderRows(searchInput.value));
+      })
+      .catch(e => {
+        const body = document.querySelector('.modal-body') || document.querySelector('#modal-content');
+        if (body) body.innerHTML = `<div class="text-center p-6 text-danger">Could not load contacts: ${Utils.sanitizeHTML(e.message)}</div>`;
+      });
+  }
+
+  function showBorrowerModal(borrowerId = null, onSaved = null, prefill = null) {
     const editing = !!borrowerId;
-    const b = editing ? getBorrowers().find(x => x.id === borrowerId) : {};
+    // prefill is used only when creating a new borrower (e.g. from the
+    // Google Contacts picker) -- it populates the form so the person
+    // can review and adjust before saving, never saves anything by itself.
+    const b = editing ? getBorrowers().find(x => x.id === borrowerId) : (prefill || {});
     if (editing && !b) { Utils.showToast('Borrower not found.', 'error'); return; }
 
     const formHTML = `
