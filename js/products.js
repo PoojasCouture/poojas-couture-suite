@@ -597,7 +597,12 @@ const Products = (() => {
 
   function showRecordSaleModal() {
     let cart = []; // { productId, title, qty, unitPrice, costPrice }
-    const products = getProducts();
+    // Only genuinely sellable items -- excludes anything already Sold,
+    // Out of Stock, or Returned. This is the actual bug being fixed:
+    // the picker previously showed every product regardless of status,
+    // so an item already sold in a prior sale still appeared "available"
+    // to sell again.
+    const products = getProducts().filter(p => p.status === 'In Stock');
 
     const renderCartRows = () => {
       if (cart.length === 0) {
