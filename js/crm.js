@@ -3082,14 +3082,42 @@ poojascouture.com.au`
 
     if (type === 'revenue') {
       title = '💰 Revenue Report';
-      content = '<div class="text-xs text-muted mb-3">All paid invoices</div>' +
+      // Two genuinely separate transaction types, shown as two sections
+      // -- custom orders (paid invoices) and retail stock sales -- with
+      // a combined total at the end that matches the KPI card exactly.
+      // Keeping them visually separate here even though the card up top
+      // shows one blended number, so the drill-down is never a mystery.
+      const allSalesForReport = Store.getAll(Store.COLLECTIONS.SALES) || [];
+      const completedSalesForReport = allSalesForReport.filter(s => s.status === 'Completed');
+      const retailRevenueForReport = completedSalesForReport.reduce((s, x) => s + (x.total || 0), 0);
+      const customOrderRevenueForReport = paidInvoices.reduce((s, i) => s + (i.total || 0), 0);
+
+      content = '<div class="text-xs text-muted mb-2">Custom Orders — paid invoices</div>' +
         '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Invoice</th><th>Client</th><th>Date</th><th>Amount</th></tr></thead><tbody>' +
-        paidInvoices.sort((a,b)=>new Date(b.issueDate||0)-new Date(a.issueDate||0)).map(inv =>
-          '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(inv.invoiceNumber||'—') + '</td>' +
-          '<td class="text-xs">' + Utils.sanitizeHTML(inv.clientName||'—') + '</td>' +
-          '<td class="text-xs">' + Utils.formatDate(inv.issueDate) + '</td>' +
-          '<td class="font-mono text-xs font-bold">' + Utils.formatCurrency(inv.total) + '</td></tr>'
-        ).join('') + '</tbody></table></div>';
+        (paidInvoices.length === 0
+          ? '<tr><td colspan="4" class="text-center text-muted">No paid invoices yet.</td></tr>'
+          : paidInvoices.sort((a,b)=>new Date(b.issueDate||0)-new Date(a.issueDate||0)).map(inv =>
+              '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(inv.invoiceNumber||'—') + '</td>' +
+              '<td class="text-xs">' + Utils.sanitizeHTML(inv.clientName||'—') + '</td>' +
+              '<td class="text-xs">' + Utils.formatDate(inv.issueDate) + '</td>' +
+              '<td class="font-mono text-xs font-bold">' + Utils.formatCurrency(inv.total) + '</td></tr>'
+            ).join('')
+        ) + '</tbody></table></div>' +
+        '<div class="d-flex justify-content-between text-sm mt-2 mb-4"><span class="text-muted">Custom Orders Subtotal</span><strong class="font-mono">' + Utils.formatCurrency(customOrderRevenueForReport) + '</strong></div>' +
+
+        '<div class="text-xs text-muted mb-2">Retail Stock Sales — completed sales</div>' +
+        '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Date</th><th>Customer</th><th>Amount</th></tr></thead><tbody>' +
+        (completedSalesForReport.length === 0
+          ? '<tr><td colspan="3" class="text-center text-muted">No retail sales recorded yet.</td></tr>'
+          : completedSalesForReport.sort((a,b)=>new Date(b.saleDate||0)-new Date(a.saleDate||0)).map(s =>
+              '<tr><td class="text-xs">' + Utils.formatDate(s.saleDate) + '</td>' +
+              '<td class="text-xs">' + Utils.sanitizeHTML(s.clientName||'Walk-in') + '</td>' +
+              '<td class="font-mono text-xs font-bold">' + Utils.formatCurrency(s.total) + '</td></tr>'
+            ).join('')
+        ) + '</tbody></table></div>' +
+        '<div class="d-flex justify-content-between text-sm mt-2 mb-4"><span class="text-muted">Retail Stock Subtotal</span><strong class="font-mono">' + Utils.formatCurrency(retailRevenueForReport) + '</strong></div>' +
+
+        '<div class="d-flex justify-content-between" style="border-top:1px solid var(--pc-border);padding-top:10px;"><strong>Combined Total</strong><strong class="font-mono text-gold">' + Utils.formatCurrency(customOrderRevenueForReport + retailRevenueForReport) + '</strong></div>';
     } else if (type === 'outstanding') {
       title = '⏳ Outstanding Balances';
       const unpaid = invoices.filter(i => (i.total||0) > (parseFloat(i.amountPaid)||0));
@@ -3266,6 +3294,16 @@ poojascouture.com.au`
     // ── Revenue metrics ──
     const paidInvoices    = invoices.filter(i => i.status === 'Paid');
     const totalRevenue    = paidInvoices.reduce((s, i) => s + (i.total || 0), 0);
+    // Retail stock sales (Record Sale, in Stock & Inventory) are a
+    // genuinely separate transaction type from custom orders -- kept
+    // that way on purpose -- but their revenue is consolidated into
+    // this one dashboard number, per business decision. The KPI shows
+    // the combined total; the breakdown line under it keeps the two
+    // streams visible separately so this number is never a mystery.
+    const allSales         = Store.getAll(Store.COLLECTIONS.SALES) || [];
+    const completedSales   = allSales.filter(s => s.status === 'Completed');
+    const retailRevenue    = completedSales.reduce((s, x) => s + (x.total || 0), 0);
+    const combinedRevenue  = totalRevenue + retailRevenue;
     const outstanding     = invoices.filter(i => ['Partially Paid','Sent','Draft'].includes(i.status));
     const outstandingAmt  = outstanding.reduce((s, i) => {
       const p = (i.amountPaid != null && i.amountPaid !== '') ? parseFloat(i.amountPaid) : 0;
@@ -3386,7 +3424,7 @@ poojascouture.com.au`
       </style>
       <div style="overflow-x:auto;margin-bottom:20px;">
         <div style="display:flex;gap:10px;padding-bottom:6px;min-width:max-content;">
-          <div class="kpi-card" style="animation-delay:0.00s;cursor:pointer;" onclick="CRM.showKPIReport('revenue')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Revenue</div><div style="font-size:13px;">💰</div><div class="kpi-value">${Utils.formatCurrency(totalRevenue)}</div></div>
+          <div class="kpi-card" style="animation-delay:0.00s;cursor:pointer;" onclick="CRM.showKPIReport('revenue')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Revenue</div><div style="font-size:13px;">💰</div><div class="kpi-value">${Utils.formatCurrency(combinedRevenue)}</div><div class="text-xs text-muted" style="white-space:nowrap;">Orders ${Utils.formatCurrency(totalRevenue)} · Retail ${Utils.formatCurrency(retailRevenue)}</div></div>
           <div class="kpi-card" style="animation-delay:0.05s;cursor:pointer;" onclick="CRM.showKPIReport('outstanding')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Outstanding</div><div style="font-size:13px;">⏳</div><div class="kpi-value">${Utils.formatCurrency(outstandingAmt)}</div></div>
           <div class="kpi-card" style="animation-delay:0.15s;cursor:pointer;" onclick="CRM.showKPIReport('ltv')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Avg LTV</div><div style="font-size:13px;">👑</div><div class="kpi-value">${Utils.formatCurrency(avgCLTV)}</div></div>
           <div class="kpi-card" style="animation-delay:0.20s;cursor:pointer;" onclick="CRM.showKPIReport('delivered')"><div style="font-size:10px;font-weight:700;color:var(--pc-text-muted);text-transform:uppercase;letter-spacing:.5px;">Delivered</div><div style="font-size:13px;">📦</div><div class="kpi-value">${deliveredOrders.length} / ${allOrders.length}</div></div>
