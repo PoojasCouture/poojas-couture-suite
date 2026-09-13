@@ -190,6 +190,7 @@ const Products = (() => {
     const products = getProducts();
     const inStock = products.filter(p => p.status === 'In Stock');
     const reserved = products.filter(p => p.status === 'Reserved');
+    const sold = products.filter(p => p.status === 'Sold');
     const stockValue = inStock.reduce((sum, p) => sum + (p.price || 0), 0);
     const costValue = inStock.reduce((sum, p) => sum + (p.costPrice || 0), 0);
 
@@ -223,6 +224,11 @@ const Products = (() => {
           <div class="stat-card-header"><span class="stat-card-icon blue">🔖</span></div>
           <div class="stat-card-value">${reserved.length}</div>
           <div class="stat-card-label">Reserved</div>
+        </div>
+        <div class="stat-card" style="cursor:pointer" onclick="Products.showReport('sold')">
+          <div class="stat-card-header"><span class="stat-card-icon gray">🏷️</span></div>
+          <div class="stat-card-value">${sold.length}</div>
+          <div class="stat-card-label">Sold</div>
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="Products.showReport('value')">
           <div class="stat-card-header"><span class="stat-card-icon purple">💰</span></div>
@@ -800,11 +806,14 @@ const Products = (() => {
           }, 0);
           const grossProfit = (s.subtotal || 0) - cost;
           const grossMargin = s.subtotal > 0 ? (grossProfit / s.subtotal) * 100 : 0;
+          const itemsList = lines.length === 0
+            ? '\u2014'
+            : lines.map(li => `${li.quantity || 1}\u00d7 ${Utils.sanitizeHTML(li.description || 'Untitled')}`).join('<br>');
           return `
             <tr>
               <td class="text-xs">${Utils.sanitizeHTML(s.saleDate || '\u2014')}</td>
               <td class="text-xs">${Utils.sanitizeHTML(s.clientName || 'Walk-in')}</td>
-              <td class="text-xs">${lines.length} item${lines.length === 1 ? '' : 's'}</td>
+              <td class="text-xs">${itemsList}</td>
               <td class="font-mono text-xs">${Utils.formatCurrency(s.total || 0)}</td>
               <td class="font-mono text-xs" style="color:${grossProfit < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${Utils.formatCurrency(grossProfit)}</td>
               <td class="font-mono text-xs" style="color:${grossMargin < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${grossMargin.toFixed(1)}%</td>
@@ -1436,17 +1445,19 @@ const Products = (() => {
     const products = Store.getAll(Store.COLLECTIONS.PRODUCTS) || [];
     const inStock  = products.filter(p => p.status === 'In Stock');
     const reserved = products.filter(p => p.status === 'Reserved');
+    const sold     = products.filter(p => p.status === 'Sold');
     let title = '', rows = [];
-    if (type === 'all')      { title = '📦 All Products';       rows = products.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')); }
-    else if (type === 'instock')  { title = '✅ In Stock';           rows = inStock.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')); }
-    else if (type === 'reserved') { title = '🔖 Reserved';           rows = reserved.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')); }
+    if (type === 'all')      { title = '📦 All Products';       rows = products.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'')); }
+    else if (type === 'instock')  { title = '✅ In Stock';           rows = inStock.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'')); }
+    else if (type === 'reserved') { title = '🔖 Reserved';           rows = reserved.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'')); }
+    else if (type === 'sold')     { title = '🏷️ Sold';               rows = sold.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'')); }
     else if (type === 'value')    { title = '💰 Stock Value Breakdown'; rows = inStock.slice().sort((a,b)=>(b.price||0)-(a.price||0)); }
     const content = rows.length === 0
       ? '<div class="text-center p-6 text-muted">No products in this category.</div>'
       : '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Status</th><th>Retail Price</th></tr></thead><tbody>' +
         rows.map(p =>
-          '<tr><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(p.sku||'\u2014') + '</td>' +
-          '<td class="font-semibold text-xs">' + Utils.sanitizeHTML(p.name||'\u2014') + '</td>' +
+          '<tr style="cursor:pointer" onclick="Products.viewProduct(\'' + p.id + '\')"><td class="font-mono text-gold text-xs">' + Utils.sanitizeHTML(p.sku||'\u2014') + '</td>' +
+          '<td class="font-semibold text-xs">' + Utils.sanitizeHTML(p.title||'\u2014') + '</td>' +
           '<td class="text-xs">' + Utils.sanitizeHTML(p.category||'\u2014') + '</td>' +
           '<td><span class="badge badge-' + (p.status==='In Stock'?'success':p.status==='Reserved'?'warning':'muted') + ' text-xs">' + Utils.sanitizeHTML(p.status||'\u2014') + '</span></td>' +
           '<td class="font-mono text-xs">' + Utils.formatCurrency(p.price||0) + '</td></tr>'
