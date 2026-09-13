@@ -1,3 +1,79 @@
+
+/* ============================================================
+   MOBILE LAYOUT FIX (v2 — supersedes v1) — 13 Sept 2026
+   ------------------------------------------------------------
+   v1 caught the pattern in crm.js only, using exact substring
+   matches on the ratios seen in screenshots (1fr 2fr, 1fr 1fr,
+   repeat(3,1fr), no space after the colon). Checking every other
+   portal/JS file directly showed admin.js and accounting.js use
+   the same broken pattern but with a space after the colon and
+   different ratios (1.2fr 1fr, 1.5fr 1fr) — v1 would have missed
+   all of those. Switched to a general "any fixed grid on these
+   containers, except the already-responsive auto-fit/auto-fill
+   ones" rule instead of enumerating ratios one at a time.
+   ============================================================ */
+
+/* Universal: grid/flex children default to min-width:auto, which
+   stops them shrinking below their content's natural width — this
+   is what forces whole sections wider than the viewport instead of
+   reflowing, and body's overflow-x:hidden then silently clips the
+   excess instead of scrolling. */
+.d-grid > *,
+.d-flex > * {
+  min-width: 0;
+}
+
+/* Force-collapse any fixed-ratio inline grid on .d-grid / .content-grid
+   at mobile widths. Excludes repeat(auto-fit,...) / repeat(auto-fill,...)
+   grids, which already reflow correctly on their own and would lose
+   their multi-column packing if forced to 1 column unnecessarily. */
+@media (max-width: 768px) {
+  .d-grid[style*="grid-template-columns"]:not([style*="auto-fit"]):not([style*="auto-fill"]),
+  .content-grid[style*="grid-template-columns"]:not([style*="auto-fit"]):not([style*="auto-fill"]) {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Table polish (main CRM): tighter padding on mobile so 3–4 column
+   tables need less — or no — horizontal scroll before hitting it. */
+@media (max-width: 640px) {
+  .data-table th,
+  .data-table td {
+    padding: var(--sp-2) var(--sp-3);
+    font-size: 12px;
+  }
+}
+
+/* ============================================================
+   SHIPPING PORTAL — two separate, confirmed bugs
+   ============================================================ */
+
+/* Every table in shipping/app.js (Incoming, Ready, Transit,
+   Awaiting Payment, Cleared, Parcels) is inserted straight into a
+   bare div with no overflow handling at all — unlike every table
+   in the main CRM, which is always wrapped in .table-container.
+   This is a real functional gap, not a mobile-discoverability
+   issue: without this, columns past the fold are simply gone,
+   not scrollable. */
+.portal-shipping #incoming-wrap,
+.portal-shipping #ready-wrap,
+.portal-shipping #transit-wrap,
+.portal-shipping #awaiting-wrap,
+.portal-shipping #cleared-wrap,
+.portal-shipping #parcels-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* KPI tile strip (#kpi-content) is a raw inline 3-column grid with
+   no class name, so the general .d-grid rule above can't catch it.
+   2 columns (not 1) — these are small numeric tiles, not text rows,
+   and look better paired than stacked full-width on a phone. */
+@media (max-width: 420px) {
+  .portal-shipping #kpi-content > div[style*="grid-template-columns"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
 /* ============================================================
    POOJA'S COUTURE SUITE — Unified Stylesheet
    ------------------------------------------------------------
@@ -3561,7 +3637,9 @@ div[style*="border:1px solid var(--pc-"] {
 .portal-ai-team .bubble p { margin-bottom: var(--sp-2); color: var(--pc-text); }
 .portal-ai-team .bubble p:last-child { margin-bottom: 0; }
 
-/* Welcome card — matches main app card */
+/* Welcome card — matches main app card. Gold hover added to match the
+   same treatment .history-card already has elsewhere in this file —
+   this element previously had no :hover rule at all. */
 .portal-ai-team .welcome-card {
   background: var(--pc-bg-card);
   border: 1px solid var(--pc-border);
@@ -3571,6 +3649,12 @@ div[style*="border:1px solid var(--pc-"] {
   max-width: 560px;
   position: relative;
   overflow: hidden;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+}
+.portal-ai-team .welcome-card:hover {
+  border-color: var(--pc-border-gold);
+  box-shadow: var(--pc-shadow-gold), var(--pc-shadow-md);
+  transform: translateY(-2px);
 }
 .portal-ai-team .welcome-card::before {
   content: '';
