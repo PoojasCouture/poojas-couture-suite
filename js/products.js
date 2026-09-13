@@ -83,6 +83,11 @@ const Products = (() => {
     document.body.appendChild(overlay);
   }
 
+  const CONDITIONS = ['New', 'Excellent', 'Good', 'Needs Repair', 'Damaged'];
+  const VENDOR_TYPES = ['Fabric Supplier', 'Embroidery / Karigar', 'Tailoring Unit', 'Logistics / Freight', 'Trims & Accessories', 'Other'];
+  const VENDOR_STATUSES = ['Active', 'Inactive'];
+  const getVendors = () => (Store.getAll(Store.COLLECTIONS.VENDORS) || []).filter(Boolean);
+
   function generateSku(category) {
     const prefix = SKU_PREFIX[category] || 'GEN';
     const products = Store.getAll(Store.COLLECTIONS.PRODUCTS);
@@ -129,6 +134,7 @@ const Products = (() => {
           <p class="page-subtitle">Track stock, ready-made pieces, bridal sneakers, purses and accessories</p>
         </div>
         <div class="page-actions">
+          <button class="btn btn-secondary" id="btn-manage-vendors">🏭 Vendors</button>
           <button class="btn btn-primary" id="btn-add-product">+ Add Product</button>
         </div>
       </div>
@@ -199,6 +205,7 @@ const Products = (() => {
 
     // Wire controls
     Utils.$('#btn-add-product').addEventListener('click', () => showProductModal());
+    Utils.$('#btn-manage-vendors').addEventListener('click', () => showVendorsListModal());
     Utils.$('#btn-export-products').addEventListener('click', exportCSV);
 
     const searchEl = Utils.$('#product-search');
@@ -261,6 +268,184 @@ const Products = (() => {
     `).join('');
   }
 
+  // ============================================================
+  // VENDOR / SUPPLIER MANAGEMENT
+  // Uses the existing `vendors` table + Store collection, which already
+  // had correct RLS and generic create/update wired up -- this just adds
+  // the screen that was missing on top of it. A fuller vendor-management
+  // workflow (linking to orders/shipments etc.) is a separate, larger
+  // piece for later; this covers full CRUD on the vendor record itself.
+  // ============================================================
+
+  function showVendorModal(vendorId = null, onSaved = null) {
+    const editing = !!vendorId;
+    const v = editing ? getVendors().find(x => x.id === vendorId) : {};
+    if (editing && !v) { Utils.showToast('Vendor not found.', 'error'); return; }
+
+    const formHTML = `
+      <form id="vendor-form" class="d-flex flex-col gap-3">
+        <div class="form-group">
+          <label class="form-label">Business Name *</label>
+          <input type="text" name="businessName" class="form-input" required value="${Utils.sanitizeHTML(v.businessName || '')}">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Contact Name</label>
+            <input type="text" name="contactName" class="form-input" value="${Utils.sanitizeHTML(v.contactName || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Vendor Type</label>
+            <select name="vendorType" class="form-select">
+              <option value="">— Not set —</option>
+              ${VENDOR_TYPES.map(t => `<option value="${t}" ${v.vendorType===t?'selected':''}>${t}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-input" value="${Utils.sanitizeHTML(v.email || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="text" name="phone" class="form-input" value="${Utils.sanitizeHTML(v.phone || '')}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Specialty</label>
+          <input type="text" name="specialty" class="form-input" value="${Utils.sanitizeHTML(v.specialty || '')}" placeholder="e.g. Zardozi embroidery, silk sourcing">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Location</label>
+            <input type="text" name="location" class="form-input" value="${Utils.sanitizeHTML(v.location || '')}" placeholder="e.g. Surat, India">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+              ${VENDOR_STATUSES.map(s => `<option value="${s}" ${(v.status||'Active')===s?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">GST Number</label>
+            <input type="text" name="gstNumber" class="form-input" value="${Utils.sanitizeHTML(v.gstNumber || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Payment Terms</label>
+            <input type="text" name="paymentTerms" class="form-input" value="${Utils.sanitizeHTML(v.paymentTerms || '')}" placeholder="e.g. 30% deposit, balance on delivery">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Default Shipping Route</label>
+            <input type="text" name="defaultRoute" class="form-input" value="${Utils.sanitizeHTML(v.defaultRoute || '')}" placeholder="e.g. Surat to Sydney via freight">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Shipping Cost Borne By</label>
+            <input type="text" name="shipsCostBorneBy" class="form-input" value="${Utils.sanitizeHTML(v.shipsCostBorneBy || '')}" placeholder="e.g. Vendor, Boutique, Split">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bank Details</label>
+          <textarea name="bankDetails" class="form-input" rows="2">${Utils.sanitizeHTML(v.bankDetails || '')}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-input" rows="2">${Utils.sanitizeHTML(v.notes || '')}</textarea>
+        </div>
+      </form>
+    `;
+
+    App.showModal({
+      title: editing ? 'Edit Vendor' : 'Add New Vendor',
+      content: formHTML,
+      submitText: editing ? 'Save Changes' : 'Add Vendor',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#vendor-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const fd = new FormData(form);
+        const payload = {
+          businessName: fd.get('businessName').trim(),
+          contactName: (fd.get('contactName') || '').trim() || null,
+          vendorType: fd.get('vendorType') || null,
+          email: (fd.get('email') || '').trim() || null,
+          phone: (fd.get('phone') || '').trim() || null,
+          specialty: (fd.get('specialty') || '').trim() || null,
+          location: (fd.get('location') || '').trim() || null,
+          status: fd.get('status'),
+          gstNumber: (fd.get('gstNumber') || '').trim() || null,
+          paymentTerms: (fd.get('paymentTerms') || '').trim() || null,
+          defaultRoute: (fd.get('defaultRoute') || '').trim() || null,
+          shipsCostBorneBy: (fd.get('shipsCostBorneBy') || '').trim() || null,
+          bankDetails: (fd.get('bankDetails') || '').trim() || null,
+          notes: (fd.get('notes') || '').trim() || null
+        };
+        try {
+          let saved;
+          if (editing) {
+            await Store.update(Store.COLLECTIONS.VENDORS, vendorId, payload);
+            saved = Object.assign({ id: vendorId }, payload);
+            Utils.showToast('Vendor updated.');
+          } else {
+            saved = await Store.create(Store.COLLECTIONS.VENDORS, payload);
+            Utils.showToast('Vendor added.');
+          }
+          if (typeof onSaved === 'function') onSaved(saved);
+          return true;
+        } catch (e) {
+          Utils.showToast('Save failed: ' + e.message, 'error');
+          return false;
+        }
+      }
+    });
+  }
+
+  function showVendorsListModal() {
+    const vendors = getVendors();
+    const rows = vendors.length === 0
+      ? '<tr><td colspan="5" class="text-center text-muted">No vendors yet. Click "+ Add Vendor" to create one.</td></tr>'
+      : vendors.map(v => `
+          <tr>
+            <td class="font-semibold text-xs">${Utils.sanitizeHTML(v.businessName || '\u2014')}</td>
+            <td class="text-xs">${Utils.sanitizeHTML(v.vendorType || '\u2014')}</td>
+            <td class="text-xs">${Utils.sanitizeHTML(v.contactName || v.phone || v.email || '\u2014')}</td>
+            <td><span class="badge badge-${v.status==='Active'?'success':'muted'} text-xs">${Utils.sanitizeHTML(v.status || 'Active')}</span></td>
+            <td style="text-align:right"><button type="button" class="btn btn-secondary btn-sm" onclick="Products.editVendor('${v.id}')">Edit</button></td>
+          </tr>
+        `).join('');
+
+    const content = `
+      <div class="d-flex justify-content-between items-center mb-3">
+        <span class="text-sm text-muted">${vendors.length} supplier${vendors.length === 1 ? '' : 's'}</span>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-add-vendor-inline">+ Add Vendor</button>
+      </div>
+      <div class="table-container" style="border:none;max-height:60vh;overflow-y:auto;">
+        <table class="data-table">
+          <thead><tr><th>Business Name</th><th>Type</th><th>Contact</th><th>Status</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+
+    App.showModal({
+      title: 'Manage Vendors / Suppliers',
+      content,
+      submitText: 'Close',
+      hideCancel: true,
+      onSubmit: () => true,
+      modalSize: 'modal-lg'
+    });
+
+    setTimeout(() => {
+      const btn = document.querySelector('#btn-add-vendor-inline');
+      if (btn) btn.addEventListener('click', () => showVendorModal(null, () => showVendorsListModal()));
+    }, 50);
+  }
+
+  function editVendor(id) { showVendorModal(id, () => showVendorsListModal()); }
+
   function showProductModal(productId = null) {
     const editing = !!productId;
     const p = editing ? Store.getById(Store.COLLECTIONS.PRODUCTS, productId) : {};
@@ -319,11 +504,23 @@ const Products = (() => {
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Cost Price (from India, AUD)</label>
-            <input type="number" name="costPrice" class="form-input font-mono" min="0" step="0.01" value="${p.costPrice || 0}">
+            <input type="number" id="pf-cost-price" name="costPrice" class="form-input font-mono" min="0" step="0.01" value="${p.costPrice || 0}">
           </div>
           <div class="form-group">
             <label class="form-label">Selling Price (ex-GST, AUD) *</label>
-            <input type="number" name="price" class="form-input font-mono" min="0" step="0.01" required value="${p.price || 0}">
+            <input type="number" id="pf-price" name="price" class="form-input font-mono" min="0" step="0.01" required value="${p.price || 0}">
+          </div>
+        </div>
+
+        <!-- Gross profit / margin -- computed live from the two fields
+             above, never stored as its own column. Storing a derived
+             number risks it going stale the moment cost or price changes
+             without this exact form being the thing that updates it;
+             computing it on the fly is always correct. -->
+        <div class="form-group" style="background:var(--pc-bg-subtle,#f6f6f6);border-radius:8px;padding:var(--sp-3);">
+          <div class="d-flex gap-4 flex-wrap">
+            <div><span class="text-xs text-muted">Gross Profit</span><br><strong id="pf-gross-profit" class="font-mono">$0.00</strong></div>
+            <div><span class="text-xs text-muted">Gross Margin</span><br><strong id="pf-gross-margin" class="font-mono">0%</strong></div>
           </div>
         </div>
 
@@ -339,6 +536,59 @@ const Products = (() => {
             <select name="location" class="form-select">
               ${LOCATIONS.map(l => `<option value="${l}" ${p.location===l?'selected':''}>${l}</option>`).join('')}
             </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Color</label>
+            <input type="text" name="color" class="form-input" value="${Utils.sanitizeHTML(p.color || '')}" placeholder="e.g. Mint Green, Dual-tone Red/Gold">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Size</label>
+            <input type="text" name="size" class="form-input" value="${Utils.sanitizeHTML(p.size || '')}" placeholder="e.g. M, Free Size, 38">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Fabric</label>
+            <input type="text" name="fabric" class="form-input" value="${Utils.sanitizeHTML(p.fabric || '')}" placeholder="e.g. Silk, Georgette, Velvet">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Embellishment / Work</label>
+            <input type="text" name="embellishment" class="form-input" value="${Utils.sanitizeHTML(p.embellishment || '')}" placeholder="e.g. Zardozi, Mirror work, Sequins">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Supplier</label>
+            <div class="d-flex gap-2">
+              <select name="vendorId" id="pf-vendor" class="form-select" style="flex:1">
+                <option value="">— None —</option>
+                ${getVendors().map(v => `<option value="${v.id}" ${p.vendorId===v.id?'selected':''}>${Utils.sanitizeHTML(v.businessName || 'Unnamed vendor')}</option>`).join('')}
+              </select>
+              <button type="button" class="btn btn-secondary btn-sm" id="pf-add-vendor-btn" title="Add a new supplier">+ New</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date Received</label>
+            <input type="date" name="dateReceived" class="form-input" value="${p.dateReceived ? String(p.dateReceived).slice(0,10) : ''}">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Condition</label>
+            <select name="condition" class="form-select">
+              <option value="">— Not set —</option>
+              ${CONDITIONS.map(c => `<option value="${c}" ${p.condition===c?'selected':''}>${c}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rack / Bag</label>
+            <input type="text" name="rackOrBag" class="form-input" value="${Utils.sanitizeHTML(p.rackOrBag || '')}" placeholder="e.g. Rack 3, Bag 12">
           </div>
         </div>
 
@@ -398,7 +648,15 @@ const Products = (() => {
           location: fd.get('location'),
           isAccessory: fd.get('isAccessory') === 'on',
           trackQuantity: trackQuantity,
-          quantity: quantity
+          quantity: quantity,
+          color: (fd.get('color') || '').trim() || null,
+          size: (fd.get('size') || '').trim() || null,
+          fabric: (fd.get('fabric') || '').trim() || null,
+          embellishment: (fd.get('embellishment') || '').trim() || null,
+          vendorId: fd.get('vendorId') || null,
+          dateReceived: fd.get('dateReceived') || null,
+          condition: fd.get('condition') || null,
+          rackOrBag: (fd.get('rackOrBag') || '').trim() || null
         };
 
         try {
@@ -442,6 +700,45 @@ const Products = (() => {
         }
       });
       trackCb.addEventListener('change', syncQtyVisibility);
+
+      // Live Gross Profit / Gross Margin -- recalculates on every
+      // keystroke in either price field. Never written to the database;
+      // see the comment on the display block itself for why.
+      const costEl = document.querySelector('#pf-cost-price');
+      const priceEl = document.querySelector('#pf-price');
+      const grossProfitEl = document.querySelector('#pf-gross-profit');
+      const grossMarginEl = document.querySelector('#pf-gross-margin');
+      const recalcMargins = () => {
+        if (!costEl || !priceEl || !grossProfitEl || !grossMarginEl) return;
+        const cost = parseFloat(costEl.value) || 0;
+        const price = parseFloat(priceEl.value) || 0;
+        const profit = price - cost;
+        const margin = price > 0 ? (profit / price) * 100 : 0;
+        grossProfitEl.textContent = Utils.formatCurrency(profit);
+        grossProfitEl.style.color = profit < 0 ? 'var(--pc-danger, #c0392b)' : '';
+        grossMarginEl.textContent = margin.toFixed(1) + '%';
+        grossMarginEl.style.color = margin < 0 ? 'var(--pc-danger, #c0392b)' : '';
+      };
+      if (costEl) costEl.addEventListener('input', recalcMargins);
+      if (priceEl) priceEl.addEventListener('input', recalcMargins);
+      recalcMargins();
+
+      // "+ New" supplier -- quick-add a vendor without leaving this form.
+      // Opens the same vendor form used from the main Vendors screen;
+      // on save, refreshes this dropdown and selects the new vendor.
+      const addVendorBtn = document.querySelector('#pf-add-vendor-btn');
+      const vendorSelect = document.querySelector('#pf-vendor');
+      if (addVendorBtn && vendorSelect) {
+        addVendorBtn.addEventListener('click', () => {
+          showVendorModal(null, (newVendor) => {
+            const opt = document.createElement('option');
+            opt.value = newVendor.id;
+            opt.textContent = newVendor.businessName || 'Unnamed vendor';
+            vendorSelect.appendChild(opt);
+            vendorSelect.value = newVendor.id;
+          });
+        });
+      }
 
       // Wire "Fill from Photo" — pick a file, send it to the extraction
       // endpoint, populate Category/Title/Description with what comes
@@ -540,7 +837,7 @@ const Products = (() => {
       confirmText: 'Delete',
       onConfirm: async () => {
         try {
-          await Store.remove(Store.COLLECTIONS.PRODUCTS, id);
+          await Store.delete(Store.COLLECTIONS.PRODUCTS, id);
           Utils.showToast('Product deleted.');
           render();
         } catch (e) {
@@ -600,6 +897,8 @@ const Products = (() => {
     deleteProduct,
     showProductModal,
     showReport,
-    openPhotoLightbox
+    openPhotoLightbox,
+    showVendorsListModal,
+    editVendor
   };
 })();
