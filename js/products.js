@@ -597,12 +597,13 @@ const Products = (() => {
 
   function showRecordSaleModal() {
     let cart = []; // { productId, title, qty, unitPrice, costPrice }
-    // Only genuinely sellable items -- excludes anything already Sold,
-    // Out of Stock, or Returned. This is the actual bug being fixed:
+    // Sellable items: In Stock, or Reserved (converting a hold into an
+    // actual sale is a normal action). Still excludes anything already
+    // Sold, Out of Stock, or Returned -- the original bug being fixed:
     // the picker previously showed every product regardless of status,
     // so an item already sold in a prior sale still appeared "available"
     // to sell again.
-    const products = getProducts().filter(p => p.status === 'In Stock');
+    const products = getProducts().filter(p => p.status === 'In Stock' || p.status === 'Reserved');
 
     const renderCartRows = () => {
       if (cart.length === 0) {
