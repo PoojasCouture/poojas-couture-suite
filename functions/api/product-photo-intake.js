@@ -1,10 +1,22 @@
 // functions/api/product-photo-intake.js
 // -----------------------------------------------------------------------
 // "Take a picture, fill in the details" for the Stock & Inventory tab.
-// Uploads a real photo of a garment/item to the new `product-photos`
-// bucket, then asks Claude to look at that SAME photo and extract the
-// fields that are actually visually determinable — category, a product
-// title, and a description of fabric/work/colour.
+// Uploads a real photo of a garment/item to the `product-photos` bucket,
+// then asks Claude to look at that SAME photo and extract the fields
+// that are actually visually determinable — category, a product title,
+// and a rich description covering fabric, colour, embroidery/zari/thread
+// work, and (if the photo shows a multi-piece set — e.g. lehenga +
+// blouse + dupatta/petticoat on one hanger) a per-piece breakdown.
+//
+// 2026-09-13 UPDATE: extraction deepened per Himanshu's request — fabric,
+// colour, and embroidery/zari/work detail, plus per-piece breakdown for
+// sets. Deliberately still returns only {category, title, description} —
+// no new form fields/DB columns added this pass. The extra detail is
+// folded into the description as structured, readable text (one line per
+// piece when it's a set) rather than expanding the schema. Simpler,
+// faster to ship, and the description field is already free text that
+// gets shown/searched everywhere a new field wouldn't be. Revisit if
+// per-piece *rows* (not just per-piece *text*) turn out to be needed.
 //
 // HONEST LIMIT, BY DESIGN: this deliberately does NOT return costPrice,
 // price, quantity, or status. Those aren't visible in a photo — they're
@@ -33,16 +45,30 @@ const MAX_BASE64_LEN = 15 * 1024 * 1024 * 1.4; // ~15MB raw, accounting for base
 
 const CATEGORIES = ['Bridal Set', 'Groom Set', 'Menswear', 'Jewellery', 'Purse', 'Footwear', 'Accessory'];
 
-const EXTRACTION_SYSTEM = `You are looking at a real photo of a single item for Pooja's Couture, a South Asian bridal and occasion-wear boutique in Sydney, for their inventory catalog.
+const EXTRACTION_SYSTEM = `You are looking at a real photo of item(s) for Pooja's Couture, a South Asian bridal and occasion-wear boutique in Sydney, for their inventory catalog. You are examining stock — hanging garments, flat-laid pieces, or product shots — not people modelling clothes.
 
 Extract ONLY what you can actually see in the photo. Respond with ONLY a JSON object, no other text, no markdown fences, in exactly this shape:
 {
-  "category": one of ${JSON.stringify(CATEGORIES)} — pick the single closest match to what's shown,
+  "category": one of ${JSON.stringify(CATEGORIES)} — pick the single closest match to what's shown overall,
   "title": a short, specific product name a boutique would use, e.g. "Ivory Silk Bridal Lehenga" or "Gold Embroidered Bridal Sneakers",
-  "description": 1-3 sentences describing fabric, embroidery/work, colour, and any visible size/style detail — written the way a boutique owner would jot a stock note, not marketing copy
+  "description": a stock note for a boutique owner, not marketing copy — see rules below
 }
 
-If the photo doesn't clearly show a single sellable item (blurry, multiple unrelated items, not clothing/accessories at all), set "category" to "Accessory", "title" to "Needs manual review", and explain what's wrong in "description" instead of guessing.
+DESCRIPTION — be as specific as the photo actually allows:
+- Fabric: name the fabric type if identifiable (silk, georgette, velvet, net, raw silk, organza, chiffon, brocade, etc.). Say "fabric unclear from photo" rather than guessing if you can't tell.
+- Colour(s): name the actual colour(s), including any contrast/dual-tone colour combinations visible.
+- Work/embroidery: describe what kind of embellishment is visible and roughly how much of the garment it covers — e.g. zari (gold/silver metallic thread) work, zardozi, resham (silk thread) embroidery, sequins, beadwork, mirror work (shisha), stone/kundan work, gota patti, thread tassels, cutdana, or plain/unembellished if that's what it is. Don't invent a specific technique you can't actually distinguish in the photo — say "metallic embroidered border" rather than naming a technique you're not confident about.
+- Any visible style/size detail: neckline, sleeve style, border/hemline design, visible size tag, etc., if clearly visible.
+
+MULTI-PIECE SETS: if the photo shows more than one distinct garment piece together as a set (e.g. lehenga skirt + blouse + dupatta, or a sherwani + inner kurta, or an outfit with a matching petticoat/pants), describe EACH piece on its own line inside the description, prefixed with the piece name, e.g.:
+"Lehenga: raw silk, deep maroon, heavy gold zari border on the hem.
+Blouse: matching maroon silk, gold zari work on sleeves and neckline, sweetheart neck.
+Dupatta: net, gold zari border, scalloped edge."
+If it's genuinely a single piece (one sneaker pair, one purse, one kurta with no visible separate pieces), write the description as normal flowing sentences, no per-piece breakdown needed.
+
+Keep the overall description tight — a boutique owner should be able to read it in a few seconds, not a paragraph of marketing prose. 1-2 sentences per piece is enough.
+
+If the photo doesn't clearly show a sellable item (blurry, not clothing/accessories at all), set "category" to "Accessory", "title" to "Needs manual review", and explain what's wrong in "description" instead of guessing.
 
 Never include a price, cost, or quantity in your response — you cannot see those in a photo, and guessing would be actively misleading in a real inventory system.`;
 
@@ -131,13 +157,13 @@ export async function onRequestPost(context) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 500,
+        max_tokens: 900, // bumped from 500 — per-piece breakdowns for multi-garment sets need more room
         system: EXTRACTION_SYSTEM,
         messages: [{
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: verifiedType, data: cleanBase64 } },
-            { type: 'text', text: 'Extract the fields for this item.' }
+            { type: 'text', text: 'Extract the fields for this item (or set of pieces).' }
           ]
         }]
       })
@@ -150,7 +176,7 @@ export async function onRequestPost(context) {
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     extraction = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
     if (!extraction || !extraction.category || !extraction.title) {
-      return jsonResponse({ error: 'Could not parse a usable result from the photo. Try a clearer, single-item photo.', photoUrl }, 502);
+      return jsonResponse({ error: 'Could not parse a usable result from the photo. Try a clearer photo.', photoUrl }, 502);
     }
     if (!CATEGORIES.includes(extraction.category)) extraction.category = 'Accessory';
   } catch (err) {

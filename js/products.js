@@ -230,7 +230,7 @@ const Products = (() => {
               ${p.photoUrl ? `<img src="${Utils.sanitizeHTML(p.photoUrl)}" style="width:100%;height:100%;object-fit:cover;">` : '<span style="font-size:22px;">📷</span>'}
             </div>
             <div class="d-flex flex-col gap-1">
-              <input type="file" id="pf-photo-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
+              <input type="file" id="pf-photo-input" accept="image/jpeg,image/png,image/webp" capture="environment" style="display:none;">
               <button type="button" class="btn btn-secondary btn-sm" id="pf-photo-btn">
                 ${p.photoUrl ? 'Replace Photo' : '📷 Fill from Photo'}
               </button>
@@ -259,7 +259,7 @@ const Products = (() => {
 
         <div class="form-group">
           <label class="form-label">Description</label>
-          <textarea id="pf-description" name="description" class="form-input" rows="2" placeholder="Fabric, work, size, colour...">${Utils.sanitizeHTML(p.description || '')}</textarea>
+          <textarea id="pf-description" name="description" class="form-input" rows="2" placeholder="Fabric, work, size, colour..."><textarea id="pf-description" name="description" class="form-input" rows="2" placeholder="Fabric, work, size, colour...">${Utils.sanitizeHTML(p.description || '')}</textarea>
         </div>
 
 

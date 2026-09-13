@@ -4501,4 +4501,62 @@ div[style*="border:1px solid var(--pc-"] {
   margin: 0;
   border: none;
 }
+/* ============================================================
+   MOBILE LAYOUT FIX — 13 Sept 2026
+   ------------------------------------------------------------
+   Root causes (confirmed by reading live crm.js + app.css, not
+   guessed from screenshots):
 
+   1. Several dashboard/form layouts set a fixed inline
+      grid-template-columns (1fr 2fr / 1fr 1fr / repeat(3,1fr))
+      with no mobile breakpoint at all — e.g. Email tab, Sales
+      Dashboard revenue/top-clients rows, Client Profile contact
+      section, measurement forms, Log Change / Project modals.
+      Inline styles cannot be beaten by an ordinary CSS rule —
+      !important from a stylesheet is the only way to override
+      them without touching every render function in crm.js.
+
+   2. Grid/flex children default to min-width:auto, so they
+      refuse to shrink below their own content's natural width.
+      A wide filter-bar/search-input inside one grid column was
+      enough to force the whole grid (and thus the page) wider
+      than the viewport, which body's overflow-x:hidden then
+      silently clips instead of scrolling. This is the same bug
+      class already fixed once for .main-content/.page-content —
+      this generalises the fix to every .d-grid/.d-flex in the
+      app instead of patching it one component at a time.
+
+   Data tables were checked separately and are structurally fine
+   — every one is wrapped in .table-container with overflow-x:auto.
+   What reads as "cut off" there is a real horizontal scroll with
+   no visible scrollbar on mobile Chrome, not lost data. Padding
+   is trimmed below to reduce how often that scroll is even needed.
+   ============================================================ */
+
+/* Fix 2: universal — let grid/flex children actually shrink */
+.d-grid > *,
+.d-flex > * {
+  min-width: 0;
+}
+
+/* Fix 1: force-collapse fixed-ratio grids that have no responsive
+   rule of their own. Matches inline styles by substring, so it
+   catches every current instance regardless of what other inline
+   declarations (font-size etc.) are chained after it. */
+@media (max-width: 768px) {
+  .d-grid[style*="grid-template-columns:1fr 2fr"],
+  .d-grid[style*="grid-template-columns:1fr 1fr"],
+  .d-grid[style*="grid-template-columns:repeat(3,1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Table polish: tighter padding on mobile so 3–4 column tables
+   need less (or no) horizontal scroll before hitting it at all. */
+@media (max-width: 640px) {
+  .data-table th,
+  .data-table td {
+    padding: var(--sp-2) var(--sp-3);
+    font-size: 12px;
+  }
+}
