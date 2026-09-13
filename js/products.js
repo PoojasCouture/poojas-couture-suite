@@ -291,7 +291,7 @@ const Products = (() => {
     const formHTML = `
       <form id="vendor-form" class="d-flex flex-col gap-3">
         <div class="form-group">
-          <label class="form-label">Business Name *</label>
+          <label class="form-label">Business Name <span class="required">*</span></label>
           <input type="text" name="businessName" class="form-input" required value="${Utils.sanitizeHTML(v.businessName || '')}">
         </div>
         <div class="form-row">
@@ -309,8 +309,8 @@ const Products = (() => {
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Email</label>
-            <input type="email" name="email" class="form-input" value="${Utils.sanitizeHTML(v.email || '')}">
+            <label class="form-label">Email <span class="required">*</span></label>
+            <input type="email" name="email" class="form-input" required value="${Utils.sanitizeHTML(v.email || '')}">
           </div>
           <div class="form-group">
             <label class="form-label">Phone</label>
@@ -376,7 +376,7 @@ const Products = (() => {
           businessName: fd.get('businessName').trim(),
           contactName: (fd.get('contactName') || '').trim() || null,
           vendorType: fd.get('vendorType') || null,
-          email: (fd.get('email') || '').trim() || null,
+          email: (fd.get('email') || '').trim(),
           phone: (fd.get('phone') || '').trim() || null,
           specialty: (fd.get('specialty') || '').trim() || null,
           location: (fd.get('location') || '').trim() || null,
@@ -391,11 +391,13 @@ const Products = (() => {
         try {
           let saved;
           if (editing) {
-            await Store.update(Store.COLLECTIONS.VENDORS, vendorId, payload);
+            const updateResult = await Store.update(Store.COLLECTIONS.VENDORS, vendorId, payload);
+            if (!updateResult) return false; // Store already showed the real error
             saved = Object.assign({ id: vendorId }, payload);
             Utils.showToast('Vendor updated.');
           } else {
             saved = await Store.create(Store.COLLECTIONS.VENDORS, payload);
+            if (!saved) return false; // Store already showed the real error -- don't also claim success
             Utils.showToast('Vendor added.');
           }
           if (typeof onSaved === 'function') onSaved(saved);
@@ -735,7 +737,7 @@ const Products = (() => {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Product Name *</label>
+          <label class="form-label">Product Name <span class="required">*</span></label>
           <input type="text" id="pf-title" name="title" class="form-input" required value="${Utils.sanitizeHTML(p.title || '')}" placeholder="e.g. Ivory Silk Bridal Lehenga / Gold Bridal Sneakers">
         </div>
 
@@ -751,7 +753,7 @@ const Products = (() => {
             <input type="number" id="pf-cost-price" name="costPrice" class="form-input font-mono" min="0" step="0.01" value="${p.costPrice || 0}">
           </div>
           <div class="form-group">
-            <label class="form-label">Selling Price (ex-GST, AUD) *</label>
+            <label class="form-label">Selling Price (ex-GST, AUD) <span class="required">*</span></label>
             <input type="number" id="pf-price" name="price" class="form-input font-mono" min="0" step="0.01" required value="${p.price || 0}">
           </div>
         </div>
