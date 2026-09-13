@@ -805,38 +805,55 @@ const Products = (() => {
     const sales = getSales().slice().sort((a, b) => new Date(b.saleDate || b.createdAt || 0) - new Date(a.saleDate || a.createdAt || 0));
     const items = getSaleItems();
 
-    const rows = sales.length === 0
+    // One row PER ITEM, not per sale. Date/Customer repeat across every
+    // item belonging to the same sale; Total/Gross Profit/Margin are
+    // each item's own figures (its own line amount and its own cost),
+    // not the whole sale's blended total re-shown on every row.
+    const allRows = [];
+    sales.forEach(s => {
+      const lines = items.filter(i => i.saleId === s.id);
+      if (lines.length === 0) {
+        allRows.push({ sale: s, line: null });
+        return;
+      }
+      lines.forEach(li => allRows.push({ sale: s, line: li }));
+    });
+
+    const rows = allRows.length === 0
       ? '<tr><td colspan="6" class="text-center text-muted">No sales recorded yet.</td></tr>'
-      : sales.map(s => {
-          const lines = items.filter(i => i.saleId === s.id);
-          const cost = lines.reduce((sum, li) => {
-            const prod = Store.getById(Store.COLLECTIONS.PRODUCTS, li.productId);
-            return sum + (li.quantity || 0) * (prod ? (prod.costPrice || 0) : 0);
-          }, 0);
-          const grossProfit = (s.subtotal || 0) - cost;
-          const grossMargin = s.subtotal > 0 ? (grossProfit / s.subtotal) * 100 : 0;
-          // Each item is clickable straight to that product's View modal
-          // (same one built for the Products list), where "Return to
-          // Inventory" already exists if it's currently marked Sold.
-          // Falls back to plain, non-clickable text if the product was
-          // since deleted -- there's nothing to open in that case.
-          const itemsList = lines.length === 0
-            ? '\u2014'
-            : lines.map(li => {
-                const stillExists = li.productId && Store.getById(Store.COLLECTIONS.PRODUCTS, li.productId);
-                const label = `${li.quantity || 1}\u00d7 ${Utils.sanitizeHTML(li.description || 'Untitled')}`;
-                return stillExists
-                  ? `<a href="javascript:void(0)" onclick="Products.viewProduct('${li.productId}')" style="color:var(--pc-gold);text-decoration:underline;cursor:pointer;">${label}</a>`
-                  : `<span class="text-muted">${label} (product removed)</span>`;
-              }).join('<br>');
+      : allRows.map(({ sale: s, line: li }) => {
+          if (!li) {
+            return `
+              <tr>
+                <td class="text-xs">${Utils.sanitizeHTML(s.saleDate || '\u2014')}</td>
+                <td class="text-xs">${Utils.sanitizeHTML(s.clientName || 'Walk-in')}</td>
+                <td class="text-xs text-muted">\u2014</td>
+                <td class="font-mono text-xs">${Utils.formatCurrency(s.total || 0)}</td>
+                <td class="font-mono text-xs">\u2014</td>
+                <td class="font-mono text-xs">\u2014</td>
+              </tr>`;
+          }
+          const prod = li.productId ? Store.getById(Store.COLLECTIONS.PRODUCTS, li.productId) : null;
+          const lineSubtotal = (li.quantity || 0) * (li.unitPrice || 0);
+          const lineCost = (li.quantity || 0) * (prod ? (prod.costPrice || 0) : 0);
+          const lineProfit = lineSubtotal - lineCost;
+          const lineMargin = lineSubtotal > 0 ? (lineProfit / lineSubtotal) * 100 : 0;
+          const label = `${li.quantity || 1}\u00d7 ${Utils.sanitizeHTML(li.description || 'Untitled')}`;
+          // Clickable straight to that product's View modal (same one
+          // built for the Products list), where "Return to Inventory"
+          // already exists if it's currently marked Sold. Falls back to
+          // plain, non-clickable text if the product was since deleted.
+          const itemCell = prod
+            ? `<a href="javascript:void(0)" onclick="Products.viewProduct('${li.productId}')" style="color:var(--pc-gold);text-decoration:underline;cursor:pointer;">${label}</a>`
+            : `<span class="text-muted">${label} (product removed)</span>`;
           return `
             <tr>
               <td class="text-xs">${Utils.sanitizeHTML(s.saleDate || '\u2014')}</td>
               <td class="text-xs">${Utils.sanitizeHTML(s.clientName || 'Walk-in')}</td>
-              <td class="text-xs">${itemsList}</td>
-              <td class="font-mono text-xs">${Utils.formatCurrency(s.total || 0)}</td>
-              <td class="font-mono text-xs" style="color:${grossProfit < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${Utils.formatCurrency(grossProfit)}</td>
-              <td class="font-mono text-xs" style="color:${grossMargin < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${grossMargin.toFixed(1)}%</td>
+              <td class="text-xs">${itemCell}</td>
+              <td class="font-mono text-xs">${Utils.formatCurrency(li.amount != null ? li.amount : lineSubtotal)}</td>
+              <td class="font-mono text-xs" style="color:${lineProfit < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${Utils.formatCurrency(lineProfit)}</td>
+              <td class="font-mono text-xs" style="color:${lineMargin < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${lineMargin.toFixed(1)}%</td>
             </tr>`;
         }).join('');
 
@@ -844,7 +861,7 @@ const Products = (() => {
       title: 'Sales History',
       content: `<div class="table-container" style="border:none;max-height:60vh;overflow-y:auto;">
         <table class="data-table">
-          <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Total</th><th>Gross Profit</th><th>Margin</th></tr></thead>
+          <thead><tr><th>Date</th><th>Customer</th><th>Item</th><th>Total</th><th>Gross Profit</th><th>Margin</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`,
