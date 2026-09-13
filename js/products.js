@@ -9,26 +9,70 @@ const Products = (() => {
   let activeStatus = 'all';
   let searchTerm = '';
 
-  const CATEGORIES = ['Bridal Set', 'Groom Set', 'Menswear', 'Jewellery', 'Purse', 'Footwear', 'Accessory'];
+  // ============================================================
+  // CATEGORY / SUBCATEGORY / SKU SCHEME
+  // ------------------------------------------------------------
+  // Two shapes of category, decided across many rounds with Himanshu:
+  //
+  // 1. "Set" categories (Bridal Set, Groom Set) -- parentSku is set.
+  //    These show a "Part of a Set?" toggle on the form:
+  //      - Yes -> SKU uses the PARENT code (BRD/GRM), one counter
+  //        shared across every piece of that category regardless of
+  //        which subcategory each piece is.
+  //      - No (a standalone single piece sold on its own) -> SKU uses
+  //        that piece's OWN subcategory code (LEH/BLS/DPT or
+  //        GRP/GSF/GSW), each with its own separate counter.
+  //    These categories also allow linking a piece to an existing
+  //    "parent set" product (via the pre-existing, previously-unused
+  //    parent_product_id column, which already has a proper FK) --
+  //    purely for price inheritance (the piece's Cost/Price default
+  //    from the parent's, but stay individually editable). This link
+  //    has nothing to do with which SKU prefix gets used.
+  //
+  // 2. Categories with parentSku: null (Footwear, Dresses, Menswear)
+  //    have no parent code at all -- no toggle shown, always use the
+  //    subcategory's own code.
+  //
+  // 3. Flat categories (subcategories: null) -- Jewellery, Purse,
+  //    Accessory -- unchanged from before this whole conversation:
+  //    no subcategory picker, always use their own single code.
+  // ============================================================
+  const CATEGORY_TREE = {
+    'Bridal Set': {
+      parentSku: 'BRD',
+      subcategories: { 'Lehengha': 'LEH', 'Blouse': 'BLS', 'Dupatta': 'DPT' }
+    },
+    'Groom Set': {
+      parentSku: 'GRM',
+      subcategories: { 'Groom Pants': 'GRP', 'Groom SAFA / Crown': 'GSF', 'Groom Sword': 'GSW' }
+    },
+    'Footwear': {
+      parentSku: null,
+      subcategories: { 'Bridal Sneakers': 'BSN', 'Loafers': 'GLF', 'Formal Shoes': 'GSH' }
+    },
+    'Dresses': {
+      parentSku: null,
+      subcategories: { 'Indo-Western': 'INW', 'Gown': 'GWN', 'Anarkali': 'ANK' }
+    },
+    'Menswear': {
+      parentSku: null,
+      subcategories: { 'Kurta': 'MKT', 'Pants': 'MPT' }
+    },
+    'Jewellery': { parentSku: 'JWL', subcategories: null },
+    'Purse':     { parentSku: 'PUR', subcategories: null },
+    'Accessory': { parentSku: 'ACC', subcategories: null }
+  };
+  const CATEGORIES = Object.keys(CATEGORY_TREE);
   const STATUSES = ['In Stock', 'Reserved', 'Sold', 'Returned', 'Out of Stock'];
-  // Categories that hold multiple units (stocked goods).
+  // Categories that hold multiple stocked units. Bridal Set / Groom Set /
+  // Dresses are unique, one-off pieces (like the real products already
+  // in the system), so they're deliberately not in this list, matching
+  // how Bridal Set / Groom Set already behaved before today.
   const QTY_CATEGORIES = ['Footwear', 'Purse', 'Jewellery', 'Accessory', 'Menswear'];
   const tracksQtyByCategory = (cat) => QTY_CATEGORIES.includes(cat);
   const LOCATIONS = ['Showroom', 'Warehouse A', 'Warehouse B'];
-
-  // Short, human-writable prefix per category — matches the same
-  // sequential BLS-000001-style scheme already used for order codes,
-  // so SKUs are easy to read aloud and write by hand on a plain tag
-  // (no printer/scanner in use — see product decision this session).
-  const SKU_PREFIX = {
-    'Bridal Set': 'LEH',
-    'Groom Set': 'GRM',
-    'Menswear': 'MEN',
-    'Jewellery': 'JWL',
-    'Purse': 'PUR',
-    'Footwear': 'FTW',
-    'Accessory': 'ACC'
-  };
+  const categoryHasSubcategories = (cat) => !!(CATEGORY_TREE[cat] && CATEGORY_TREE[cat].subcategories);
+  const categoryHasParentSkuOption = (cat) => !!(CATEGORY_TREE[cat] && CATEGORY_TREE[cat].parentSku && CATEGORY_TREE[cat].subcategories);
 
   // Downscales+re-encodes any photo to a consistent max dimension and
   // JPEG quality before it ever leaves the browser -- see the call site
@@ -90,9 +134,29 @@ const Products = (() => {
   const getSales = () => (Store.getAll(Store.COLLECTIONS.SALES) || []).filter(Boolean);
   const getSaleItems = () => (Store.getAll(Store.COLLECTIONS.SALE_ITEMS) || []).filter(Boolean);
 
-  function generateSku(category) {
-    const prefix = SKU_PREFIX[category] || 'GEN';
-    const products = Store.getAll(Store.COLLECTIONS.PRODUCTS);
+  // isPartOfSet only matters for Bridal Set / Groom Set (categories
+  // with a parentSku AND subcategories); it's ignored for every other
+  // category shape, matching the rules worked out across this whole
+  // conversation. See the CATEGORY_TREE comment above for the full
+  // reasoning on each branch below.
+  function generateSku(category, subcategory, isPartOfSet) {
+    const node = CATEGORY_TREE[category];
+    if (!node) return null;
+
+    let prefix;
+    if (!node.subcategories) {
+      // Flat category (Jewellery / Purse / Accessory) -- always its own code.
+      prefix = node.parentSku;
+    } else if (node.parentSku && isPartOfSet) {
+      // Bridal Set / Groom Set, marked as part of a set -- shared parent counter.
+      prefix = node.parentSku;
+    } else {
+      // Either a set-category single piece, or a category with no parent
+      // code at all (Footwear/Dresses/Menswear) -- subcategory's own code.
+      prefix = (node.subcategories[subcategory]) || 'GEN';
+    }
+
+    const products = getProducts();
     let maxNum = 0;
     products.forEach(p => {
       if (p.sku && p.sku.indexOf(prefix + '-') === 0) {
@@ -698,7 +762,18 @@ const Products = (() => {
     if (editing && !p) { Utils.showToast('Product not found.', 'error'); return; }
 
     const defaultCategory = p.category || 'Bridal Set';
-    const suggestedSku = editing ? p.sku : generateSku(defaultCategory);
+    const defaultCatNode = CATEGORY_TREE[defaultCategory];
+    const defaultSubcategory = p.subcategory || (defaultCatNode && defaultCatNode.subcategories ? Object.keys(defaultCatNode.subcategories)[0] : null);
+    // Derive whether an existing product "was part of a set" from its
+    // actual SKU prefix -- this was never stored as its own flag, it's
+    // implicit in whether the SKU uses the parent code or the
+    // subcategory code. Defaults to true (parent code) for a brand new
+    // product in a set-category, matching how both real sets already
+    // in the system were entered.
+    const defaultIsPartOfSet = editing
+      ? !!(defaultCatNode && defaultCatNode.parentSku && p.sku && p.sku.indexOf(defaultCatNode.parentSku + '-') === 0)
+      : true;
+    const suggestedSku = editing ? p.sku : generateSku(defaultCategory, defaultSubcategory, defaultIsPartOfSet);
     // Effective tracking: explicit flag if set, else decide by category.
     const effTrack = editing
       ? (p.trackQuantity === true || (p.trackQuantity == null && tracksQtyByCategory(p.category)))
@@ -734,6 +809,26 @@ const Products = (() => {
               ${CATEGORIES.map(c => `<option value="${c}" ${p.category===c?'selected':''}>${c}</option>`).join('')}
             </select>
           </div>
+        </div>
+
+        <div class="form-group" id="pf-subcategory-group">
+          <label class="form-label">Subcategory</label>
+          <select id="pf-subcategory" name="subcategory" class="form-select"></select>
+        </div>
+
+        <div class="form-group" id="pf-set-toggle-group">
+          <label class="d-flex items-center gap-2" style="cursor:pointer">
+            <input type="checkbox" id="pf-is-set" ${defaultIsPartOfSet ? 'checked' : ''}>
+            <span class="text-sm">Part of a full set (uses the set's shared code) — uncheck if this is a single standalone piece</span>
+          </label>
+        </div>
+
+        <div class="form-group" id="pf-parent-link-group">
+          <label class="form-label">Link to Parent Set (optional)</label>
+          <select id="pf-parent-product" name="parentProductId" class="form-select">
+            <option value="">— This is the set itself —</option>
+          </select>
+          <div class="text-xs text-muted mt-1">Picking a parent copies its Cost/Price in below — still editable per piece.</div>
         </div>
 
         <div class="form-group">
@@ -886,6 +981,8 @@ const Products = (() => {
           sku: fd.get('sku').trim(),
           title: fd.get('title').trim(),
           category: fd.get('category'),
+          subcategory: fd.get('subcategory') || null,
+          parentProductId: fd.get('parentProductId') || null,
           description: fd.get('description').trim(),
           photoUrl: fd.get('photoUrl') || null,
           costPrice: parseFloat(fd.get('costPrice')) || 0,
@@ -927,25 +1024,99 @@ const Products = (() => {
       const catSel = document.querySelector('#product-form [name="category"]');
       const trackCb = document.querySelector('#track-qty-cb');
       const qtyGroup = document.querySelector('#qty-group');
+      const subcatGroup = document.querySelector('#pf-subcategory-group');
+      const subcatSel = document.querySelector('#pf-subcategory');
+      const setToggleGroup = document.querySelector('#pf-set-toggle-group');
+      const setToggleCb = document.querySelector('#pf-is-set');
+      const parentLinkGroup = document.querySelector('#pf-parent-link-group');
+      const parentLinkSel = document.querySelector('#pf-parent-product');
+      const skuInput = document.querySelector('#pf-sku');
+      const costEl2 = document.querySelector('#pf-cost-price');
+      const priceEl2 = document.querySelector('#pf-price');
       if (!catSel || !trackCb || !qtyGroup) return;
 
       const syncQtyVisibility = () => {
         qtyGroup.style.display = trackCb.checked ? 'block' : 'none';
       };
+
+      // Regenerates the suggested SKU from the current form state --
+      // only when adding a new product; an existing SKU is never
+      // silently rewritten out from under an edit.
+      const regenerateSkuIfNew = () => {
+        if (editing || !skuInput) return;
+        skuInput.value = generateSku(catSel.value, subcatSel ? subcatSel.value : null, !!(setToggleCb && setToggleCb.checked));
+      };
+
+      // Rebuilds the subcategory / set-toggle / parent-link fields to
+      // match whatever category is currently selected. Called on load
+      // and every time the category changes.
+      const refreshCategoryDependentUI = (preserveSubcategory) => {
+        const cat = catSel.value;
+        const node = CATEGORY_TREE[cat];
+        const hasSub = categoryHasSubcategories(cat);
+        const hasSetOption = categoryHasParentSkuOption(cat);
+
+        if (subcatGroup) subcatGroup.style.display = hasSub ? 'block' : 'none';
+        if (subcatSel) {
+          const keepValue = preserveSubcategory && subcatSel.value;
+          subcatSel.innerHTML = hasSub
+            ? Object.keys(node.subcategories).map(s => `<option value="${s}">${s}</option>`).join('')
+            : '';
+          if (hasSub && keepValue && node.subcategories[keepValue]) subcatSel.value = keepValue;
+        }
+
+        if (setToggleGroup) setToggleGroup.style.display = hasSetOption ? 'block' : 'none';
+        if (parentLinkGroup) parentLinkGroup.style.display = (hasSetOption && setToggleCb && setToggleCb.checked) ? 'block' : 'none';
+
+        // Parent-link options: other existing products in the same
+        // category that are themselves root sets (no parent of their
+        // own), excluding the product currently being edited.
+        if (parentLinkSel) {
+          const candidates = getProducts().filter(prod =>
+            prod.category === cat && !prod.parentProductId && prod.id !== productId
+          );
+          parentLinkSel.innerHTML = '<option value="">— This is the set itself —</option>' +
+            candidates.map(prod => `<option value="${prod.id}" ${p.parentProductId===prod.id?'selected':''}>${Utils.sanitizeHTML(prod.sku||'')} — ${Utils.sanitizeHTML(prod.title||'Untitled')}</option>`).join('');
+        }
+      };
+
       // When category changes, default the track flag to the category rule
-      // (user can still override by toggling the checkbox afterwards), and
-      // regenerate the suggested SKU to match the new category's prefix —
-      // only when adding a new product; an existing SKU is never silently
-      // rewritten out from under an edit.
+      // (user can still override by toggling the checkbox afterwards).
       catSel.addEventListener('change', () => {
         trackCb.checked = tracksQtyByCategory(catSel.value);
         syncQtyVisibility();
-        if (!editing) {
-          const skuInput = document.querySelector('#pf-sku');
-          if (skuInput) skuInput.value = generateSku(catSel.value);
-        }
+        refreshCategoryDependentUI(false);
+        regenerateSkuIfNew();
       });
       trackCb.addEventListener('change', syncQtyVisibility);
+
+      if (subcatSel) subcatSel.addEventListener('change', regenerateSkuIfNew);
+      if (setToggleCb) {
+        setToggleCb.addEventListener('change', () => {
+          if (parentLinkGroup) parentLinkGroup.style.display = setToggleCb.checked ? 'block' : 'none';
+          regenerateSkuIfNew();
+        });
+      }
+      // Picking a parent set copies its Cost/Price in as a starting
+      // point -- both fields stay fully editable afterward, per the
+      // "one shared price, overridable per piece" decision.
+      if (parentLinkSel) {
+        parentLinkSel.addEventListener('change', () => {
+          if (!parentLinkSel.value) return;
+          const parent = Store.getById(Store.COLLECTIONS.PRODUCTS, parentLinkSel.value);
+          if (!parent) return;
+          if (costEl2) costEl2.value = parent.costPrice || 0;
+          if (priceEl2) priceEl2.value = parent.price || 0;
+          if (typeof recalcMargins === 'function') recalcMargins();
+        });
+      }
+
+      // Initial population on modal open, preserving the existing
+      // subcategory when editing a product that already has one.
+      refreshCategoryDependentUI(true);
+      if (subcatSel && p.subcategory && CATEGORY_TREE[p.category || defaultCategory] && CATEGORY_TREE[p.category || defaultCategory].subcategories && CATEGORY_TREE[p.category || defaultCategory].subcategories[p.subcategory]) {
+        subcatSel.value = p.subcategory;
+      }
 
       // Live Gross Profit / Gross Margin -- recalculates on every
       // keystroke in either price field. Never written to the database;
