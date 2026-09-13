@@ -727,7 +727,17 @@ const Products = (() => {
             });
 
             const prod = Store.getById(Store.COLLECTIONS.PRODUCTS, item.productId);
-            if (prod && prod.trackQuantity) {
+            // Requires BOTH the product's own trackQuantity flag AND the
+            // category-based rule to agree it's genuinely a multi-unit
+            // stocked item, not just the stored flag alone. A real bug
+            // was found and fixed: 3 unique Bridal Set/Dresses pieces
+            // had trackQuantity=true left over from before that category
+            // rule existed, so a sale of them wrongly went through the
+            // "decrement to zero -> Out of Stock" path instead of being
+            // marked Sold. Checking the category rule too means a stale
+            // flag on any future product can't cause the same mistake.
+            const isGenuinelyTracked = prod && prod.trackQuantity && tracksQtyByCategory(prod.category);
+            if (isGenuinelyTracked) {
               // Multi-unit stock (Footwear, Purse, Jewellery, etc.) --
               // decrement the count, only flip to Out of Stock at zero,
               // since other units of the same product may still remain.
@@ -801,6 +811,82 @@ const Products = (() => {
     }, 50);
   }
 
+  // Shared core: fully reverses one sale line -- restores/repairs the
+  // product's stock exactly as Record Sale's own two branches would
+  // expect, deletes the sale_item, and either recalculates the parent
+  // sale's totals from what's left or deletes the sale entirely if
+  // nothing remains. No confirm dialog, no toast, no re-render -- pure
+  // side effect, so every entry point that needs to "undo a sale" goes
+  // through this one path instead of each button reimplementing its
+  // own partial version.
+  async function _reverseSaleItem(saleItemId) {
+    const li = getSaleItems().find(x => x.id === saleItemId);
+    if (!li) return;
+    const sale = getSales().find(x => x.id === li.saleId);
+    const prod = li.productId ? Store.getById(Store.COLLECTIONS.PRODUCTS, li.productId) : null;
+
+    if (prod) {
+      const isGenuinelyTracked = prod.trackQuantity && tracksQtyByCategory(prod.category);
+      if (isGenuinelyTracked) {
+        const restoredQty = (prod.quantity || 0) + (li.quantity || 0);
+        const newStatus = prod.status === 'Out of Stock' ? 'In Stock' : prod.status;
+        await Store.update(Store.COLLECTIONS.PRODUCTS, prod.id, { quantity: restoredQty, status: newStatus });
+      } else if (prod.status === 'Sold') {
+        await Store.update(Store.COLLECTIONS.PRODUCTS, prod.id, { status: 'In Stock' });
+      }
+    }
+
+    await Store.delete(Store.COLLECTIONS.SALE_ITEMS, li.id);
+
+    if (sale) {
+      const remaining = getSaleItems().filter(x => x.saleId === sale.id && x.id !== li.id);
+      if (remaining.length === 0) {
+        await Store.delete(Store.COLLECTIONS.SALES, sale.id);
+      } else {
+        const subtotal = remaining.reduce((sum, x) => sum + (x.quantity || 0) * (x.unitPrice || 0), 0);
+        const gstTotal = remaining.reduce((sum, x) => sum + (x.gst || 0), 0);
+        await Store.update(Store.COLLECTIONS.SALES, sale.id, {
+          subtotal, gstTotal, total: subtotal + gstTotal
+        });
+      }
+    }
+  }
+
+  // Finds the sale line responsible for a product's current Sold status
+  // -- the most recent sale (by saleDate, falling back to createdAt)
+  // that includes this product. Used by "Return to Inventory" in
+  // Product View, which only has a productId, not a specific saleItemId.
+  function _findMostRecentSaleItemForProduct(productId) {
+    const candidates = getSaleItems().filter(li => li.productId === productId);
+    if (candidates.length === 0) return null;
+    const sales = getSales();
+    const dateOf = (li) => {
+      const s = sales.find(x => x.id === li.saleId);
+      return new Date((s && (s.saleDate || s.createdAt)) || li.createdAt || 0);
+    };
+    return candidates.slice().sort((a, b) => dateOf(b) - dateOf(a))[0];
+  }
+
+  function removeSaleItem(saleItemId) {
+    const li = getSaleItems().find(x => x.id === saleItemId);
+    if (!li) { Utils.showToast('Sale item not found.', 'error'); return; }
+
+    App.showConfirm({
+      title: 'Remove Item From Sale',
+      text: `Remove "${li.description || 'this item'}" from this sale? It will be returned to inventory and the sale total will be recalculated.`,
+      confirmText: 'Remove',
+      onConfirm: async () => {
+        try {
+          await _reverseSaleItem(saleItemId);
+          Utils.showToast('Item removed from sale and returned to inventory.');
+          showSalesHistoryModal();
+        } catch (e) {
+          Utils.showToast('Remove failed: ' + e.message, 'error');
+        }
+      }
+    });
+  }
+
   function showSalesHistoryModal() {
     const sales = getSales().slice().sort((a, b) => new Date(b.saleDate || b.createdAt || 0) - new Date(a.saleDate || a.createdAt || 0));
     const items = getSaleItems();
@@ -820,7 +906,7 @@ const Products = (() => {
     });
 
     const rows = allRows.length === 0
-      ? '<tr><td colspan="6" class="text-center text-muted">No sales recorded yet.</td></tr>'
+      ? '<tr><td colspan="7" class="text-center text-muted">No sales recorded yet.</td></tr>'
       : allRows.map(({ sale: s, line: li }) => {
           if (!li) {
             return `
@@ -831,6 +917,7 @@ const Products = (() => {
                 <td class="font-mono text-xs">${Utils.formatCurrency(s.total || 0)}</td>
                 <td class="font-mono text-xs">\u2014</td>
                 <td class="font-mono text-xs">\u2014</td>
+                <td></td>
               </tr>`;
           }
           const prod = li.productId ? Store.getById(Store.COLLECTIONS.PRODUCTS, li.productId) : null;
@@ -854,6 +941,7 @@ const Products = (() => {
               <td class="font-mono text-xs">${Utils.formatCurrency(li.amount != null ? li.amount : lineSubtotal)}</td>
               <td class="font-mono text-xs" style="color:${lineProfit < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${Utils.formatCurrency(lineProfit)}</td>
               <td class="font-mono text-xs" style="color:${lineMargin < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${lineMargin.toFixed(1)}%</td>
+              <td style="text-align:right"><button type="button" class="btn btn-danger btn-sm" onclick="Products.removeSaleItem('${li.id}')" title="Remove from sale">\u2715</button></td>
             </tr>`;
         }).join('');
 
@@ -861,7 +949,7 @@ const Products = (() => {
       title: 'Sales History',
       content: `<div class="table-container" style="border:none;max-height:60vh;overflow-y:auto;">
         <table class="data-table">
-          <thead><tr><th>Date</th><th>Customer</th><th>Item</th><th>Total</th><th>Gross Profit</th><th>Margin</th></tr></thead>
+          <thead><tr><th>Date</th><th>Customer</th><th>Item</th><th>Total</th><th>Gross Profit</th><th>Margin</th><th></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`,
@@ -1431,10 +1519,20 @@ const Products = (() => {
       onSubmit: async () => {
         try {
           if (p.status === 'Sold') {
-            // Undoes the "Sold" status set by Record Sale -- puts the
-            // item back into normal circulation. Does not attempt to
-            // reverse the sale record itself, only the product's status.
-            await Store.update(Store.COLLECTIONS.PRODUCTS, id, { status: 'In Stock' });
+            // Goes through the exact same reversal Sales History's "X"
+            // button uses -- restores stock AND cleans up the sale
+            // record (recalculates its total, or deletes it if this
+            // was its only line) -- not just the product's own status.
+            // Finds the sale line responsible since this entry point
+            // only has a productId, not a specific saleItemId.
+            const li = _findMostRecentSaleItemForProduct(id);
+            if (li) {
+              await _reverseSaleItem(li.id);
+            } else {
+              // No sale record ever linked to this -- status was set
+              // Sold some other way. Nothing to reconcile, just flip it.
+              await Store.update(Store.COLLECTIONS.PRODUCTS, id, { status: 'In Stock' });
+            }
             Utils.showToast('Returned to inventory.');
             render();
           } else if (p.status === 'Out for Shoot' && activeCheckout) {
@@ -1685,6 +1783,7 @@ const Products = (() => {
     viewVendor,
     showCheckoutModal,
     markCheckoutReturned,
-    showShootLogModal
+    showShootLogModal,
+    removeSaleItem
   };
 })();
