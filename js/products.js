@@ -30,6 +30,59 @@ const Products = (() => {
     'Accessory': 'ACC'
   };
 
+  // Downscales+re-encodes any photo to a consistent max dimension and
+  // JPEG quality before it ever leaves the browser -- see the call site
+  // in the photo-input change handler below for why this exists (Android
+  // vs iPhone native camera resolution mismatch).
+  function resizeImageForUpload(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width >= height) {
+            height = Math.round(height * (maxDim / width));
+            width = maxDim;
+          } else {
+            width = Math.round(width * (maxDim / height));
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Could not load image for resizing')); };
+      img.src = objectUrl;
+    });
+  }
+
+  // Click-to-enlarge: opens the product photo full-size in a simple
+  // dark overlay. Closes on click-anywhere or Escape. Self-contained
+  // (inline styles) so it needs no changes to css/app.css.
+  function openPhotoLightbox(url) {
+    if (!url) return;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:24px;';
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.5);';
+    overlay.appendChild(img);
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    overlay.addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(overlay);
+  }
+
   function generateSku(category) {
     const prefix = SKU_PREFIX[category] || 'GEN';
     const products = Store.getAll(Store.COLLECTIONS.PRODUCTS);
@@ -399,6 +452,13 @@ const Products = (() => {
       const photoStatus = document.querySelector('#pf-photo-status');
       const photoPreview = document.querySelector('#pf-photo-preview');
       const photoUrlHidden = document.querySelector('#pf-photo-url');
+      if (photoPreview) {
+        photoPreview.style.cursor = 'zoom-in';
+        photoPreview.addEventListener('click', () => {
+          const previewImg = photoPreview.querySelector('img');
+          if (previewImg && previewImg.src) openPhotoLightbox(previewImg.src);
+        });
+      }
       if (photoBtn && photoInput) {
         photoBtn.addEventListener('click', () => photoInput.click());
         photoInput.addEventListener('change', async () => {
@@ -408,53 +468,62 @@ const Products = (() => {
           photoStatus.textContent = 'Reading photo…';
           photoBtn.disabled = true;
 
-          const reader = new FileReader();
-          reader.onload = async () => {
-            try {
-              photoStatus.textContent = 'Analyzing photo…';
-              const client = Store.getClient();
-              const { data: sessionData } = await client.auth.getSession();
-              const authToken = sessionData?.session?.access_token;
-              if (!authToken) {
-                photoStatus.textContent = 'Session expired — please refresh and try again.';
-                photoBtn.disabled = false;
-                return;
-              }
+          try {
+            // Normalize every photo to the same max dimension + JPEG
+            // quality before upload, regardless of source device. Without
+            // this, whatever resolution the phone's camera produced went
+            // straight through unchanged -- Android and iPhone default to
+            // very different native resolutions and file sizes, which is
+            // what caused the inconsistency (nothing was actually wrong
+            // with the AI extraction itself, there was just nothing
+            // normalizing the input on either side). 1600px on the long
+            // edge is comfortably enough detail for fabric/colour/
+            // embroidery recognition while keeping uploads small and
+            // consistent on both platforms.
+            const resizedDataUrl = await resizeImageForUpload(file, 1600, 0.85);
 
-              const res = await fetch('/api/product-photo-intake', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: authToken, imageBase64: reader.result })
-              });
-              const result = await res.json();
-
-              if (!res.ok || !result.ok) {
-                photoStatus.textContent = result.error || 'Could not read that photo — try a clearer, single-item shot.';
-                photoBtn.disabled = false;
-                return;
-              }
-
-              // Populate what the photo actually told us. Never touches
-              // price, cost, status, location, or quantity — those aren't
-              // visible in a photo, and this form still requires you to
-              // set them yourself.
-              const catSelEl = document.querySelector('#pf-category');
-              const titleEl = document.querySelector('#pf-title');
-              const descEl = document.querySelector('#pf-description');
-              if (catSelEl) { catSelEl.value = result.category; catSelEl.dispatchEvent(new Event('change')); }
-              if (titleEl) titleEl.value = result.title;
-              if (descEl) descEl.value = result.description || '';
-              if (photoUrlHidden) photoUrlHidden.value = result.photoUrl;
-              if (photoPreview) photoPreview.innerHTML = `<img src="${result.photoUrl}" style="width:100%;height:100%;object-fit:cover;">`;
-              photoBtn.textContent = 'Replace Photo';
-              photoStatus.textContent = 'Filled in from photo — review before saving.';
-            } catch (err) {
-              photoStatus.textContent = 'Something went wrong reading that photo. Try again.';
-            } finally {
+            photoStatus.textContent = 'Analyzing photo…';
+            const client = Store.getClient();
+            const { data: sessionData } = await client.auth.getSession();
+            const authToken = sessionData?.session?.access_token;
+            if (!authToken) {
+              photoStatus.textContent = 'Session expired — please refresh and try again.';
               photoBtn.disabled = false;
+              return;
             }
-          };
-          reader.readAsDataURL(file);
+
+            const res = await fetch('/api/product-photo-intake', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: authToken, imageBase64: resizedDataUrl })
+            });
+            const result = await res.json();
+
+            if (!res.ok || !result.ok) {
+              photoStatus.textContent = result.error || 'Could not read that photo — try a clearer, single-item shot.';
+              photoBtn.disabled = false;
+              return;
+            }
+
+            // Populate what the photo actually told us. Never touches
+            // price, cost, status, location, or quantity — those aren't
+            // visible in a photo, and this form still requires you to
+            // set them yourself.
+            const catSelEl = document.querySelector('#pf-category');
+            const titleEl = document.querySelector('#pf-title');
+            const descEl = document.querySelector('#pf-description');
+            if (catSelEl) { catSelEl.value = result.category; catSelEl.dispatchEvent(new Event('change')); }
+            if (titleEl) titleEl.value = result.title;
+            if (descEl) descEl.value = result.description || '';
+            if (photoUrlHidden) photoUrlHidden.value = result.photoUrl;
+            if (photoPreview) photoPreview.innerHTML = `<img src="${result.photoUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+            photoBtn.textContent = 'Replace Photo';
+            photoStatus.textContent = 'Filled in from photo — review before saving.';
+          } catch (err) {
+            photoStatus.textContent = 'Something went wrong reading that photo. Try again.';
+          } finally {
+            photoBtn.disabled = false;
+          }
         });
       }
     }, 50);
@@ -530,6 +599,7 @@ const Products = (() => {
     editProduct,
     deleteProduct,
     showProductModal,
-    showReport
+    showReport,
+    openPhotoLightbox
   };
 })();
