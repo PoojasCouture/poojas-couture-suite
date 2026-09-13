@@ -3103,7 +3103,7 @@ poojascouture.com.au`
               '<td class="font-mono text-xs font-bold">' + Utils.formatCurrency(inv.total) + '</td></tr>'
             ).join('')
         ) + '</tbody></table></div>' +
-        '<div class="d-flex justify-content-between text-sm mt-2 mb-4"><span class="text-muted">Custom Orders Subtotal</span><strong class="font-mono">' + Utils.formatCurrency(customOrderRevenueForReport) + '</strong></div>' +
+        '<div class="d-flex justify-between text-sm mt-2 mb-4"><span class="text-muted">Custom Orders Subtotal</span><strong class="font-mono">' + Utils.formatCurrency(customOrderRevenueForReport) + '</strong></div>' +
 
         '<div class="text-xs text-muted mb-2">Retail Stock Sales — completed sales</div>' +
         '<div class="table-container" style="border:none"><table class="data-table"><thead><tr><th>Date</th><th>Customer</th><th>Amount</th></tr></thead><tbody>' +
@@ -3115,9 +3115,9 @@ poojascouture.com.au`
               '<td class="font-mono text-xs font-bold">' + Utils.formatCurrency(s.total) + '</td></tr>'
             ).join('')
         ) + '</tbody></table></div>' +
-        '<div class="d-flex justify-content-between text-sm mt-2 mb-4"><span class="text-muted">Retail Stock Subtotal</span><strong class="font-mono">' + Utils.formatCurrency(retailRevenueForReport) + '</strong></div>' +
+        '<div class="d-flex justify-between text-sm mt-2 mb-4"><span class="text-muted">Retail Stock Subtotal</span><strong class="font-mono">' + Utils.formatCurrency(retailRevenueForReport) + '</strong></div>' +
 
-        '<div class="d-flex justify-content-between" style="border-top:1px solid var(--pc-border);padding-top:10px;"><strong>Combined Total</strong><strong class="font-mono text-gold">' + Utils.formatCurrency(customOrderRevenueForReport + retailRevenueForReport) + '</strong></div>';
+        '<div class="d-flex justify-between" style="border-top:1px solid var(--pc-border);padding-top:10px;"><strong>Combined Total</strong><strong class="font-mono text-gold">' + Utils.formatCurrency(customOrderRevenueForReport + retailRevenueForReport) + '</strong></div>';
     } else if (type === 'outstanding') {
       title = '⏳ Outstanding Balances';
       const unpaid = invoices.filter(i => (i.total||0) > (parseFloat(i.amountPaid)||0));

@@ -495,7 +495,7 @@ const Products = (() => {
         `).join('');
 
     const content = `
-      <div class="d-flex justify-content-between items-center mb-3">
+      <div class="d-flex justify-between items-center mb-3">
         <span class="text-sm text-muted">${vendors.length} supplier${vendors.length === 1 ? '' : 's'}</span>
         <button type="button" class="btn btn-primary btn-sm" id="btn-add-vendor-inline">+ Add Vendor</button>
       </div>
@@ -527,7 +527,7 @@ const Products = (() => {
     if (!v) { Utils.showToast('Vendor not found.', 'error'); return; }
 
     const row = (label, value) => value
-      ? `<div class="d-flex justify-content-between text-sm mb-1"><span class="text-muted">${label}</span><span>${Utils.sanitizeHTML(String(value))}</span></div>`
+      ? `<div class="d-flex justify-between text-sm mb-1"><span class="text-muted">${label}</span><span>${Utils.sanitizeHTML(String(value))}</span></div>`
       : '';
 
     const content = `
@@ -679,11 +679,11 @@ const Products = (() => {
           </div>
 
           <div class="form-group" style="background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:8px;padding:var(--sp-4);">
-            <div class="d-flex justify-content-between text-sm mb-1"><span class="text-muted">Subtotal</span><span class="font-mono" id="sale-total-subtotal">${Utils.formatCurrency(t.subtotal)}</span></div>
-            <div class="d-flex justify-content-between text-sm mb-1"><span class="text-muted">GST (10%)</span><span class="font-mono" id="sale-total-gst">${Utils.formatCurrency(t.gstTotal)}</span></div>
-            <div class="d-flex justify-content-between mb-2" style="border-bottom:1px solid var(--pc-border);padding-bottom:8px"><strong>Total</strong><strong class="font-mono" id="sale-total-total">${Utils.formatCurrency(t.total)}</strong></div>
-            <div class="d-flex justify-content-between text-sm"><span class="text-muted">Gross Profit</span><strong class="font-mono" id="sale-total-profit" style="color:${t.grossProfit < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${Utils.formatCurrency(t.grossProfit)}</strong></div>
-            <div class="d-flex justify-content-between text-sm"><span class="text-muted">Gross Margin</span><strong class="font-mono" id="sale-total-margin" style="color:${t.grossMargin < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${t.grossMargin.toFixed(1)}%</strong></div>
+            <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">Subtotal</span><span class="font-mono" id="sale-total-subtotal">${Utils.formatCurrency(t.subtotal)}</span></div>
+            <div class="d-flex justify-between text-sm mb-1"><span class="text-muted">GST (10%)</span><span class="font-mono" id="sale-total-gst">${Utils.formatCurrency(t.gstTotal)}</span></div>
+            <div class="d-flex justify-between mb-2" style="border-bottom:1px solid var(--pc-border);padding-bottom:8px"><strong>Total</strong><strong class="font-mono" id="sale-total-total">${Utils.formatCurrency(t.total)}</strong></div>
+            <div class="d-flex justify-between text-sm"><span class="text-muted">Gross Profit</span><strong class="font-mono" id="sale-total-profit" style="color:${t.grossProfit < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${Utils.formatCurrency(t.grossProfit)}</strong></div>
+            <div class="d-flex justify-between text-sm"><span class="text-muted">Gross Margin</span><strong class="font-mono" id="sale-total-margin" style="color:${t.grossMargin < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${t.grossMargin.toFixed(1)}%</strong></div>
           </div>
 
           <div class="form-group">
@@ -1373,7 +1373,7 @@ const Products = (() => {
     const canCheckOut = p.status === 'In Stock' || p.status === 'Reserved';
 
     const row = (label, value) => value
-      ? `<div class="d-flex justify-content-between text-sm mb-1"><span class="text-muted">${label}</span><span>${Utils.sanitizeHTML(String(value))}</span></div>`
+      ? `<div class="d-flex justify-between text-sm mb-1"><span class="text-muted">${label}</span><span>${Utils.sanitizeHTML(String(value))}</span></div>`
       : '';
 
     const content = `
