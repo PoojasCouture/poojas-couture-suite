@@ -806,9 +806,20 @@ const Products = (() => {
           }, 0);
           const grossProfit = (s.subtotal || 0) - cost;
           const grossMargin = s.subtotal > 0 ? (grossProfit / s.subtotal) * 100 : 0;
+          // Each item is clickable straight to that product's View modal
+          // (same one built for the Products list), where "Return to
+          // Inventory" already exists if it's currently marked Sold.
+          // Falls back to plain, non-clickable text if the product was
+          // since deleted -- there's nothing to open in that case.
           const itemsList = lines.length === 0
             ? '\u2014'
-            : lines.map(li => `${li.quantity || 1}\u00d7 ${Utils.sanitizeHTML(li.description || 'Untitled')}`).join('<br>');
+            : lines.map(li => {
+                const stillExists = li.productId && Store.getById(Store.COLLECTIONS.PRODUCTS, li.productId);
+                const label = `${li.quantity || 1}\u00d7 ${Utils.sanitizeHTML(li.description || 'Untitled')}`;
+                return stillExists
+                  ? `<a href="javascript:void(0)" onclick="Products.viewProduct('${li.productId}')" style="color:var(--pc-gold);text-decoration:underline;cursor:pointer;">${label}</a>`
+                  : `<span class="text-muted">${label} (product removed)</span>`;
+              }).join('<br>');
           return `
             <tr>
               <td class="text-xs">${Utils.sanitizeHTML(s.saleDate || '\u2014')}</td>
