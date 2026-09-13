@@ -1803,9 +1803,12 @@ const Products = (() => {
         `).join('');
 
     const content = `
-      <div class="d-flex justify-between items-center mb-3">
+      <div class="d-flex justify-between items-center mb-3 gap-2 flex-wrap">
         <span class="text-sm text-muted">${borrowers.length} borrower${borrowers.length === 1 ? '' : 's'}</span>
-        <button type="button" class="btn btn-primary btn-sm" id="btn-add-borrower-inline">+ Add Borrower</button>
+        <div class="d-flex gap-2 flex-wrap">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-import-google-contacts">📇 Import from Google Contacts</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-add-borrower-inline">+ Add Borrower</button>
+        </div>
       </div>
       <div class="table-container" style="border:none;max-height:60vh;overflow-y:auto;">
         <table class="data-table">
@@ -1827,6 +1830,11 @@ const Products = (() => {
     setTimeout(() => {
       const btn = document.querySelector('#btn-add-borrower-inline');
       if (btn) btn.addEventListener('click', () => showBorrowerModal(null, () => showBorrowersListModal()));
+      // This was built earlier but never actually wired to anything --
+      // the function existed with nothing in the UI that ever called
+      // it. Fixed: this is the real, only entry point to it.
+      const gcBtn = document.querySelector('#btn-import-google-contacts');
+      if (gcBtn) gcBtn.addEventListener('click', () => showGoogleContactsPickerModal());
     }, 50);
   }
 

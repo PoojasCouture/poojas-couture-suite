@@ -1151,6 +1151,15 @@ p {
 .page-actions {
   display: flex;
   align-items: center;
+  /* Wraps to a new line whenever the buttons don't fit the available
+     width, instead of the previous behavior: no wrap and no scroll
+     (overflow-x defaults to visible), so extra buttons just silently
+     ran off the right edge of the screen with no way to reach them.
+     Real bug found live on iPhone width -- any page whose header has
+     more than 3-4 buttons (Stock & Inventory has 6) hit this. Applies
+     unconditionally, not just under a mobile breakpoint, since a
+     narrow desktop window has the exact same problem. */
+  flex-wrap: wrap;
   gap: var(--sp-3);
 }
 
