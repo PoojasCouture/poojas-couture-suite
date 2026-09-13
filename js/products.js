@@ -222,6 +222,23 @@ const Products = (() => {
 
     const formHTML = `
       <form id="product-form" class="d-flex flex-col gap-3">
+        <div class="form-group" id="pf-photo-group">
+          <input type="hidden" name="photoUrl" id="pf-photo-url" value="${Utils.sanitizeHTML(p.photoUrl || '')}">
+          <label class="form-label">Item Photo ${editing && p.photoUrl ? '' : '(optional — fills in Category, Name & Description for you)'}</label>
+          <div class="d-flex items-center gap-3">
+            <div id="pf-photo-preview" style="width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--pc-bg-subtle,#f3f3f3);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+              ${p.photoUrl ? `<img src="${Utils.sanitizeHTML(p.photoUrl)}" style="width:100%;height:100%;object-fit:cover;">` : '<span style="font-size:22px;">📷</span>'}
+            </div>
+            <div class="d-flex flex-col gap-1">
+              <input type="file" id="pf-photo-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
+              <button type="button" class="btn btn-secondary btn-sm" id="pf-photo-btn">
+                ${p.photoUrl ? 'Replace Photo' : '📷 Fill from Photo'}
+              </button>
+              <span class="text-xs text-muted" id="pf-photo-status"></span>
+            </div>
+          </div>
+        </div>
+
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">SKU / Item Code</label>
@@ -237,13 +254,14 @@ const Products = (() => {
 
         <div class="form-group">
           <label class="form-label">Product Name *</label>
-          <input type="text" name="title" class="form-input" required value="${Utils.sanitizeHTML(p.title || '')}" placeholder="e.g. Ivory Silk Bridal Lehenga / Gold Bridal Sneakers">
+          <input type="text" id="pf-title" name="title" class="form-input" required value="${Utils.sanitizeHTML(p.title || '')}" placeholder="e.g. Ivory Silk Bridal Lehenga / Gold Bridal Sneakers">
         </div>
 
         <div class="form-group">
           <label class="form-label">Description</label>
-          <textarea name="description" class="form-input" rows="2" placeholder="Fabric, work, size, colour...">${Utils.sanitizeHTML(p.description || '')}</textarea>
+          <textarea id="pf-description" name="description" class="form-input" rows="2" placeholder="Fabric, work, size, colour...">${Utils.sanitizeHTML(p.description || '')}</textarea>
         </div>
+
 
         <div class="form-row">
           <div class="form-group">
@@ -320,6 +338,7 @@ const Products = (() => {
           title: fd.get('title').trim(),
           category: fd.get('category'),
           description: fd.get('description').trim(),
+          photoUrl: fd.get('photoUrl') || null,
           costPrice: parseFloat(fd.get('costPrice')) || 0,
           price: parseFloat(fd.get('price')) || 0,
           status: status,
@@ -370,6 +389,74 @@ const Products = (() => {
         }
       });
       trackCb.addEventListener('change', syncQtyVisibility);
+
+      // Wire "Fill from Photo" — pick a file, send it to the extraction
+      // endpoint, populate Category/Title/Description with what comes
+      // back. Price/status/location/quantity are left alone on purpose —
+      // see product-photo-intake.js for why the AI never touches those.
+      const photoBtn = document.querySelector('#pf-photo-btn');
+      const photoInput = document.querySelector('#pf-photo-input');
+      const photoStatus = document.querySelector('#pf-photo-status');
+      const photoPreview = document.querySelector('#pf-photo-preview');
+      const photoUrlHidden = document.querySelector('#pf-photo-url');
+      if (photoBtn && photoInput) {
+        photoBtn.addEventListener('click', () => photoInput.click());
+        photoInput.addEventListener('change', async () => {
+          const file = photoInput.files && photoInput.files[0];
+          if (!file) return;
+
+          photoStatus.textContent = 'Reading photo…';
+          photoBtn.disabled = true;
+
+          const reader = new FileReader();
+          reader.onload = async () => {
+            try {
+              photoStatus.textContent = 'Analyzing photo…';
+              const client = Store.getClient();
+              const { data: sessionData } = await client.auth.getSession();
+              const authToken = sessionData?.session?.access_token;
+              if (!authToken) {
+                photoStatus.textContent = 'Session expired — please refresh and try again.';
+                photoBtn.disabled = false;
+                return;
+              }
+
+              const res = await fetch('/api/product-photo-intake', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: authToken, imageBase64: reader.result })
+              });
+              const result = await res.json();
+
+              if (!res.ok || !result.ok) {
+                photoStatus.textContent = result.error || 'Could not read that photo — try a clearer, single-item shot.';
+                photoBtn.disabled = false;
+                return;
+              }
+
+              // Populate what the photo actually told us. Never touches
+              // price, cost, status, location, or quantity — those aren't
+              // visible in a photo, and this form still requires you to
+              // set them yourself.
+              const catSelEl = document.querySelector('#pf-category');
+              const titleEl = document.querySelector('#pf-title');
+              const descEl = document.querySelector('#pf-description');
+              if (catSelEl) { catSelEl.value = result.category; catSelEl.dispatchEvent(new Event('change')); }
+              if (titleEl) titleEl.value = result.title;
+              if (descEl) descEl.value = result.description || '';
+              if (photoUrlHidden) photoUrlHidden.value = result.photoUrl;
+              if (photoPreview) photoPreview.innerHTML = `<img src="${result.photoUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+              photoBtn.textContent = 'Replace Photo';
+              photoStatus.textContent = 'Filled in from photo — review before saving.';
+            } catch (err) {
+              photoStatus.textContent = 'Something went wrong reading that photo. Try again.';
+            } finally {
+              photoBtn.disabled = false;
+            }
+          };
+          reader.readAsDataURL(file);
+        });
+      }
     }, 50);
   }
 
