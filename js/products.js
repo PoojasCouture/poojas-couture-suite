@@ -87,6 +87,8 @@ const Products = (() => {
   const VENDOR_TYPES = ['Fabric Supplier', 'Embroidery / Karigar', 'Tailoring Unit', 'Logistics / Freight', 'Trims & Accessories', 'Other'];
   const VENDOR_STATUSES = ['Active', 'Inactive'];
   const getVendors = () => (Store.getAll(Store.COLLECTIONS.VENDORS) || []).filter(Boolean);
+  const getSales = () => (Store.getAll(Store.COLLECTIONS.SALES) || []).filter(Boolean);
+  const getSaleItems = () => (Store.getAll(Store.COLLECTIONS.SALE_ITEMS) || []).filter(Boolean);
 
   function generateSku(category) {
     const prefix = SKU_PREFIX[category] || 'GEN';
@@ -134,6 +136,8 @@ const Products = (() => {
           <p class="page-subtitle">Track stock, ready-made pieces, bridal sneakers, purses and accessories</p>
         </div>
         <div class="page-actions">
+          <button class="btn btn-secondary" id="btn-sales-history">📊 Sales History</button>
+          <button class="btn btn-secondary" id="btn-record-sale">💵 Record Sale</button>
           <button class="btn btn-secondary" id="btn-manage-vendors">🏭 Vendors</button>
           <button class="btn btn-primary" id="btn-add-product">+ Add Product</button>
         </div>
@@ -206,6 +210,8 @@ const Products = (() => {
     // Wire controls
     Utils.$('#btn-add-product').addEventListener('click', () => showProductModal());
     Utils.$('#btn-manage-vendors').addEventListener('click', () => showVendorsListModal());
+    Utils.$('#btn-record-sale').addEventListener('click', () => showRecordSaleModal());
+    Utils.$('#btn-sales-history').addEventListener('click', () => showSalesHistoryModal());
     Utils.$('#btn-export-products').addEventListener('click', exportCSV);
 
     const searchEl = Utils.$('#product-search');
@@ -445,6 +451,244 @@ const Products = (() => {
   }
 
   function editVendor(id) { showVendorModal(id, () => showVendorsListModal()); }
+
+  // ============================================================
+  // RECORD SALE -- sells one or more products in a single transaction.
+  // Uses the existing `sales` + `sale_items` tables, which already had
+  // correct RLS (same can_see_crm() function as clients/orders/products)
+  // but zero UI anywhere before this. Shows Gross Profit / Gross Margin
+  // per line item AND as a running total for the whole sale, per request.
+  // On save: decrements stock for tracked products using the exact same
+  // auto-Out-of-Stock rule already used on the product form, so the two
+  // paths can never disagree with each other.
+  // ============================================================
+
+  function showRecordSaleModal() {
+    let cart = []; // { productId, title, qty, unitPrice, costPrice }
+    const products = getProducts();
+
+    const renderCartRows = () => {
+      if (cart.length === 0) {
+        return '<tr><td colspan="7" class="text-center text-muted">No items added yet.</td></tr>';
+      }
+      return cart.map((item, idx) => {
+        const lineTotal = item.qty * item.unitPrice;
+        const lineCost = item.qty * item.costPrice;
+        const lineProfit = lineTotal - lineCost;
+        const lineMargin = lineTotal > 0 ? (lineProfit / lineTotal) * 100 : 0;
+        return `
+          <tr>
+            <td class="text-xs">${Utils.sanitizeHTML(item.title)}</td>
+            <td class="text-xs">${item.qty}</td>
+            <td class="font-mono text-xs">${Utils.formatCurrency(item.unitPrice)}</td>
+            <td class="font-mono text-xs">${Utils.formatCurrency(lineTotal)}</td>
+            <td class="font-mono text-xs" style="color:${lineProfit < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${Utils.formatCurrency(lineProfit)}</td>
+            <td class="font-mono text-xs" style="color:${lineMargin < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${lineMargin.toFixed(1)}%</td>
+            <td style="text-align:right"><button type="button" class="btn btn-secondary btn-sm" data-remove-idx="${idx}">✕</button></td>
+          </tr>`;
+      }).join('');
+    };
+
+    const computeTotals = () => {
+      const subtotal = cart.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+      const gstTotal = Math.round(subtotal * 0.10 * 100) / 100;
+      const total = subtotal + gstTotal;
+      const cost = cart.reduce((s, i) => s + i.qty * i.costPrice, 0);
+      const grossProfit = subtotal - cost; // GST is never profit, excluded
+      const grossMargin = subtotal > 0 ? (grossProfit / subtotal) * 100 : 0;
+      return { subtotal, gstTotal, total, grossProfit, grossMargin };
+    };
+
+    const buildForm = () => {
+      const t = computeTotals();
+      return `
+        <form id="sale-form" class="d-flex flex-col gap-3">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Customer Name</label>
+              <input type="text" id="sale-client-name" class="form-input" placeholder="Optional — leave blank for walk-in">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sale Date</label>
+              <input type="date" id="sale-date" class="form-input" value="${new Date().toISOString().slice(0, 10)}">
+            </div>
+          </div>
+
+          <div class="form-group" style="background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:8px;padding:var(--sp-3);">
+            <div class="d-flex gap-3 flex-wrap items-end">
+              <div class="form-group" style="flex:2;margin-bottom:0">
+                <label class="form-label">Product</label>
+                <select id="sale-product-pick" class="form-select">
+                  ${products.map(p => `<option value="${p.id}">${Utils.sanitizeHTML(p.sku || '')} — ${Utils.sanitizeHTML(p.title || 'Untitled')} (${Utils.formatCurrency(p.price || 0)})</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group" style="flex:1;margin-bottom:0">
+                <label class="form-label">Qty</label>
+                <input type="number" id="sale-product-qty" class="form-input" min="1" step="1" value="1">
+              </div>
+              <button type="button" class="btn btn-secondary" id="sale-add-item-btn">+ Add</button>
+            </div>
+          </div>
+
+          <div class="table-container" style="border:none">
+            <table class="data-table">
+              <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Line Total</th><th>Gross Profit</th><th>Margin</th><th></th></tr></thead>
+              <tbody id="sale-cart-body">${renderCartRows()}</tbody>
+            </table>
+          </div>
+
+          <div class="form-group" style="background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:8px;padding:var(--sp-4);">
+            <div class="d-flex justify-content-between text-sm mb-1"><span class="text-muted">Subtotal</span><span class="font-mono" id="sale-total-subtotal">${Utils.formatCurrency(t.subtotal)}</span></div>
+            <div class="d-flex justify-content-between text-sm mb-1"><span class="text-muted">GST (10%)</span><span class="font-mono" id="sale-total-gst">${Utils.formatCurrency(t.gstTotal)}</span></div>
+            <div class="d-flex justify-content-between mb-2" style="border-bottom:1px solid var(--pc-border);padding-bottom:8px"><strong>Total</strong><strong class="font-mono" id="sale-total-total">${Utils.formatCurrency(t.total)}</strong></div>
+            <div class="d-flex justify-content-between text-sm"><span class="text-muted">Gross Profit</span><strong class="font-mono" id="sale-total-profit" style="color:${t.grossProfit < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${Utils.formatCurrency(t.grossProfit)}</strong></div>
+            <div class="d-flex justify-content-between text-sm"><span class="text-muted">Gross Margin</span><strong class="font-mono" id="sale-total-margin" style="color:${t.grossMargin < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${t.grossMargin.toFixed(1)}%</strong></div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Notes</label>
+            <textarea id="sale-notes" class="form-input" rows="2"></textarea>
+          </div>
+        </form>
+      `;
+    };
+
+    App.showModal({
+      title: 'Record Sale',
+      content: buildForm(),
+      submitText: 'Save Sale',
+      modalSize: 'modal-lg',
+      onSubmit: async () => {
+        if (cart.length === 0) { Utils.showToast('Add at least one item to the sale.', 'error'); return false; }
+        const t = computeTotals();
+        const clientName = (document.querySelector('#sale-client-name')?.value || '').trim() || null;
+        const saleDate = document.querySelector('#sale-date')?.value || new Date().toISOString().slice(0, 10);
+        const notes = (document.querySelector('#sale-notes')?.value || '').trim() || null;
+
+        try {
+          const sale = await Store.create(Store.COLLECTIONS.SALES, {
+            clientName, saleDate,
+            subtotal: t.subtotal, gstTotal: t.gstTotal, total: t.total,
+            status: 'Completed', notes
+          });
+
+          for (const item of cart) {
+            const lineTotal = item.qty * item.unitPrice;
+            const lineGst = Math.round(lineTotal * 0.10 * 100) / 100;
+            await Store.create(Store.COLLECTIONS.SALE_ITEMS, {
+              saleId: sale.id,
+              productId: item.productId,
+              description: item.title,
+              quantity: item.qty,
+              unitPrice: item.unitPrice,
+              gst: lineGst,
+              amount: lineTotal + lineGst
+            });
+
+            const prod = Store.getById(Store.COLLECTIONS.PRODUCTS, item.productId);
+            if (prod && prod.trackQuantity) {
+              const newQty = Math.max(0, (prod.quantity || 0) - item.qty);
+              const newStatus = newQty === 0 ? 'Out of Stock' : (prod.status === 'Out of Stock' ? 'In Stock' : prod.status);
+              await Store.update(Store.COLLECTIONS.PRODUCTS, item.productId, { quantity: newQty, status: newStatus });
+            }
+          }
+
+          Utils.showToast('Sale recorded.');
+          render();
+          return true;
+        } catch (e) {
+          Utils.showToast('Save failed: ' + e.message, 'error');
+          return false;
+        }
+      }
+    });
+
+    // Wire the interactive cart -- add/remove/recalc all happen locally
+    // in `cart` before anything is saved.
+    setTimeout(() => {
+      const rerenderCart = () => {
+        const body = document.querySelector('#sale-cart-body');
+        if (body) body.innerHTML = renderCartRows();
+        const t = computeTotals();
+        const setText = (sel, val) => { const el = document.querySelector(sel); if (el) el.textContent = val; };
+        setText('#sale-total-subtotal', Utils.formatCurrency(t.subtotal));
+        setText('#sale-total-gst', Utils.formatCurrency(t.gstTotal));
+        setText('#sale-total-total', Utils.formatCurrency(t.total));
+        setText('#sale-total-profit', Utils.formatCurrency(t.grossProfit));
+        setText('#sale-total-margin', t.grossMargin.toFixed(1) + '%');
+        const profitEl = document.querySelector('#sale-total-profit');
+        const marginEl = document.querySelector('#sale-total-margin');
+        if (profitEl) profitEl.style.color = t.grossProfit < 0 ? 'var(--pc-danger)' : 'var(--pc-text)';
+        if (marginEl) marginEl.style.color = t.grossMargin < 0 ? 'var(--pc-danger)' : 'var(--pc-text)';
+
+        document.querySelectorAll('[data-remove-idx]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            cart.splice(parseInt(btn.dataset.removeIdx, 10), 1);
+            rerenderCart();
+          });
+        });
+      };
+
+      const addBtn = document.querySelector('#sale-add-item-btn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          const picker = document.querySelector('#sale-product-pick');
+          const qtyInput = document.querySelector('#sale-product-qty');
+          if (!picker || !picker.value) return;
+          const prod = products.find(p => p.id === picker.value);
+          if (!prod) return;
+          const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+          const existing = cart.find(i => i.productId === prod.id);
+          if (existing) {
+            existing.qty += qty;
+          } else {
+            cart.push({ productId: prod.id, title: prod.title || 'Untitled', qty, unitPrice: prod.price || 0, costPrice: prod.costPrice || 0 });
+          }
+          rerenderCart();
+        });
+      }
+    }, 50);
+  }
+
+  function showSalesHistoryModal() {
+    const sales = getSales().slice().sort((a, b) => new Date(b.saleDate || b.createdAt || 0) - new Date(a.saleDate || a.createdAt || 0));
+    const items = getSaleItems();
+
+    const rows = sales.length === 0
+      ? '<tr><td colspan="6" class="text-center text-muted">No sales recorded yet.</td></tr>'
+      : sales.map(s => {
+          const lines = items.filter(i => i.saleId === s.id);
+          const cost = lines.reduce((sum, li) => {
+            const prod = Store.getById(Store.COLLECTIONS.PRODUCTS, li.productId);
+            return sum + (li.quantity || 0) * (prod ? (prod.costPrice || 0) : 0);
+          }, 0);
+          const grossProfit = (s.subtotal || 0) - cost;
+          const grossMargin = s.subtotal > 0 ? (grossProfit / s.subtotal) * 100 : 0;
+          return `
+            <tr>
+              <td class="text-xs">${Utils.sanitizeHTML(s.saleDate || '\u2014')}</td>
+              <td class="text-xs">${Utils.sanitizeHTML(s.clientName || 'Walk-in')}</td>
+              <td class="text-xs">${lines.length} item${lines.length === 1 ? '' : 's'}</td>
+              <td class="font-mono text-xs">${Utils.formatCurrency(s.total || 0)}</td>
+              <td class="font-mono text-xs" style="color:${grossProfit < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${Utils.formatCurrency(grossProfit)}</td>
+              <td class="font-mono text-xs" style="color:${grossMargin < 0 ? 'var(--pc-danger)' : 'var(--pc-text)'}">${grossMargin.toFixed(1)}%</td>
+            </tr>`;
+        }).join('');
+
+    App.showModal({
+      title: 'Sales History',
+      content: `<div class="table-container" style="border:none;max-height:60vh;overflow-y:auto;">
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Total</th><th>Gross Profit</th><th>Margin</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`,
+      submitText: 'Close',
+      hideCancel: true,
+      onSubmit: () => true,
+      modalSize: 'modal-lg'
+    });
+  }
 
   function showProductModal(productId = null) {
     const editing = !!productId;
