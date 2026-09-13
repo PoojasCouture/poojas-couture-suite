@@ -259,7 +259,7 @@ const Products = (() => {
 
         <div class="form-group">
           <label class="form-label">Description</label>
-          <textarea id="pf-description" name="description" class="form-input" rows="2" placeholder="Fabric, work, size, colour..."><textarea id="pf-description" name="description" class="form-input" rows="2" placeholder="Fabric, work, size, colour...">${Utils.sanitizeHTML(p.description || '')}</textarea>
+          <textarea id="pf-description" name="description" class="form-input" rows="5" placeholder="Fabric, work, size, colour... (auto-fills from photo, or edit manually)">${Utils.sanitizeHTML(p.description || '')}</textarea>
         </div>
 
 
