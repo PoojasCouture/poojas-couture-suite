@@ -517,10 +517,10 @@ const Products = (() => {
              number risks it going stale the moment cost or price changes
              without this exact form being the thing that updates it;
              computing it on the fly is always correct. -->
-        <div class="form-group" style="background:var(--pc-bg-subtle,#f6f6f6);border-radius:8px;padding:var(--sp-3);">
+        <div class="form-group" style="background:var(--pc-bg-card);border:1px solid var(--pc-border);border-radius:8px;padding:var(--sp-3);">
           <div class="d-flex gap-4 flex-wrap">
-            <div><span class="text-xs text-muted">Gross Profit</span><br><strong id="pf-gross-profit" class="font-mono">$0.00</strong></div>
-            <div><span class="text-xs text-muted">Gross Margin</span><br><strong id="pf-gross-margin" class="font-mono">0%</strong></div>
+            <div><span class="text-xs text-muted">Gross Profit</span><br><strong id="pf-gross-profit" class="font-mono" style="color:var(--pc-text)">$0.00</strong></div>
+            <div><span class="text-xs text-muted">Gross Margin</span><br><strong id="pf-gross-margin" class="font-mono" style="color:var(--pc-text)">0%</strong></div>
           </div>
         </div>
 
