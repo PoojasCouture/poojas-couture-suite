@@ -76,6 +76,14 @@ const App = (() => {
     });
   })();
 
+  // Role/tab access logic now lives in the shared js/access.js, loaded
+  // before this file in index.html — used by navigate() and
+  // applySidebarPermissions() below, and by the Tailor/Shipping/AI Team
+  // portals too, so all four places read from one source of truth.
+  function getRoleAccess(role, hasCrmPerm, hasSocialCrmPerm) {
+    return (window.AccessControl && AccessControl.getRoleAccess(role, hasCrmPerm, hasSocialCrmPerm)) || null;
+  }
+
   function navigate(route) {
     currentRoute = route;
     try { localStorage.setItem('pc_last_route', route); } catch(e) {}
@@ -85,29 +93,12 @@ const App = (() => {
       const role = user.appRole || user.app_role || 'admin';
       const hasCrmPerm = !!(user.permissions && user.permissions.crm);
       const hasSocialCrmPerm = !!(user.permissions && user.permissions.socialCrm);
-      const ACCESS = {
-        admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  'ai-team':true  },
-        operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, 'ai-team':false },
-        social_crm: { dashboard:hasCrmPerm, products:hasCrmPerm, crm:hasCrmPerm, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':hasSocialCrmPerm },
-        // Same shape as social_crm (Sakshi) — the real distinction between
-        // the two roles is enforced in Supabase RLS (what data each can
-        // touch once inside), not here. This map is only "which app tabs
-        // can you open at all" — social_crm_limited (Aleem) needs the same
-        // tab-level access as social_crm to reach Social CRM Studio; the
-        // 13 Aug role split never should have needed a change here, but
-        // this map has no fallback-to-a-similar-role logic, only exact
-        // string keys, so the new role name was invisible to it and fell
-        // through to DENY_ALL below.
-        social_crm_limited: { dashboard:hasCrmPerm, products:hasCrmPerm, crm:hasCrmPerm, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':hasSocialCrmPerm },
-        tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false },
-        logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false }
-      };
       // Deny-all default for any unrecognized role — previously fell back
       // to full admin access, which is a fail-open security gap: any
       // app_role string that didn't exactly match one of the 5 known
       // roles silently granted every tab, including Admin Center.
       const DENY_ALL = { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false };
-      const access = ACCESS[role] || DENY_ALL;
+      const access = getRoleAccess(role, hasCrmPerm, hasSocialCrmPerm) || DENY_ALL;
       if (['dashboard','products','crm','hrm','accounting','admin','settings','ai-team'].includes(route) && access[route] !== true) {
         showAccessDenied();
         return;
@@ -832,21 +823,15 @@ const App = (() => {
     const appRole = user.appRole || user.app_role || 'admin';
     const hasCrmPerm = !!(user.permissions && user.permissions.crm);
     const hasSocialCrmPerm = !!(user.permissions && user.permissions.socialCrm);
-    const ACCESS = {
-      admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  tailorPortal:true,  logisticsPortal:true,  aiTeam:true  },
-      operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:true,  aiTeam:false },
-      social_crm: { dashboard:hasCrmPerm, products:hasCrmPerm, crm:hasCrmPerm, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:false, aiTeam:hasSocialCrmPerm },
-      // Same DENY_ALL trap as navigate()'s copy of this map — exact-string
-      // keys only, no fallback, so the new role name was invisible here
-      // too until added explicitly.
-      social_crm_limited: { dashboard:hasCrmPerm, products:hasCrmPerm, crm:hasCrmPerm, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:false, aiTeam:hasSocialCrmPerm },
-      tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:true,  logisticsPortal:false, aiTeam:false },
-      logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:true,  aiTeam:false }
-    };
     // Deny-all default for unrecognized roles -- see navigate() for why
     // falling back to admin access was a real security gap.
     const DENY_ALL = { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:false, aiTeam:false };
-    const access = ACCESS[appRole] || DENY_ALL;
+    const _raw = getRoleAccess(appRole, hasCrmPerm, hasSocialCrmPerm);
+    // This function has always keyed the AI Team tab as `aiTeam` (not
+    // 'ai-team', which is what navigate() and the shared table use) —
+    // kept as a one-line adapter here rather than rewriting every access.*
+    // reference below, to keep this change minimal and low-risk.
+    const access = _raw ? Object.assign({}, _raw, { aiTeam: _raw['ai-team'] }) : DENY_ALL;
     const routeKeyMap = { 'ai-team': 'aiTeam' };
 
     Utils.$$('.sidebar-section').forEach(section => {

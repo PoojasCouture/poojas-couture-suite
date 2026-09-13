@@ -1552,7 +1552,8 @@ function escapeHtml(str) {
 }
 
 // ── ACCESS CONTROL ──
-const ALLOWED_ROLES = ['admin', 'social_crm', 'social_crm_limited'];
+// Centralised in js/access.js. social_crm_limited (Aleem) removed —
+// confirmed 0 employees hold that role as of 13 Sep 2026.
 
 async function checkAccess(isRetry) {
   const gateScreen = document.getElementById('gate-screen');
@@ -1591,7 +1592,10 @@ async function checkAccess(isRetry) {
     return;
   }
 
-  if (!ALLOWED_ROLES.includes(currentUser.appRole)) {
+  const _hasCrmPerm = !!(currentUser.permissions && currentUser.permissions.crm);
+  const _hasSocialCrmPerm = !!(currentUser.permissions && currentUser.permissions.socialCrm);
+  const _access = (window.AccessControl && AccessControl.getRoleAccess(currentUser.appRole, _hasCrmPerm, _hasSocialCrmPerm)) || {};
+  if (_access['ai-team'] !== true) {
     gateMessage.textContent = 'Access restricted. The AI Studio Team is available to Admin and Social/CRM roles only.';
     gateActions.innerHTML = '<a href="../index.html" class="btn btn-primary w-full">Return to Main App</a>';
     gateActions.classList.remove('d-none');
@@ -1684,7 +1688,6 @@ function _roleTitleFor(user) {
     admin: 'Operations Director',
     operations: 'Operations Manager',
     social_crm: 'CRM & Social',
-    social_crm_limited: 'CRM & Social',
     tailor: 'Master Tailor',
     logistics: 'Logistics Manager'
   };

@@ -216,6 +216,25 @@ const Store = (() => {
     const c = client();
     if (!c) throw new Error('Supabase client unavailable. Check config.js and the CDN script.');
 
+    // THE ACTUAL BUG THIS FIXES: on a fresh/cold page load, Supabase's own
+    // restoration of the persisted auth session from browser storage is
+    // itself asynchronous. The table queries below used to fire immediately
+    // after creating the client, with nothing forcing them to wait for that
+    // restoration to finish first. If a query went out before the session
+    // was attached, it was treated as unauthenticated, RLS silently
+    // returned an empty array (not an error -- by design, so one blocked
+    // table doesn't break startup for the rest), and the whole dashboard
+    // rendered as zero everywhere -- even though the actual login check
+    // further down in this function (auth.getUser(), which runs AFTER all
+    // these queries) would go on to succeed, because by then more time had
+    // passed. A page refresh "fixed" it inconsistently because by the
+    // second load the session was already warm, not because anything was
+    // actually resolved. Waiting for getSession() here -- which resolves
+    // once Supabase has finished attempting session restoration, whether
+    // or not one exists -- closes that race properly instead of relying
+    // on timing luck.
+    try { await c.auth.getSession(); } catch (e) { /* fall through; auth.getUser() below still runs its own check regardless */ }
+
     // Load all tables independently. A table blocked by RLS (or empty)
     // simply yields an empty array — it must NOT break startup for the
     // tables the user IS allowed to see.

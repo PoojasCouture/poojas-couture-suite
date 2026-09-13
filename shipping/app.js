@@ -127,7 +127,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   const appRole = (currentUser.appRole || currentUser.app_role || '').toLowerCase();
   const perms = currentUser.permissions || {};
-  if (!['logistics','operations','admin'].includes(appRole) && perms.shipping !== true) {
+  // Centralised in js/access.js — see that file for the shared
+  // role/tab table. perms.shipping===true is kept as its own explicit
+  // fallback exactly as before; it is not part of the centralised table.
+  const access = (window.AccessControl && AccessControl.getRoleAccess(appRole, !!perms.crm, !!perms.socialCrm)) || {};
+  if (access.logisticsPortal !== true && perms.shipping !== true) {
     showGate('This portal is for logistics (Shashank) only. Your account does not have access.', true);
     return;
   }

@@ -19,8 +19,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const role = (user.role || '').toLowerCase();
     const appRole = (user.appRole || user.app_role || '').toLowerCase();
     const perms = user.permissions || {};
+    // Centralised in js/access.js — see that file for the shared
+    // role/tab table. The two legacy fallbacks below (role==='embroiderer'
+    // and perms.tailor===true) are kept exactly as they were; they are
+    // not part of the centralised table and removing them would be a
+    // real behaviour change, not just tidying.
+    const access = (window.AccessControl && AccessControl.getRoleAccess(appRole, !!perms.crm, !!perms.socialCrm)) || {};
     return role === 'tailor' || role === 'embroiderer'
-        || appRole === 'tailor' || appRole === 'admin' || appRole === 'operations'
+        || access.tailorPortal === true
         || perms.tailor === true;
   }
 
