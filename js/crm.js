@@ -546,7 +546,10 @@ poojascouture.com.au`
 
   function renderAppointments(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-secondary btn-icon" id="btn-sync-tidycal" title="Sync TidyCal — pull latest bookings">&#8635;</button>
+      <div class="d-flex flex-col items-center" style="gap:2px;">
+        <button class="btn btn-secondary btn-icon" id="btn-sync-tidycal" title="Sync TidyCal — pull latest bookings">&#8635;</button>
+        <span id="tidycal-sync-status" class="text-xs text-muted" style="min-height:14px;"></span>
+      </div>
       <button class="btn btn-primary btn-icon" id="btn-add-appt" title="Schedule Appointment">📅</button>`;
     Utils.$('#btn-add-appt').addEventListener('click', () => showAppointmentModal());
 
@@ -665,10 +668,18 @@ poojascouture.com.au`
     const syncBtn = Utils.$('#btn-sync-tidycal');
     let syncing = false;
 
+    const syncStatus = Utils.$('#tidycal-sync-status');
     async function syncTidyCal(silent) {
       if (syncing) return;
       syncing = true;
-      if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = '&#8635; Syncing...'; }
+      // The button itself never changes -- it's a fixed icon now, not
+      // a label that used to get overwritten with "Sync TidyCal" /
+      // "Syncing..." text every time this ran (which happens on every
+      // page load via the background sync below, so the icon-only
+      // state was never actually visible before this fix). Status text
+      // lives in its own small caption outside the button instead.
+      if (syncBtn) syncBtn.disabled = true;
+      if (syncStatus) syncStatus.textContent = 'Syncing…';
       try {
         const client = Store.getClient();
         const { data: sessionData } = await client.auth.getSession();
@@ -696,7 +707,8 @@ poojascouture.com.au`
         console.error('TidyCal sync error:', err);
       } finally {
         syncing = false;
-        if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '&#8635; Sync TidyCal'; }
+        if (syncBtn) syncBtn.disabled = false;
+        if (syncStatus) syncStatus.textContent = '';
       }
     }
 
