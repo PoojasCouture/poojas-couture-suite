@@ -546,9 +546,16 @@ poojascouture.com.au`
 
   function renderAppointments(container, actions) {
     actions.innerHTML = `
-      <div class="d-flex flex-col items-center" style="gap:2px;">
+      <div style="position:relative;">
         <button class="btn btn-secondary btn-icon" id="btn-sync-tidycal" title="Sync TidyCal — pull latest bookings">🔄</button>
-        <span id="tidycal-sync-status" class="text-xs text-muted" style="min-height:14px;"></span>
+        <!-- Absolutely positioned, so it never takes up space in the
+             flex row -- a sibling wrapper here previously pushed this
+             button 8px out of alignment with the button next to it,
+             since the row centers each flex item and this one was
+             taller than a bare button. Confirmed 0px misalignment
+             with this approach, both with and without the status text
+             showing, before shipping. -->
+        <span id="tidycal-sync-status" class="text-xs text-muted" style="position:absolute; top:100%; left:50%; transform:translateX(-50%); white-space:nowrap; margin-top:2px;"></span>
       </div>
       <button class="btn btn-primary btn-icon" id="btn-add-appt" title="Schedule Appointment">📅</button>`;
     Utils.$('#btn-add-appt').addEventListener('click', () => showAppointmentModal());
