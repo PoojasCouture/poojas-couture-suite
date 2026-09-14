@@ -1735,6 +1735,34 @@ div[style*="border:1px solid var(--pc-"] {
   background: rgba(248, 113, 113, 0.2);
 }
 
+/* Used by shipping/app.js and tailor/app.js (Mark Received, Mark
+   Delivered, Finish Production, Ship to Shashank) but never actually
+   defined anywhere -- the underlying --pc-success / --pc-gold tokens
+   already existed, they just were never wired into button classes, so
+   these buttons have been rendering with no colour at all. Mirrors
+   the exact .btn-danger / .btn-primary pattern already established
+   above, using the same design tokens, not new ones. */
+.btn-success {
+  background: var(--pc-success-bg);
+  color: var(--pc-success);
+  border-color: rgba(52, 211, 153, 0.2);
+}
+
+.btn-success:hover {
+  background: rgba(52, 211, 153, 0.2);
+}
+
+.btn-gold {
+  background: var(--pc-gradient-gold);
+  color: var(--pc-text-inverse);
+  border-color: transparent;
+}
+
+.btn-gold:hover {
+  box-shadow: var(--pc-shadow-gold);
+  filter: brightness(1.1);
+}
+
 .btn-sm {
   padding: var(--sp-1) var(--sp-3);
   font-size: var(--text-xs);

@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           '<div class="font-semibold text-sm">' + Utils.sanitizeHTML(r.orderTitle || 'Order') + '</div>' +
           '<div class="text-xs text-muted mt-1">Client: ' + Utils.sanitizeHTML(r.clientName || '') + '</div>' +
           '<div class="text-xs mt-2"><span class="text-gold font-semibold">Requested:</span> ' + Utils.sanitizeHTML(r.requestedItems) + '</div>' +
-          '<button class="btn btn-primary btn-sm mt-2" onclick="openPhotoUpload(\'' + r.orderId + '\', \'' + r.id + '\')">&#128247; Upload Photos</button>' +
+          '<button class="btn btn-primary btn-sm mt-2 btn-icon" onclick="openPhotoUpload(\'' + r.orderId + '\', \'' + r.id + '\')" title="Upload Photos">ð·</button>' +
         '</div>'
       ).join('');
   }
@@ -447,14 +447,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       let actionButton = '';
       if (activeFilter === 'pending') {
         if (order.status === 'Fabric Sourced') {
-          actionButton = `<button class="btn btn-primary btn-sm mt-2" onclick="startWork('${order.id}')">Start Production</button>`;
+          actionButton = `<button class="btn btn-primary btn-sm mt-2 btn-icon" onclick="startWork('${order.id}')" title="Start Production">🧵</button>`;
         } else if (order.status === 'In Production') {
-          actionButton = `<button class="btn btn-success btn-sm mt-2" onclick="finishWork('${order.id}')">✓ Finish Production</button>`;
+          actionButton = `<button class="btn btn-success btn-sm mt-2 btn-icon" onclick="finishWork('${order.id}')" title="Finish Production">✅</button>`;
         } else if (order.status === 'Ready') {
-          actionButton = `<button class="btn btn-gold btn-sm mt-2" onclick="openShipToShashank('${order.id}')">🚚 Ship to Shashank</button>`;
+          actionButton = `<button class="btn btn-gold btn-sm mt-2 btn-icon" onclick="openShipToShashank('${order.id}')" title="Ship to Shashank">🚚</button>`;
         }
-        actionButton += ` <button class="btn btn-secondary btn-sm mt-2" onclick="openPhotoUpload('${order.id}', null)">📷 Upload</button>`;
-        actionButton += ` <button class="btn btn-secondary btn-sm mt-2" onclick="viewMyPhotos('${order.id}')">🖼️ My Photos</button>`;
+        actionButton += ` <button class="btn btn-secondary btn-sm mt-2 btn-icon" onclick="openPhotoUpload('${order.id}', null)" title="Upload Photo">📷</button>`;
+        actionButton += ` <button class="btn btn-secondary btn-sm mt-2 btn-icon" onclick="viewMyPhotos('${order.id}')" title="My Photos">🖼️</button>`;
       } else if (order.status === 'Shipped to Shashank') {
         actionButton = `<span class="badge badge-info text-xs mt-2 p-2">Shipped to Shashank — ${Utils.sanitizeHTML(order.domesticTracking || 'tracking pending')}</span>`;
       }

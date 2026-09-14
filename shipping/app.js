@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </td>
         <td style="${tdStyle(i)}" nowrap>${fmtDateTime(o.shippedToShashankDate)}</td>
         <td style="${tdStyle(i)}">
-          <button class="btn btn-success btn-sm" onclick="window._pcMarkReceived('${esc(o.id)}')">✓ Mark Received</button>
+          <button class="btn btn-success btn-sm btn-icon" onclick="window._pcMarkReceived('${esc(o.id)}')" title="Mark Received">📥</button>
         </td>
       </tr>`;
     });
@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="${tdStyle(i)}"><span style="${badgeStyle(destColor)}">${esc(dest)}</span></td>
         <td style="${tdStyle(i)}" nowrap>${fmtDate(o.receivedByShashankDate)}</td>
         <td style="${tdStyle(i)}">
-          <button class="btn btn-primary btn-sm" onclick="window._pcDispatch('${esc(o.id)}')">🚚 Dispatch</button>
+          <button class="btn btn-primary btn-sm btn-icon" onclick="window._pcDispatch('${esc(o.id)}')" title="Dispatch">🚚</button>
         </td>
       </tr>`;
     });
@@ -682,8 +682,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="${tdStyle(i)}" nowrap>${fmtDate(o.dispatchedDate)}</td>
         <td style="${tdStyle(i)}">
           ${dest === 'Australia'
-            ? `<button class="btn btn-success btn-sm" onclick="window._pcMarkDelivered('${esc(o.id)}')">✓ Mark Delivered</button>`
-            : `<button class="btn btn-danger btn-sm" onclick="window._pcMarkAwaitingPayment('${esc(o.id)}')">💳 Request Payment</button>`
+            ? `<button class="btn btn-success btn-sm btn-icon" onclick="window._pcMarkDelivered('${esc(o.id)}')" title="Mark Delivered">✅</button>`
+            : `<button class="btn btn-danger btn-sm btn-icon" onclick="window._pcMarkAwaitingPayment('${esc(o.id)}')" title="Request Payment">💳</button>`
           }
         </td>
       </tr>`;
@@ -788,7 +788,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="${tdStyle(i)}"><span style="${badgeStyle('#6a2d6a')}">${esc(o.deliveryDestination || '—')}</span></td>
         <td style="${tdStyle(i)}" nowrap>${fmtDate(o.clearedForDeliveryDate)}</td>
         <td style="${tdStyle(i)}">
-          <button class="btn btn-success btn-sm" onclick="window._pcMarkDelivered('${esc(o.id)}')">✅ Mark Delivered</button>
+          <button class="btn btn-success btn-sm btn-icon" onclick="window._pcMarkDelivered('${esc(o.id)}')" title="Mark Delivered">✅</button>
         </td>
       </tr>`;
     });
@@ -811,7 +811,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div style="${metricBoxStyle('#1a4a7a')}"><div style="font-size:32px; font-weight:800;">${inTransit.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Parcels In Transit</div></div>
         <div style="${metricBoxStyle('#2d6a4f')}"><div style="font-size:32px; font-weight:800;">${received.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Parcels Received</div></div>
         <div style="margin-left:auto;">
-          <button class="btn btn-primary btn-sm" onclick="window._pcNewParcel()">+ New Stock Parcel</button>
+          <button class="btn btn-primary btn-sm btn-icon" onclick="window._pcNewParcel()" title="New Stock Parcel">📦</button>
         </div>
       </section>
       <section class="card p-0 mb-4">
@@ -837,7 +837,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sorted.forEach((p, i) => {
       const statusBadge = p.status === 'Received' ? badgeStyle('#2d6a4f') : badgeStyle('#1a4a7a');
       const receiveBtn  = p.status === 'In Transit'
-        ? `<button class="btn btn-success btn-sm" onclick="window._pcReceiveParcel('${esc(p.id)}')">✓ Mark Received</button>`
+        ? `<button class="btn btn-success btn-sm btn-icon" onclick="window._pcReceiveParcel('${esc(p.id)}')" title="Mark Received">📥</button>`
         : '';
       html += `<tr>
         <td style="${tdStyle(i)}"><div style="font-family:monospace; font-weight:700; color:#d4af37;">${esc(p.id)}</div></td>
@@ -849,7 +849,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="${tdStyle(i)}" nowrap>${p.totalItems || 0}</td>
         <td style="${tdStyle(i)}"><span style="${statusBadge}">${esc(p.status || '—')}</span></td>
         <td style="${tdStyle(i)}">
-          <button class="btn btn-secondary btn-sm" onclick="window._pcViewParcel('${esc(p.id)}')">View Items</button>
+          <button class="btn btn-secondary btn-sm btn-icon" onclick="window._pcViewParcel('${esc(p.id)}')" title="View Items">📋</button>
           ${receiveBtn}
         </td>
       </tr>`;
