@@ -1160,7 +1160,11 @@ p {
      unconditionally, not just under a mobile breakpoint, since a
      narrow desktop window has the exact same problem. */
   flex-wrap: wrap;
-  gap: var(--sp-3);
+  /* Slightly wider than the shared --sp-3 gap used elsewhere, scoped
+     to just this row -- icon-only buttons sit close enough together
+     at the standard gap that they read as one cluster instead of
+     separate actions. */
+  gap: 16px;
 }
 
 /* ---------- Dashboard Widgets Grid ---------- */
@@ -1742,10 +1746,11 @@ div[style*="border:1px solid var(--pc-"] {
 }
 
 .btn-icon {
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   padding: 0;
   border-radius: var(--radius-md);
+  font-size: var(--text-md);
 }
 
 .btn-icon.sm {

@@ -165,9 +165,9 @@ poojascouture.com.au`
 
   function renderClients(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-secondary" id="btn-export-clients">📥 Export CSV</button>
-      <button class="btn btn-primary" id="btn-add-client">+ Add New Client</button>
-      <button class="btn btn-primary" id="btn-add-order-clients">+ New Order</button>
+      <button class="btn btn-secondary btn-icon" id="btn-export-clients" title="Export CSV">📥</button>
+      <button class="btn btn-primary btn-icon" id="btn-add-client" title="Add New Client">👤</button>
+      <button class="btn btn-primary btn-icon" id="btn-add-order-clients" title="New Order">🧾</button>
     `;
     Utils.$('#btn-add-client').addEventListener('click', () => showClientModal());
     Utils.$('#btn-export-clients').addEventListener('click', exportClientsCSV);
@@ -546,8 +546,8 @@ poojascouture.com.au`
 
   function renderAppointments(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-secondary" id="btn-sync-tidycal" title="Pull latest bookings from TidyCal">&#8635; Sync TidyCal</button>
-      <button class="btn btn-primary" id="btn-add-appt">+ Schedule Appointment</button>`;
+      <button class="btn btn-secondary btn-icon" id="btn-sync-tidycal" title="Sync TidyCal — pull latest bookings">&#8635;</button>
+      <button class="btn btn-primary btn-icon" id="btn-add-appt" title="Schedule Appointment">📅</button>`;
     Utils.$('#btn-add-appt').addEventListener('click', () => showAppointmentModal());
 
     // Sort/filter state lives on the header row itself now, not a
@@ -2700,8 +2700,8 @@ poojascouture.com.au`
 
   function renderEmailCentre(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-secondary" id="btn-email-bulk">📢 Bulk Email</button>
-      <button class="btn btn-primary" id="btn-compose-new">✉️ Compose</button>
+      <button class="btn btn-secondary btn-icon" id="btn-email-bulk" title="Bulk Email">📢</button>
+      <button class="btn btn-primary btn-icon" id="btn-compose-new" title="Compose">✉️</button>
     `;
     Utils.$('#btn-compose-new').addEventListener('click', () => showComposeModal());
     Utils.$('#btn-email-bulk').addEventListener('click', () => showBulkEmailModal());
@@ -3869,7 +3869,7 @@ poojascouture.com.au`
   }
 
   function renderProjects(container, actions) {
-    actions.innerHTML = `<button class="btn btn-primary" id="btn-add-project">+ New Project</button>`;
+    actions.innerHTML = `<button class="btn btn-primary btn-icon" id="btn-add-project" title="New Project">📁</button>`;
     Utils.$('#btn-add-project').addEventListener('click', () => showProjectModal());
 
     const allProjects = Store.getAll(Store.COLLECTIONS.ORDER_PROJECTS);

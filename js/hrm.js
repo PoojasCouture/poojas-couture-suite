@@ -87,9 +87,7 @@ const HRM = (() => {
 
   function renderEmployees(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-primary" id="btn-add-employee">
-        <span style="font-size: 16px;">+</span> Add Staff Member
-      </button>
+      <button class="btn btn-primary btn-icon" id="btn-add-employee" title="Add Staff Member">👤</button>
     `;
 
     Utils.$('#btn-add-employee').addEventListener('click', () => showEmployeeModal());
@@ -310,9 +308,7 @@ const HRM = (() => {
   
   function renderAttendance(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-primary" id="btn-add-attendance">
-        Clock In/Out Staff
-      </button>
+      <button class="btn btn-primary btn-icon" id="btn-add-attendance" title="Clock In/Out Staff">⏱️</button>
     `;
 
     Utils.$('#btn-add-attendance').addEventListener('click', () => showAttendanceModal());
@@ -491,9 +487,7 @@ const HRM = (() => {
   
   function renderLeaves(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-primary" id="btn-add-leave">
-        Apply for Leave
-      </button>
+      <button class="btn btn-primary btn-icon" id="btn-add-leave" title="Apply for Leave">🏖️</button>
     `;
 
     Utils.$('#btn-add-leave').addEventListener('click', () => showLeaveModal());
@@ -663,9 +657,7 @@ const HRM = (() => {
   
   function renderPayroll(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-primary" id="btn-run-payroll">
-        Run New Monthly Payroll
-      </button>
+      <button class="btn btn-primary btn-icon" id="btn-run-payroll" title="Run New Monthly Payroll">💰</button>
     `;
 
     Utils.$('#btn-run-payroll').addEventListener('click', () => showRunPayrollModal());

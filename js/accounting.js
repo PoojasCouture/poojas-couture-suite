@@ -287,9 +287,7 @@ const Accounting = (() => {
 
   function renderInvoices(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-primary" id="btn-add-invoice">
-        <span style="font-size: 16px;">+</span> Create Invoice
-      </button>
+      <button class="btn btn-primary btn-icon" id="btn-add-invoice" title="Create Invoice">🧾</button>
     `;
 
     Utils.$('#btn-add-invoice').addEventListener('click', () => showInvoiceModal());
@@ -794,9 +792,7 @@ const Accounting = (() => {
 
   function renderExpenses(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-primary" id="btn-add-expense">
-        <span style="font-size: 16px;">+</span> Log Expense
-      </button>
+      <button class="btn btn-primary btn-icon" id="btn-add-expense" title="Log Expense">💸</button>
     `;
 
     Utils.$('#btn-add-expense').addEventListener('click', () => showExpenseModal());

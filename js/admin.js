@@ -73,7 +73,7 @@ const Admin = (() => {
   
   function renderUsers(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-primary" onclick="Admin.showAddUserModal()">+ Add User</button>
+      <button class="btn btn-primary btn-icon" onclick="Admin.showAddUserModal()" title="Add User">👤</button>
     `;
 
     container.innerHTML = `
@@ -228,9 +228,7 @@ const Admin = (() => {
   
   function renderLogs(container, actions) {
     actions.innerHTML = `
-      <button class="btn btn-danger btn-sm" id="btn-clear-logs">
-        🗑️ Clear Audit Trail
-      </button>
+      <button class="btn btn-danger btn-icon" id="btn-clear-logs" title="Clear Audit Trail">🗑️</button>
     `;
 
     Utils.$('#btn-clear-logs').addEventListener('click', () => {
