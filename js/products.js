@@ -225,12 +225,20 @@ const Products = (() => {
           <p class="page-subtitle">Track stock, ready-made pieces, bridal sneakers, purses and accessories</p>
         </div>
         <div class="page-actions">
-          <button class="btn btn-secondary" id="btn-shoot-log">📸 Shoot Log</button>
-          <button class="btn btn-secondary" id="btn-sales-history">📊 Sales History</button>
-          <button class="btn btn-secondary" id="btn-record-sale">💵 Record Sale</button>
-          <button class="btn btn-secondary" id="btn-manage-vendors">🏭 Vendors</button>
-          <button class="btn btn-secondary" id="btn-manage-borrowers">👥 Borrowers</button>
-          <button class="btn btn-primary" id="btn-add-product">+ Add Product</button>
+          <!-- Ordered to match the actual stock lifecycle, not
+               alphabetically or by when each was built: who you source
+               from -> bring stock in -> who borrows it for a shoot ->
+               the shoot itself -> sell it -> review what sold. Icon-only
+               (title attribute carries the label for tooltip/screen
+               readers) -- this also directly helps the iPhone header
+               overflow issue, since 6 icon buttons take a fraction of
+               the width 6 text+icon buttons did. -->
+          <button class="btn btn-secondary btn-icon" id="btn-manage-vendors" title="Vendors">🏭</button>
+          <button class="btn btn-primary btn-icon" id="btn-add-product" title="Add Product">+</button>
+          <button class="btn btn-secondary btn-icon" id="btn-manage-borrowers" title="Borrowers">👥</button>
+          <button class="btn btn-secondary btn-icon" id="btn-shoot-log" title="Shoot Log">📸</button>
+          <button class="btn btn-secondary btn-icon" id="btn-record-sale" title="Record Sale">💵</button>
+          <button class="btn btn-secondary btn-icon" id="btn-sales-history" title="Sales History">📊</button>
         </div>
       </div>
 
