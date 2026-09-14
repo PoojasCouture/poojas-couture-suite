@@ -1134,7 +1134,7 @@ p {
 }
 
 .page-title {
-  font-family: var(--font-body);
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: 600;
   color: var(--pc-text-heading);
@@ -1530,7 +1530,7 @@ div[style*="border:1px solid var(--pc-"] {
 }
 
 .card-title {
-  font-family: var(--font-body);
+  font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: 600;
   color: var(--pc-text-heading);
