@@ -547,7 +547,7 @@ poojascouture.com.au`
   function renderAppointments(container, actions) {
     actions.innerHTML = `
       <div class="d-flex flex-col items-center" style="gap:2px;">
-        <button class="btn btn-secondary btn-icon" id="btn-sync-tidycal" title="Sync TidyCal — pull latest bookings">&#8635;</button>
+        <button class="btn btn-secondary btn-icon" id="btn-sync-tidycal" title="Sync TidyCal — pull latest bookings">🔄</button>
         <span id="tidycal-sync-status" class="text-xs text-muted" style="min-height:14px;"></span>
       </div>
       <button class="btn btn-primary btn-icon" id="btn-add-appt" title="Schedule Appointment">📅</button>`;
