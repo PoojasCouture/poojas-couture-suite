@@ -26,11 +26,11 @@ const Accounting = (() => {
       </div>
 
       <div class="animate-fade-in" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
-        <button class="tab-btn ${activeTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Overview</button>
-        <button class="tab-btn ${activeTab === 'invoices' ? 'active' : ''}" data-tab="invoices" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Invoices</button>
-        <button class="tab-btn ${activeTab === 'expenses' ? 'active' : ''}" data-tab="expenses" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Expenses</button>
-        <button class="tab-btn ${activeTab === 'gst' ? 'active' : ''}" data-tab="gst" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">GST BAS Report</button>
-        <button class="tab-btn ${activeTab === 'reports' ? 'active' : ''}" data-tab="reports" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Financial Reports</button>
+        <button class="tab-btn-icon ${activeTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard" data-tooltip="Overview"><img src="/assets/30_bar_chart_card.png" alt="Overview"></button>
+        <button class="tab-btn-icon ${activeTab === 'invoices' ? 'active' : ''}" data-tab="invoices" data-tooltip="Invoices"><img src="/assets/02_clipboard_pencil.png" alt="Invoices"></button>
+        <button class="tab-btn-icon ${activeTab === 'expenses' ? 'active' : ''}" data-tab="expenses" data-tooltip="Expenses"><img src="/assets/18_green_coin_purse.png" alt="Expenses"></button>
+        <button class="tab-btn-icon ${activeTab === 'gst' ? 'active' : ''}" data-tab="gst" data-tooltip="GST BAS Report"><img src="/assets/33_australia_badge.png" alt="GST BAS Report"></button>
+        <button class="tab-btn-icon ${activeTab === 'reports' ? 'active' : ''}" data-tab="reports" data-tooltip="Financial Reports"><img src="/assets/27_bar_chart_purple.png" alt="Financial Reports"></button>
       </div>
 
       <div id="accounting-tab-content" class="animate-fade-in stagger-2">

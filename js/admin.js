@@ -27,9 +27,9 @@ const Admin = (() => {
       </div>
 
       <div class="animate-fade-in" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
-        <button class="tab-btn ${activeTab === 'users' ? 'active' : ''}" data-tab="users" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">System Users</button>
-        <button class="tab-btn ${activeTab === 'logs' ? 'active' : ''}" data-tab="logs" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">Audit Logs</button>
-        <button class="tab-btn ${activeTab === 'metrics' ? 'active' : ''}" data-tab="metrics" style="font-size:14px;padding:8px 18px;border-radius:20px;font-weight:600;">System Diagnostics</button>
+        <button class="tab-btn-icon ${activeTab === 'users' ? 'active' : ''}" data-tab="users" data-tooltip="System Users"><img src="/assets/01_team_dolls.png" alt="System Users"></button>
+        <button class="tab-btn-icon ${activeTab === 'logs' ? 'active' : ''}" data-tab="logs" data-tooltip="Audit Logs"><img src="/assets/14_logbook.png" alt="Audit Logs"></button>
+        <button class="tab-btn-icon ${activeTab === 'metrics' ? 'active' : ''}" data-tab="metrics" data-tooltip="System Diagnostics"><img src="/assets/07_gears.png" alt="System Diagnostics"></button>
       </div>
 
       <div id="admin-tab-content" class="animate-fade-in stagger-2">

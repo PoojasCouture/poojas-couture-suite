@@ -4638,3 +4638,80 @@ div[style*="border:1px solid var(--pc-"] {
   border: none;
 }
 
+
+/* ---------- Icon Tabs (icon-only tab buttons with hover tooltip) ---------- */
+.tab-btn-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  background: var(--pc-bg-card);
+  border: 1px solid var(--pc-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.tab-btn-icon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  display: block;
+  transition: transform var(--transition-fast), filter var(--transition-fast);
+}
+
+.tab-btn-icon:hover {
+  transform: translateY(-2px);
+  border-color: var(--pc-gold);
+  box-shadow: 0 4px 14px rgba(201, 161, 90, 0.18);
+}
+
+.tab-btn-icon:hover img {
+  transform: scale(1.12);
+}
+
+.tab-btn-icon.active {
+  background: var(--pc-bg-card-hover);
+  border-color: var(--pc-gold);
+  box-shadow: 0 0 0 1px rgba(201, 161, 90, 0.4), 0 4px 16px rgba(201, 161, 90, 0.25);
+}
+
+.tab-btn-icon.active img {
+  filter: drop-shadow(0 0 5px rgba(201, 161, 90, 0.6));
+  transform: scale(1.05);
+}
+
+.tab-btn-icon::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  background: var(--pc-bg-card-hover);
+  color: var(--pc-gold);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 7px;
+  white-space: nowrap;
+  border: 1px solid rgba(201, 161, 90, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 20;
+}
+
+.tab-btn-icon:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.tab-row-icon {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-6, 16px);
+}
