@@ -2347,7 +2347,7 @@ poojascouture.com.au`
           Utils.showToast('Deadline updated to ' + Utils.formatDate(newDeadline));
           return true;
         } catch (e) {
-          Utils.showToast('Could not update deadline: ' + e.message, 'error');
+          console.error('Could not update deadline:', e); Utils.showToast('Could not update deadline. Please try again.', 'error');
           return false;
         }
       }
@@ -2675,7 +2675,7 @@ poojascouture.com.au`
           return true;
         } catch (err) {
           console.error(err);
-          Utils.showToast('Send failed: ' + err.message, 'error');
+          console.error('Send failed:', err); Utils.showToast('Send failed. Please try again.', 'error');
           return false;
         }
       }
@@ -4965,7 +4965,7 @@ poojascouture.com.au`
           setTimeout(() => showOrderDetails(orderId), 200);
           return true;
         } catch (err) {
-          Utils.showToast('Could not remove photo: ' + err.message, 'error');
+          console.error('Could not remove photo:', err); Utils.showToast('Could not remove photo. Please try again.', 'error');
           return false;
         }
       }

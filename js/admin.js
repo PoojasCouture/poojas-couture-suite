@@ -195,7 +195,7 @@ const Admin = (() => {
       .single();
 
     if (error) {
-        Utils.showToast(`Failed: ${error.message}`, 'error');
+        console.error('Failed:', error); Utils.showToast('Failed. Please try again.', 'error');
       return;
     }
 
@@ -257,7 +257,7 @@ const Admin = (() => {
             renderSubTab();
           } catch (err) {
             console.error('Audit log purge failed:', err);
-            Utils.showToast('Failed to clear logs: ' + err.message, 'error');
+            console.error('Failed to clear logs:', err); Utils.showToast('Failed to clear logs. Please try again.', 'error');
           }
         }
       });

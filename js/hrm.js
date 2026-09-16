@@ -1134,7 +1134,7 @@ const HRM = (() => {
           loadStaffPerformance(empId);
           return true;
         } catch(e) {
-          Utils.showToast('Could not save review: ' + e.message, 'error');
+          console.error('Could not save review:', e); Utils.showToast('Could not save review. Please try again.', 'error');
           return false;
         }
       }

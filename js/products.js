@@ -506,7 +506,7 @@ const Products = (() => {
           if (typeof onSaved === 'function') onSaved(saved);
           return true;
         } catch (e) {
-          Utils.showToast('Save failed: ' + e.message, 'error');
+          console.error('Save failed:', e); Utils.showToast('Save failed. Please try again.', 'error');
           return false;
         }
       }
@@ -614,7 +614,7 @@ const Products = (() => {
           Utils.showToast('Vendor deleted.');
           showVendorsListModal();
         } catch (e) {
-          Utils.showToast('Delete failed: ' + e.message, 'error');
+          console.error('Delete failed:', e); Utils.showToast('Delete failed. Please try again.', 'error');
         }
       }
     });
@@ -791,7 +791,7 @@ const Products = (() => {
           render();
           return true;
         } catch (e) {
-          Utils.showToast('Save failed: ' + e.message, 'error');
+          console.error('Save failed:', e); Utils.showToast('Save failed. Please try again.', 'error');
           return false;
         }
       }
@@ -914,7 +914,7 @@ const Products = (() => {
           Utils.showToast('Item removed from sale and returned to inventory.');
           showSalesHistoryModal();
         } catch (e) {
-          Utils.showToast('Remove failed: ' + e.message, 'error');
+          console.error('Remove failed:', e); Utils.showToast('Remove failed. Please try again.', 'error');
         }
       }
     });
@@ -1250,7 +1250,7 @@ const Products = (() => {
           render();
           return true;
         } catch (e) {
-          Utils.showToast('Save failed: ' + e.message, 'error');
+          console.error('Save failed:', e); Utils.showToast('Save failed. Please try again.', 'error');
           return false;
         }
       }
@@ -1579,7 +1579,7 @@ const Products = (() => {
           }
           return true;
         } catch (e) {
-          Utils.showToast('Update failed: ' + e.message, 'error');
+          console.error('Update failed:', e); Utils.showToast('Update failed. Please try again.', 'error');
           return false;
         }
       }
@@ -1790,7 +1790,7 @@ const Products = (() => {
           if (typeof onSaved === 'function') onSaved(saved);
           return true;
         } catch (e) {
-          Utils.showToast('Save failed: ' + e.message, 'error');
+          console.error('Save failed:', e); Utils.showToast('Save failed. Please try again.', 'error');
           return false;
         }
       }
@@ -1861,7 +1861,7 @@ const Products = (() => {
           Utils.showToast('Borrower deleted.');
           showBorrowersListModal();
         } catch (e) {
-          Utils.showToast('Delete failed: ' + e.message, 'error');
+          console.error('Delete failed:', e); Utils.showToast('Delete failed. Please try again.', 'error');
         }
       }
     });
@@ -1949,7 +1949,7 @@ const Products = (() => {
           render();
           return true;
         } catch (e) {
-          Utils.showToast('Check-out failed: ' + e.message, 'error');
+          console.error('Check-out failed:', e); Utils.showToast('Check-out failed. Please try again.', 'error');
           return false;
         }
       }
@@ -2007,7 +2007,7 @@ const Products = (() => {
           Utils.showToast('Marked returned.');
           showShootLogModal();
         } catch (e) {
-          Utils.showToast('Update failed: ' + e.message, 'error');
+          console.error('Update failed:', e); Utils.showToast('Update failed. Please try again.', 'error');
         }
       }
     });
@@ -2067,7 +2067,7 @@ const Products = (() => {
           Utils.showToast('Product deleted.');
           render();
         } catch (e) {
-          Utils.showToast('Delete failed: ' + e.message, 'error');
+          console.error('Delete failed:', e); Utils.showToast('Delete failed. Please try again.', 'error');
         }
       }
     });

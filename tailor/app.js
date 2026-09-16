@@ -399,7 +399,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
           progress.textContent = '';
           submitBtn.disabled = false;
-          Utils.showToast('Upload failed: ' + err.message, 'error');
+          console.error('Upload failed:', err); Utils.showToast('Upload failed. Please try again.', 'error');
           return false;
         }
       }
@@ -489,7 +489,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       Utils.showToast('Production started. Fabric locked.');
       loadTasks();
     } catch (e) {
-      Utils.showToast('Could not update: ' + e.message, 'error');
+      console.error('Could not update:', e); Utils.showToast('Could not update. Please try again.', 'error');
     }
   };
 
@@ -500,7 +500,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       Utils.showToast('Production complete — order marked Ready to ship.');
       loadTasks();
     } catch (e) {
-      Utils.showToast('Could not update: ' + e.message, 'error');
+      console.error('Could not update:', e); Utils.showToast('Could not update. Please try again.', 'error');
     }
   };
 
@@ -552,7 +552,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           loadTasks();
           return true;
         } catch (e) {
-          Utils.showToast('Could not dispatch: ' + e.message, 'error');
+          console.error('Could not dispatch:', e); Utils.showToast('Could not dispatch. Please try again.', 'error');
           return false;
         }
       }

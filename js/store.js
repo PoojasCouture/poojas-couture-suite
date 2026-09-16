@@ -334,7 +334,7 @@ const Store = (() => {
     const { data, error } = await c.from(collection).insert(payload).select().single();
     if (error) {
       console.error(`Create failed on ${collection}:`, error.message);
-      if (window.Utils) Utils.showToast(`Save failed: ${error.message}`, 'error');
+      if (window.Utils) console.error('Save failed:', error); Utils.showToast('Save failed. Please try again.', 'error');
       return null;
     }
     const appRow = rowToApp(data);
@@ -356,7 +356,7 @@ const Store = (() => {
     const { data, error } = await c.from(collection).update(payload).eq('id', id).select().single();
     if (error) {
       console.error(`Update failed on ${collection}:`, error.message);
-      if (window.Utils) Utils.showToast(`Update failed: ${error.message}`, 'error');
+      if (window.Utils) console.error('Update failed:', error); Utils.showToast('Update failed. Please try again.', 'error');
       return null;
     }
     const appRow = rowToApp(data);
@@ -373,7 +373,7 @@ const Store = (() => {
     const { error } = await c.from(collection).delete().eq('id', id);
     if (error) {
       console.error(`Delete failed on ${collection}:`, error.message);
-      if (window.Utils) Utils.showToast(`Delete failed: ${error.message}`, 'error');
+      if (window.Utils) console.error('Delete failed:', error); Utils.showToast('Delete failed. Please try again.', 'error');
       return false;
     }
     cache[collection] = (cache[collection] || []).filter(r => r.id !== id);
@@ -406,7 +406,7 @@ const Store = (() => {
     const { data, error } = await c.from('settings').upsert(payload).eq('id', 1).select().single();
     if (error) {
       console.error('Settings update failed:', error.message);
-      if (window.Utils) Utils.showToast(`Settings save failed: ${error.message}`, 'error');
+      if (window.Utils) console.error('Settings save failed:', error); Utils.showToast('Settings save failed. Please try again.', 'error');
       return settingsCache;
     }
     settingsCache = rowToApp(data);
