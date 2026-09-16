@@ -1780,6 +1780,13 @@ div[style*="border:1px solid var(--pc-"] {
   padding: 0;
   border-radius: var(--radius-md);
   font-size: var(--text-md);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn-icon:hover {
+  transform: translateY(-2px);
+  border-color: var(--pc-gold);
+  box-shadow: 0 4px 14px rgba(201, 161, 90, 0.18);
 }
 
 .btn-icon.sm {
