@@ -2790,11 +2790,11 @@ div[style*="border:1px solid var(--pc-"] {
 
 .portal-shipping .login-card {
   width: 100%;
-  max-width: 360px;
+  max-width: 420px;
   background: var(--pc-bg-card);
   border: 1px solid var(--pc-border-gold);
   border-radius: var(--radius-lg);
-  padding: var(--sp-6);
+  padding: var(--sp-8);
   box-shadow: var(--pc-shadow-xl);
 }
 
@@ -2972,11 +2972,11 @@ div[style*="border:1px solid var(--pc-"] {
 
 .portal-tailor .login-card {
   width: 100%;
-  max-width: 360px;
+  max-width: 420px;
   background: var(--pc-bg-card);
   border: 1px solid var(--pc-border-gold);
   border-radius: var(--radius-lg);
-  padding: var(--sp-6);
+  padding: var(--sp-8);
   box-shadow: var(--pc-shadow-xl);
 }
 
