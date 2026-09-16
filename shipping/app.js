@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </td>
         <td style="${tdStyle(i)}" nowrap>${fmtDateTime(o.shippedToShashankDate)}</td>
         <td style="${tdStyle(i)}">
-          <button class="btn btn-success btn-sm btn-icon" onclick="window._pcMarkReceived('${esc(o.id)}')" title="Mark Received">📥</button>
+          <button class="btn btn-success btn-sm btn-icon" onclick="window._pcMarkReceived('${esc(o.id)}')" title="Mark Received"><img src="../assets/23_factory.png" alt="Mark Received"></button>
         </td>
       </tr>`;
     });
@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="${tdStyle(i)}"><span style="${badgeStyle(destColor)}">${esc(dest)}</span></td>
         <td style="${tdStyle(i)}" nowrap>${fmtDate(o.receivedByShashankDate)}</td>
         <td style="${tdStyle(i)}">
-          <button class="btn btn-primary btn-sm btn-icon" onclick="window._pcDispatch('${esc(o.id)}')" title="Dispatch">🚚</button>
+          <button class="btn btn-primary btn-sm btn-icon" onclick="window._pcDispatch('${esc(o.id)}')" title="Dispatch"><img src="../assets/03_airplane_clouds.png" alt="Dispatch"></button>
         </td>
       </tr>`;
     });
@@ -683,7 +683,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="${tdStyle(i)}">
           ${dest === 'Australia'
             ? `<button class="btn btn-success btn-sm btn-icon" onclick="window._pcMarkDelivered('${esc(o.id)}')" title="Mark Delivered">✅</button>`
-            : `<button class="btn btn-danger btn-sm btn-icon" onclick="window._pcMarkAwaitingPayment('${esc(o.id)}')" title="Request Payment">💳</button>`
+            : `<button class="btn btn-danger btn-sm btn-icon" onclick="window._pcMarkAwaitingPayment('${esc(o.id)}')" title="Request Payment"><img src="../assets/32_red_wallet_coins.png" alt="Request Payment"></button>`
           }
         </td>
       </tr>`;
@@ -811,7 +811,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div style="${metricBoxStyle('#1a4a7a')}"><div style="font-size:32px; font-weight:800;">${inTransit.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Parcels In Transit</div></div>
         <div style="${metricBoxStyle('#2d6a4f')}"><div style="font-size:32px; font-weight:800;">${received.length}</div><div style="font-size:11px; opacity:.8; margin-top:4px;">Parcels Received</div></div>
         <div style="margin-left:auto;">
-          <button class="btn btn-primary btn-sm btn-icon" onclick="window._pcNewParcel()" title="New Stock Parcel">📦</button>
+          <button class="btn btn-primary btn-sm btn-icon" onclick="window._pcNewParcel()" title="New Stock Parcel"><img src="../assets/17_gift_box.png" alt="New Stock Parcel"></button>
         </div>
       </section>
       <section class="card p-0 mb-4">
@@ -837,7 +837,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sorted.forEach((p, i) => {
       const statusBadge = p.status === 'Received' ? badgeStyle('#2d6a4f') : badgeStyle('#1a4a7a');
       const receiveBtn  = p.status === 'In Transit'
-        ? `<button class="btn btn-success btn-sm btn-icon" onclick="window._pcReceiveParcel('${esc(p.id)}')" title="Mark Received">📥</button>`
+        ? `<button class="btn btn-success btn-sm btn-icon" onclick="window._pcReceiveParcel('${esc(p.id)}')" title="Mark Received"><img src="../assets/23_factory.png" alt="Mark Received"></button>`
         : '';
       html += `<tr>
         <td style="${tdStyle(i)}"><div style="font-family:monospace; font-weight:700; color:#d4af37;">${esc(p.id)}</div></td>
@@ -849,7 +849,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="${tdStyle(i)}" nowrap>${p.totalItems || 0}</td>
         <td style="${tdStyle(i)}"><span style="${statusBadge}">${esc(p.status || '—')}</span></td>
         <td style="${tdStyle(i)}">
-          <button class="btn btn-secondary btn-sm btn-icon" onclick="window._pcViewParcel('${esc(p.id)}')" title="View Items">📋</button>
+          <button class="btn btn-secondary btn-sm btn-icon" onclick="window._pcViewParcel('${esc(p.id)}')" title="View Items"><img src="../assets/02_clipboard_pencil.png" alt="View Items"></button>
           ${receiveBtn}
         </td>
       </tr>`;
