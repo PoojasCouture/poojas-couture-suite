@@ -4715,3 +4715,10 @@ div[style*="border:1px solid var(--pc-"] {
   flex-wrap: wrap;
   margin-bottom: var(--sp-6, 16px);
 }
+
+.btn-icon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
+}

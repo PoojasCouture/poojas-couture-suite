@@ -233,12 +233,12 @@ const Products = (() => {
                readers) -- this also directly helps the iPhone header
                overflow issue, since 6 icon buttons take a fraction of
                the width 6 text+icon buttons did. -->
-          <button class="btn btn-secondary btn-icon" id="btn-manage-vendors" title="Vendors">🏭</button>
-          <button class="btn btn-primary btn-icon" id="btn-add-product" title="Add Product">+</button>
-          <button class="btn btn-secondary btn-icon" id="btn-manage-borrowers" title="Borrowers">👥</button>
-          <button class="btn btn-secondary btn-icon" id="btn-shoot-log" title="Shoot Log">📸</button>
-          <button class="btn btn-secondary btn-icon" id="btn-record-sale" title="Record Sale">💵</button>
-          <button class="btn btn-secondary btn-icon" id="btn-sales-history" title="Sales History">📊</button>
+          <button class="btn btn-secondary btn-icon" id="btn-manage-vendors" title="Vendors"><img src="/assets/23_factory.png" alt="Vendors"></button>
+          <button class="btn btn-primary btn-icon" id="btn-add-product" title="Add Product"><img src="/assets/26_plus_symbol.png" alt="Add Product"></button>
+          <button class="btn btn-secondary btn-icon" id="btn-manage-borrowers" title="Borrowers"><img src="/assets/01_team_dolls.png" alt="Borrowers"></button>
+          <button class="btn btn-secondary btn-icon" id="btn-shoot-log" title="Shoot Log"><img src="/assets/28_camera.png" alt="Shoot Log"></button>
+          <button class="btn btn-secondary btn-icon" id="btn-record-sale" title="Record Sale"><img src="/assets/29_money_cash.png" alt="Record Sale"></button>
+          <button class="btn btn-secondary btn-icon" id="btn-sales-history" title="Sales History"><img src="/assets/30_bar_chart_card.png" alt="Sales History"></button>
         </div>
       </div>
 
