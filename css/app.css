@@ -4759,3 +4759,12 @@ div[style*="border:1px solid var(--pc-"] {
   transform: translateX(-50%) translateY(0);
   transition-delay: 0.1s;
 }
+
+/* ---------- Fluid gate-screen heading (Karigar Workstation / Shipping &
+   Logistics). Font-size scales smoothly with viewport width instead of a
+   fixed value, so any inline icon sized in `em` (like the workstation
+   badge icons) scales together with the text automatically -- no manual
+   re-tuning needed when "bigger" is wanted; it's fluid at every size. */
+.brand-header h2.font-display {
+  font-size: clamp(1.15rem, 1.6vw + 1rem, 1.85rem);
+}
