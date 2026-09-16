@@ -8,6 +8,7 @@ const Accounting = (() => {
 
   function init() {
     try { activeTab = localStorage.getItem('pc_tab_accounting') || 'dashboard'; } catch(e) { activeTab = 'dashboard'; }
+    if (!['dashboard','invoices','expenses','gst','reports'].includes(activeTab)) activeTab = 'dashboard';
     render();
   }
 
@@ -39,7 +40,7 @@ const Accounting = (() => {
 
     Utils.$$('.tab-btn', container).forEach(btn => {
       btn.addEventListener('click', (e) => {
-        activeTab = e.target.dataset.tab;
+        activeTab = btn.dataset.tab;
           try { localStorage.setItem('pc_tab_accounting', activeTab); } catch(e) {}
         Utils.$$('.tab-btn', container).forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');

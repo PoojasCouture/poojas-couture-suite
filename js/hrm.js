@@ -8,6 +8,7 @@ const HRM = (() => {
 
   function init() {
     try { activeTab = localStorage.getItem('pc_tab_hrm') || 'employees'; } catch(e) { activeTab = 'employees'; }
+    if (!['employees','attendance','leaves','payroll','performance'].includes(activeTab)) activeTab = 'employees';
     render();
   }
 
@@ -41,7 +42,7 @@ const HRM = (() => {
 
     Utils.$$('.tab-btn', container).forEach(btn => {
       btn.addEventListener('click', (e) => {
-        activeTab = e.target.dataset.tab;
+        activeTab = btn.dataset.tab;
           try { localStorage.setItem('pc_tab_hrm', activeTab); } catch(e) {}
         Utils.$$('.tab-btn', container).forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
