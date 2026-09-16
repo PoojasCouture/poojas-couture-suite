@@ -12,25 +12,32 @@
 // immediately (before first paint) and wires up a button with
 // id="btn-theme-toggle" if one exists on the page.
 //
-// Default behavior (no explicit user choice yet): time-based, not
-// OS-preference-based. 7:00am-5:59pm local clock time = light, otherwise
-// dark. Checked every minute so it flips automatically at those
-// boundaries without a reload, until the user clicks the toggle once —
-// after that, their explicit choice wins everywhere, same as before.
+// Default behavior: time-based, not OS-preference-based. 7:00am-5:59pm
+// local clock time = light, otherwise dark. Checked every minute so it
+// flips automatically at those boundaries without a reload.
 //
-// Storage: localStorage key 'pc_theme' ('light' | 'dark'), shared across
-// all portals since they're same-origin — set it once anywhere, every
-// portal respects it.
+// An explicit toggle click overrides the time-based default, but ONLY
+// for the current browser session (sessionStorage, not localStorage).
+// This was changed from a permanent localStorage override because a
+// single old toggle click was permanently freezing the theme regardless
+// of time of day, defeating the whole point of the auto-switch feature
+// -- every new session now re-syncs to the actual time of day by
+// default, while still letting someone override for the session they're
+// currently in.
+//
+// Storage: sessionStorage key 'pc_theme' ('light' | 'dark'), shared
+// across all portals since they're same-origin, but only for the
+// current browser tab/session.
 // -----------------------------------------------------------------------
 (function () {
   var DAY_START_HOUR = 7;   // 7:00am
   var DAY_END_HOUR = 18;    // 6:00pm (exclusive — 17:59 is still day)
 
   function getStoredTheme() {
-    try { return localStorage.getItem('pc_theme'); } catch (e) { return null; }
+    try { return sessionStorage.getItem('pc_theme'); } catch (e) { return null; }
   }
   function setStoredTheme(theme) {
-    try { localStorage.setItem('pc_theme', theme); } catch (e) {}
+    try { sessionStorage.setItem('pc_theme', theme); } catch (e) {}
   }
   function timeBasedTheme() {
     var h = new Date().getHours();
