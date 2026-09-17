@@ -21,7 +21,22 @@ const App = (() => {
     if (_cachedUser && _loginOverlay) _loginOverlay.classList.remove('active');
 
     const area = Utils.$('#main-content-area');
-    if (area) area.innerHTML = '<div style="padding:60px;text-align:center;color:var(--pc-text-muted)">Loading your studio data...</div>';
+    if (area) area.innerHTML = `
+      <div class="skeleton-dashboard" aria-busy="true" aria-label="Loading your studio data">
+        <div class="skeleton skeleton-block" style="height:32px;width:280px;margin-bottom:8px;"></div>
+        <div class="skeleton skeleton-block" style="height:16px;width:360px;margin-bottom:24px;"></div>
+        <div class="widgets-grid">
+          <div class="skeleton skeleton-block" style="height:110px;"></div>
+          <div class="skeleton skeleton-block" style="height:110px;"></div>
+          <div class="skeleton skeleton-block" style="height:110px;"></div>
+          <div class="skeleton skeleton-block" style="height:110px;"></div>
+        </div>
+        <div class="content-grid-3" style="margin-top:20px;">
+          <div class="skeleton skeleton-block" style="height:220px;"></div>
+          <div class="skeleton skeleton-block" style="height:220px;"></div>
+        </div>
+      </div>
+    `;
 
     try {
       await Store.ready();
@@ -205,7 +220,7 @@ const App = (() => {
       <div class="widgets-grid animate-fade-in stagger-1">
         <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('brides')">
           <div class="stat-card-header">
-            <span class="stat-card-icon gold">👑</span>
+            <span class="stat-card-icon gold"><img src="assets/06_crown_jeweled.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span>
             <span class="badge badge-gold">${totalBrides} Registered</span>
           </div>
           <div class="stat-card-value">${totalBrides}</div>
@@ -213,7 +228,7 @@ const App = (() => {
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('orders')">
           <div class="stat-card-header">
-            <span class="stat-card-icon blue">🧵</span>
+            <span class="stat-card-icon blue"><img src="assets/21_thread_spool.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span>
             <span class="badge badge-info">${activeOrders.length} In Production</span>
           </div>
           <div class="stat-card-value">${activeOrders.length}</div>
@@ -221,7 +236,7 @@ const App = (() => {
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('outstanding')">
           <div class="stat-card-header">
-            <span class="stat-card-icon green">💰</span>
+            <span class="stat-card-icon green"><img src="assets/29_money_cash.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span>
             <span class="badge badge-success">${pendingInvoices.length} Unpaid</span>
           </div>
           <div class="stat-card-value">${Utils.formatCurrency(totalOutstanding)}</div>
@@ -229,7 +244,7 @@ const App = (() => {
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="App.showDashReport('appointments')">
           <div class="stat-card-header">
-            <span class="stat-card-icon purple">📅</span>
+            <span class="stat-card-icon purple"><img src="assets/20_calendar.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span>
             <span class="badge badge-purple">${upcomingAppts.length} Scheduled</span>
           </div>
           <div class="stat-card-value">${upcomingAppts.length}</div>
@@ -240,7 +255,7 @@ const App = (() => {
       <div class="content-grid-3 animate-fade-in stagger-2">
         <div class="card p-6">
           <div class="card-header p-0 pb-4 mb-4">
-            <div class="card-title">📅 Upcoming Consultations & Fittings (Next 7 Days)</div>
+            <div class="card-title"><img src="assets/20_calendar.png" alt="" style="width:18px;height:18px;object-fit:contain;vertical-align:-3px;margin-right:6px;">Upcoming Consultations &amp; Fittings (Next 7 Days)</div>
             <button class="btn btn-secondary btn-sm" onclick="App.quickRoute('crm', 'appointments')">View All</button>
           </div>
           <div class="table-container" style="border: none;">

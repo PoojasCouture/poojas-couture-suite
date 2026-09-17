@@ -4775,3 +4775,25 @@ div[style*="border:1px solid var(--pc-"] {
 .brand-header h2.font-display {
   font-size: clamp(1.15rem, 1.6vw + 1rem, 1.85rem);
 }
+
+/* ---------- Overview Dashboard loading skeleton ---------- */
+/* Composes with the existing .skeleton shimmer class (block-level sizing
+   only) so the dashboard's initial load state matches the real layout
+   instead of a plain "Loading..." text line. */
+.skeleton-dashboard {
+  /* No own padding -- #main-content-area already provides it at the
+     shell level; adding padding here would double it vs. the real
+     content this skeleton is standing in for. */
+}
+.skeleton-block {
+  display: block;
+  width: 100%;
+}
+
+/* ---------- Tactile press feedback for tab icons ---------- */
+/* .btn-icon buttons already get this via the shared .btn:active rule;
+   .tab-btn-icon (Sales Dashboard / HRM / Admin / Accounting tab bars)
+   never carries the base .btn class, so it had no press feedback at all. */
+.tab-btn-icon:active {
+  transform: scale(0.96);
+}
