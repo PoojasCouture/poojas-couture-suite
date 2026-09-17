@@ -245,7 +245,7 @@ const Products = (() => {
       <!-- Summary stat cards -->
       <div class="d-grid gap-4 mb-5 animate-fade-in stagger-1" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
         <div class="stat-card" style="cursor:pointer" onclick="Products.showReport('all')">
-          <div class="stat-card-header"><span class="stat-card-icon gold">📦</span></div>
+          <div class="stat-card-header"><span class="stat-card-icon gold"><img src="assets/22_folder.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${products.length}</div>
           <div class="stat-card-label">Total Products</div>
         </div>
@@ -260,12 +260,12 @@ const Products = (() => {
           <div class="stat-card-label">Reserved</div>
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="Products.showReport('sold')">
-          <div class="stat-card-header"><span class="stat-card-icon gray">🏷️</span></div>
+          <div class="stat-card-header"><span class="stat-card-icon gray"><img src="assets/09_price_tag.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${sold.length}</div>
           <div class="stat-card-label">Sold</div>
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="Products.showReport('value')">
-          <div class="stat-card-header"><span class="stat-card-icon purple">💰</span></div>
+          <div class="stat-card-header"><span class="stat-card-icon purple"><img src="assets/29_money_cash.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${Utils.formatCurrency(stockValue)}</div>
           <div class="stat-card-label">Stock Value (retail)</div>
         </div>

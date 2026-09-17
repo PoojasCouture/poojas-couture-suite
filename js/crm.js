@@ -881,12 +881,12 @@ poojascouture.com.au`
       <!-- Summary strip -->
       <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
         <div class="stat-card" style="cursor:pointer" onclick="document.querySelector('.order-filter-chip[data-stage=&quot;all&quot;]').click()">
-          <div class="stat-card-header"><span class="stat-card-icon gold">🧵</span></div>
+          <div class="stat-card-header"><span class="stat-card-icon gold"><img src="assets/21_thread_spool.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${orders.length}</div>
           <div class="stat-card-label">Total Orders</div>
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="document.querySelector('.order-filter-chip[data-stage=&quot;all&quot;]').click()">
-          <div class="stat-card-header"><span class="stat-card-icon blue">💰</span></div>
+          <div class="stat-card-header"><span class="stat-card-icon blue"><img src="assets/29_money_cash.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${Utils.formatCurrency(totalValue)}</div>
           <div class="stat-card-label">Pipeline Value</div>
         </div>
@@ -896,7 +896,7 @@ poojascouture.com.au`
           <div class="stat-card-label">Delivered</div>
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="document.querySelector('.order-filter-chip[data-stage=&quot;workshop&quot;]').click()">
-          <div class="stat-card-header"><span class="stat-card-icon purple">⚙️</span></div>
+          <div class="stat-card-header"><span class="stat-card-icon purple"><img src="assets/07_gears.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${(counts['In Design']||0)+(counts['Fabric Sourced']||0)+(counts['In Production']||0)+(counts['Fitting']||0)}</div>
           <div class="stat-card-label">In Workshop</div>
         </div>

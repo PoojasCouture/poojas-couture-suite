@@ -92,7 +92,7 @@ const Accounting = (() => {
       <div class="widgets-grid animate-fade-in stagger-1">
         <div class="stat-card" style="cursor:pointer" onclick="Accounting.showReport('revenue')">
           <div class="stat-card-header">
-            <span class="stat-card-icon green">💰</span>
+            <span class="stat-card-icon green"><img src="assets/29_money_cash.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span>
             <span class="stat-card-trend up">+$${Utils.formatCompact(totalRevenue)}</span>
           </div>
           <div class="stat-card-value">${Utils.formatCurrency(totalRevenue)}</div>
@@ -100,7 +100,7 @@ const Accounting = (() => {
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="Accounting.showReport('expenses')">
           <div class="stat-card-header">
-            <span class="stat-card-icon red">💸</span>
+            <span class="stat-card-icon red"><img src="assets/18_green_coin_purse.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span>
             <span class="stat-card-trend down">-$${Utils.formatCompact(totalExpenses)}</span>
           </div>
           <div class="stat-card-value">${Utils.formatCurrency(totalExpenses)}</div>
@@ -108,7 +108,7 @@ const Accounting = (() => {
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="Accounting.showReport('profit')">
           <div class="stat-card-header">
-            <span class="stat-card-icon gold">⚖️</span>
+            <span class="stat-card-icon gold"><img src="assets/34_growth_chart_doc.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span>
             <span class="stat-card-trend ${netProfit >= 0 ? 'up' : 'down'}">${netProfit >= 0 ? 'Profit' : 'Loss'}</span>
           </div>
           <div class="stat-card-value ${netProfit >= 0 ? 'text-success' : 'text-danger'}">${Utils.formatCurrency(netProfit)}</div>
@@ -116,7 +116,7 @@ const Accounting = (() => {
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="Accounting.showReport('outstanding')">
           <div class="stat-card-header">
-            <span class="stat-card-icon amber">🔔</span>
+            <span class="stat-card-icon amber"><img src="assets/14_logbook.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span>
             <span class="badge badge-warning">${outstandingInvoices.length} Pending</span>
           </div>
           <div class="stat-card-value">${Utils.formatCurrency(outstandingAmount)}</div>
