@@ -163,9 +163,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     <!-- Pill tabs -->
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
-      <button id="tab-orders" style="${tabStyle(true)}">📦 Orders</button>
-      <button id="tab-stock"  style="${tabStyle(false)}">🛍️ Inventory</button>
-      <button id="kpi-toggle-btn" style="${tabStyle(false)}">📊 KPI</button>
+      <button id="tab-orders" style="${tabStyle(true)}"><img src="../assets/17_gift_box.png" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:5px;">Orders</button>
+      <button id="tab-stock"  style="${tabStyle(false)}"><img src="../assets/22_folder.png" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:5px;">Inventory</button>
+      <button id="kpi-toggle-btn" style="${tabStyle(false)}"><img src="../assets/30_bar_chart_card.png" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:5px;">KPI</button>
     </div>
     <div id="panel-orders"></div>
     <div id="panel-stock" style="display:none;"></div>
