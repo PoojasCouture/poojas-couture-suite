@@ -4664,8 +4664,8 @@ div[style*="border:1px solid var(--pc-"] {
 }
 
 .tab-btn-icon img {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
   display: block;
   transition: transform var(--transition-fast), filter var(--transition-fast);
@@ -4725,8 +4725,8 @@ div[style*="border:1px solid var(--pc-"] {
 }
 
 .btn-icon img {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
   display: block;
 }
