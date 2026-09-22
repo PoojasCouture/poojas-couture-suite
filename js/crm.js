@@ -681,7 +681,7 @@ poojascouture.com.au`
 
     // Sort/filter state lives on the header row itself now, not a
     // separate dropdown bar above the table.
-    const state = { sortCol: 'date', sortDir: 'asc' };
+    const state = { sortCol: 'date', sortDir: 'asc', pipelineFilter: 'all' };
 
     const sortArrow = (col) => {
       if (state.sortCol !== col) return '<span style="opacity:.35">⇅</span>';
@@ -699,23 +699,23 @@ poojascouture.com.au`
     const conversionRateForKPI = leadsForKPI.length ? Math.round((convertedForKPI / leadsForKPI.length) * 100) : 0;
 
     container.innerHTML = `
-      <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
-        <div class="stat-card">
+      <div class="d-grid gap-3 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        <div class="stat-card consultation-kpi-card" data-pipeline-filter="leads" style="cursor:pointer">
           <div class="stat-card-header"><span class="stat-card-icon gold"><img src="assets/13_user_profiles.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${leadsForKPI.length}</div>
           <div class="stat-card-label">Total Leads</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card consultation-kpi-card" data-pipeline-filter="New" style="cursor:pointer">
           <div class="stat-card-header"><span class="stat-card-icon blue"><img src="assets/26_plus_symbol.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${leadsForKPI.filter(cl => cl.consultationStatus === 'New').length}</div>
           <div class="stat-card-label">New</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card consultation-kpi-card" data-pipeline-filter="Converted" style="cursor:pointer">
           <div class="stat-card-header"><span class="stat-card-icon green">✅</span></div>
           <div class="stat-card-value">${convertedForKPI}</div>
           <div class="stat-card-label">Converted to Order</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card consultation-kpi-card" data-pipeline-filter="leads" style="cursor:pointer">
           <div class="stat-card-header"><span class="stat-card-icon purple"><img src="assets/34_growth_chart_doc.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${conversionRateForKPI}%</div>
           <div class="stat-card-label">Conversion Rate</div>
@@ -752,10 +752,27 @@ poojascouture.com.au`
       return '';
     };
 
+    const clientsForFilter = Store.getAll(Store.COLLECTIONS.CLIENTS);
+
+    const applyActiveCardStyle = () => {
+      container.querySelectorAll('.consultation-kpi-card').forEach(card => {
+        const isActive = state.pipelineFilter !== 'all' && card.dataset.pipelineFilter === state.pipelineFilter;
+        card.style.border = isActive ? '1px solid var(--pc-gold)' : '';
+      });
+    };
+
     const refreshTable = () => {
       const appts = Store.getAll(Store.COLLECTIONS.APPOINTMENTS);
 
       let filtered = appts.slice();
+      if (state.pipelineFilter !== 'all') {
+        filtered = filtered.filter(a => {
+          const linked = a.clientId ? clientsForFilter.find(cl => cl.id === a.clientId) : null;
+          if (!linked || !linked.consultationStatus) return false;
+          return state.pipelineFilter === 'leads' ? true : linked.consultationStatus === state.pipelineFilter;
+        });
+      }
+      applyActiveCardStyle();
 
       filtered.sort((a, b) => {
         const va = sortValue(a, state.sortCol), vb = sortValue(b, state.sortCol);
@@ -763,7 +780,10 @@ poojascouture.com.au`
         return state.sortDir === 'asc' ? cmp : -cmp;
       });
 
-      Utils.$('#appt-count').textContent = `Showing ${filtered.length} of ${appts.length} appointments`;
+      const filterLabels = { leads: 'tracked leads', New: 'New leads', 'Quote Sent': 'Quote Sent', 'Follow-up Required': 'Follow-up Required', Converted: 'Converted leads', 'Not Proceeding': 'Not Proceeding' };
+      Utils.$('#appt-count').textContent = state.pipelineFilter === 'all'
+        ? `Showing ${filtered.length} of ${appts.length} appointments`
+        : `Showing ${filtered.length} of ${appts.length} appointments — filtered by ${filterLabels[state.pipelineFilter] || state.pipelineFilter} (click the card again to clear)`;
 
       // Re-render just the sort arrows without rebuilding the whole header
       // (keeps the filter inputs' focus/typed values intact).
@@ -838,6 +858,14 @@ poojascouture.com.au`
           state.sortCol = col;
           state.sortDir = 'asc';
         }
+        refreshTable();
+      });
+    });
+
+    container.querySelectorAll('.consultation-kpi-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const target = card.dataset.pipelineFilter;
+        state.pipelineFilter = state.pipelineFilter === target ? 'all' : target;
         refreshTable();
       });
     });
