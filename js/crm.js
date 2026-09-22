@@ -5,7 +5,7 @@
    ============================================================ */
 
 const CRM = (() => {
-  let activeTab = 'clients';
+  let activeTab = 'sales';
 
   // EmailJS config — fill in your own keys from emailjs.com (free tier = 200/month)
   const EMAILJS_CONFIG = {
@@ -104,8 +104,8 @@ poojascouture.com.au`
   ];
 
   function init() {
-    try { activeTab = localStorage.getItem('pc_tab_crm') || 'clients'; } catch(e) { activeTab = 'clients'; }
-    if (!['sales','clients','appointments','orders','projects','journey','email'].includes(activeTab)) activeTab = 'clients';
+    try { activeTab = localStorage.getItem('pc_tab_crm') || 'sales'; } catch(e) { activeTab = 'sales'; }
+    if (!['sales','clients','appointments','consultations','orders','projects','journey','email'].includes(activeTab)) activeTab = 'sales';
     render();
   }
 
@@ -124,12 +124,12 @@ poojascouture.com.au`
       <div class="animate-fade-in stagger-1" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
         <button class="tab-btn tab-btn-icon ${activeTab==='sales'?'active':''}" data-tab="sales" data-tooltip="Sales"><img src="/assets/29_money_cash.png" alt="Sales"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='clients'?'active':''}" data-tab="clients" data-tooltip="Clients"><img src="/assets/06_crown_jeweled.png" alt="Clients"></button>
-        <button class="tab-btn tab-btn-icon ${activeTab==='consultations'?'active':''}" data-tab="consultations" data-tooltip="Consultations"><img src="/assets/13_user_profiles.png" alt="Consultations"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='appointments'?'active':''}" data-tab="appointments" data-tooltip="Appointments"><img src="/assets/20_calendar.png" alt="Appointments"></button>
+        <button class="tab-btn tab-btn-icon ${activeTab==='consultations'?'active':''}" data-tab="consultations" data-tooltip="Consultations"><img src="/assets/13_user_profiles.png" alt="Consultations"></button>
+        <button class="tab-btn tab-btn-icon ${activeTab==='email'?'active':''}" data-tab="email" data-tooltip="Email"><img src="/assets/25_envelope.png" alt="Email"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='orders'?'active':''}" data-tab="orders" data-tooltip="Pipeline"><img src="/assets/21_thread_spool.png" alt="Pipeline"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='projects'?'active':''}" data-tab="projects" data-tooltip="Projects"><img src="/assets/22_folder.png" alt="Projects"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='journey'?'active':''}" data-tab="journey" data-tooltip="Journey"><img src="/assets/24_diamond_ring.png" alt="Journey"></button>
-        <button class="tab-btn tab-btn-icon ${activeTab==='email'?'active':''}" data-tab="email" data-tooltip="Email"><img src="/assets/25_envelope.png" alt="Email"></button>
       </div>
       <div id="crm-tab-content" class="animate-fade-in stagger-2"></div>
     `;
