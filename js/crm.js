@@ -124,6 +124,7 @@ poojascouture.com.au`
       <div class="animate-fade-in stagger-1" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
         <button class="tab-btn tab-btn-icon ${activeTab==='sales'?'active':''}" data-tab="sales" data-tooltip="Sales"><img src="/assets/29_money_cash.png" alt="Sales"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='clients'?'active':''}" data-tab="clients" data-tooltip="Clients"><img src="/assets/06_crown_jeweled.png" alt="Clients"></button>
+        <button class="tab-btn tab-btn-icon ${activeTab==='consultations'?'active':''}" data-tab="consultations" data-tooltip="Consultations"><img src="/assets/13_user_profiles.png" alt="Consultations"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='appointments'?'active':''}" data-tab="appointments" data-tooltip="Appointments"><img src="/assets/20_calendar.png" alt="Appointments"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='orders'?'active':''}" data-tab="orders" data-tooltip="Pipeline"><img src="/assets/21_thread_spool.png" alt="Pipeline"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='projects'?'active':''}" data-tab="projects" data-tooltip="Projects"><img src="/assets/22_folder.png" alt="Projects"></button>
@@ -158,6 +159,7 @@ poojascouture.com.au`
     else if (activeTab === 'email') renderEmailCentre(contentContainer, actionContainer);
     else if (activeTab === 'projects') renderProjects(contentContainer, actionContainer);
     else if (activeTab === 'sales') renderSales(contentContainer, actionContainer);
+    else if (activeTab === 'consultations') renderConsultations(contentContainer, actionContainer);
   }
 
   // ==========================================
@@ -381,6 +383,104 @@ poojascouture.com.au`
             Utils.showToast('Client registered.');
           }
         }
+        renderSubTab();
+        return true;
+      }
+    });
+  }
+
+  // Pre-order consultation intake -- captures a new lead with the
+  // event/budget/design-preference detail a bridal consultation
+  // actually produces, using the clients table's own pre-order columns
+  // (source, appointment_type, who_for, budget, event_type, event_date,
+  // design_reference_path) that already existed in the database but
+  // had no form ever built to fill them in.
+  function showConsultationModal() {
+    App.showModal({
+      title: 'New Consultation',
+      content: `
+        <form id="consultation-form" class="animate-fade-in-scale">
+          <div class="text-xs text-muted mb-3">Creates a new lead in the Consultations pipeline -- not yet a confirmed client or order.</div>
+          <div class="form-group">
+            <label class="form-label">Name <span class="required">*</span></label>
+            <input type="text" name="name" class="form-input" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone <span class="required">*</span></label>
+              <input type="text" name="phone" class="form-input" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Occasion</label>
+              <select name="eventType" class="form-select">
+                <option value="Wedding">Wedding</option>
+                <option value="Reception">Reception</option>
+                <option value="Sangeet">Sangeet</option>
+                <option value="Engagement">Engagement</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Event Date</label>
+              <input type="date" name="eventDate" class="form-input">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Who is this for?</label>
+              <select name="whoFor" class="form-select">
+                <option value="Self">Self</option>
+                <option value="Family Order">Family Order</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Budget Range (AUD)</label>
+              <input type="text" name="budget" class="form-input" placeholder="e.g. $5,000 - $8,000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">How did they hear about us?</label>
+            <select name="source" class="form-select">
+              <option value="Instagram">Instagram</option>
+              <option value="Referral">Referral / Word of mouth</option>
+              <option value="Past Client">Past Client</option>
+              <option value="Website">Website</option>
+              <option value="Walk-in">Walk-in</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group m-0">
+            <label class="form-label">Consultation Notes</label>
+            <textarea name="notes" class="form-textarea" placeholder="Fabric/colour preferences, garments discussed, anything to remember before quoting..."></textarea>
+          </div>
+        </form>`,
+      submitText: 'Save Consultation',
+      onSubmit: async (modalEl) => {
+        const form = Utils.$('#consultation-form', modalEl);
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        const fd = new FormData(form);
+        const clientData = {
+          name: fd.get('name'),
+          email: fd.get('email') || `${(fd.get('name')||'lead').toLowerCase().replace(/[^a-z0-9]+/g,'-')}@update-me.local`,
+          phone: fd.get('phone'),
+          type: 'Bride',
+          notes: fd.get('notes'),
+          source: fd.get('source'),
+          eventType: fd.get('eventType'),
+          eventDate: fd.get('eventDate') || null,
+          whoFor: fd.get('whoFor'),
+          budget: fd.get('budget'),
+          consultationStatus: 'New'
+        };
+        await Store.create(Store.COLLECTIONS.CLIENTS, clientData);
+        Utils.showToast('Consultation saved.');
         renderSubTab();
         return true;
       }
@@ -826,6 +926,123 @@ poojascouture.com.au`
   // ==========================================
   // ORDERS KANBAN
   // ==========================================
+
+  function renderConsultations(container, actions) {
+    actions.innerHTML = `<button class="btn btn-primary" onclick="CRM.showConsultationModal()">+ New Consultation</button>`;
+
+    const allClients = Store.getAll(Store.COLLECTIONS.CLIENTS);
+    const leads = allClients.filter(c => !!c.consultationStatus);
+
+    const stages = [
+      { id: 'all',                  title: 'All',                 icon: '13_user_profiles.png' },
+      { id: 'New',                  title: 'New' },
+      { id: 'Quote Sent',           title: 'Quote Sent' },
+      { id: 'Follow-up Required',   title: 'Follow-up Required' },
+      { id: 'Converted',            title: 'Converted' },
+      { id: 'Not Proceeding',       title: 'Not Proceeding' }
+    ];
+    const counts = stages.reduce((acc, s) => {
+      acc[s.id] = s.id === 'all' ? leads.length : leads.filter(l => l.consultationStatus === s.id).length;
+      return acc;
+    }, {});
+    const converted = counts['Converted'] || 0;
+    const conversionRate = leads.length ? Math.round((converted / leads.length) * 100) : 0;
+
+    container.innerHTML = `
+      <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon gold"><img src="assets/13_user_profiles.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
+          <div class="stat-card-value">${leads.length}</div>
+          <div class="stat-card-label">Total Consultations</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon blue"><img src="assets/26_plus_symbol.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
+          <div class="stat-card-value">${counts['New'] || 0}</div>
+          <div class="stat-card-label">New</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon green">✅</span></div>
+          <div class="stat-card-value">${converted}</div>
+          <div class="stat-card-label">Converted to Order</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon purple"><img src="assets/34_growth_chart_doc.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
+          <div class="stat-card-value">${conversionRate}%</div>
+          <div class="stat-card-label">Conversion Rate</div>
+        </div>
+      </div>
+
+      <div class="card p-4 mb-4 animate-fade-in stagger-1">
+        <div class="d-flex flex-wrap gap-2 items-center">
+          ${stages.map(s => `
+            <button class="btn btn-sm ${s.id === 'all' ? 'btn-primary' : 'btn-secondary'} consultation-filter-chip" data-stage="${s.id}">
+              ${s.title} <span class="text-xs opacity-70">(${counts[s.id] || 0})</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div id="consultation-list" class="d-grid gap-3 animate-fade-in stagger-2"></div>
+    `;
+
+    function renderList(filterStage) {
+        const filtered = filterStage === 'all' ? leads : leads.filter(l => l.consultationStatus === filterStage);
+        const listEl = Utils.$('#consultation-list', container);
+        if (filtered.length === 0) {
+          listEl.innerHTML = `<div class="card p-5 text-center text-muted">No consultations in this stage yet.</div>`;
+          return;
+        }
+        listEl.innerHTML = filtered.map(l => `
+          <div class="card p-4">
+            <div class="d-flex justify-between items-start flex-wrap gap-2">
+              <div>
+                <div class="d-flex items-center gap-2">
+                  <strong>${Utils.sanitizeHTML(l.name)}</strong>
+                  <span class="badge">${Utils.sanitizeHTML(l.eventType || 'Other')}</span>
+                  ${l.whoFor === 'Family Order' ? '<span class="badge badge-purple">Family Order</span>' : ''}
+                </div>
+                <div class="text-xs text-muted mt-1">
+                  ${Utils.sanitizeHTML(l.phone || '')} ${l.email && !l.email.endsWith('@update-me.local') ? '· ' + Utils.sanitizeHTML(l.email) : ''}
+                  ${l.eventDate ? '· Event: ' + Utils.formatDate(l.eventDate) : ''}
+                  ${l.budget ? '· Budget: ' + Utils.sanitizeHTML(l.budget) : ''}
+                  ${l.source ? '· via ' + Utils.sanitizeHTML(l.source) : ''}
+                </div>
+                ${l.notes ? `<div class="text-xs mt-2">${Utils.sanitizeHTML(l.notes)}</div>` : ''}
+              </div>
+              <div class="d-flex gap-2 items-center flex-wrap">
+                <select class="form-select form-select-sm consultation-status-select" data-client-id="${l.id}" style="width:auto">
+                  ${stages.filter(s => s.id !== 'all').map(s => `<option value="${s.id}" ${l.consultationStatus === s.id ? 'selected' : ''}>${s.title}</option>`).join('')}
+                </select>
+                ${l.consultationStatus !== 'Converted' ? `<button class="btn btn-sm btn-primary consultation-convert-btn" data-client-id="${l.id}">Convert to Order</button>` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        listEl.querySelectorAll('.consultation-status-select').forEach(sel => {
+          sel.onchange = async () => {
+            await Store.update(Store.COLLECTIONS.CLIENTS, sel.dataset.clientId, { consultationStatus: sel.value });
+            Utils.showToast('Status updated.');
+            renderSubTab();
+          };
+        });
+        listEl.querySelectorAll('.consultation-convert-btn').forEach(btn => {
+          btn.onclick = async () => {
+            await Store.update(Store.COLLECTIONS.CLIENTS, btn.dataset.clientId, { consultationStatus: 'Converted' });
+            showOrderModal(null, btn.dataset.clientId);
+          };
+        });
+    }
+
+    renderList('all');
+    container.querySelectorAll('.consultation-filter-chip').forEach(chip => {
+      chip.onclick = () => {
+        container.querySelectorAll('.consultation-filter-chip').forEach(c => c.classList.replace('btn-primary', 'btn-secondary'));
+        chip.classList.replace('btn-secondary', 'btn-primary');
+        renderList(chip.dataset.stage);
+      };
+    });
+  }
 
   function renderOrders(container, actions) {
     actions.innerHTML = ``;
@@ -1398,7 +1615,7 @@ poojascouture.com.au`
     });
   }
 
-  function showOrderModal(orderId = null) {
+  function showOrderModal(orderId = null, preselectClientId = null) {
     const isEdit = !!orderId;
     const order = isEdit ? Store.getById(Store.COLLECTIONS.ORDERS, orderId) : null;
     const clients = Store.getAll(Store.COLLECTIONS.CLIENTS);
@@ -1422,7 +1639,7 @@ poojascouture.com.au`
             <label class="form-label">Client <span class="required">*</span></label>
             <select name="clientId" class="form-select" required>
               <option value="">-- Choose Client --</option>
-              ${clients.map(c=>`<option value="${c.id}" ${order&&order.clientId===c.id?'selected':''}>${Utils.sanitizeHTML(c.name)} (${c.type})</option>`).join('')}
+              ${clients.map(c=>`<option value="${c.id}" ${(order&&order.clientId===c.id)||(!order&&preselectClientId===c.id)?'selected':''}>${Utils.sanitizeHTML(c.name)} (${c.type})</option>`).join('')}
             </select>
           </div>
           <div class="form-group">
@@ -5078,6 +5295,7 @@ poojascouture.com.au`
   return {
     init,
     editClient,
+    showConsultationModal,
     createClientFromBooking,
     deleteClient,
     quickEmailClient,
