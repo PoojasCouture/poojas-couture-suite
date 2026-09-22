@@ -105,7 +105,7 @@ poojascouture.com.au`
 
   function init() {
     try { activeTab = localStorage.getItem('pc_tab_crm') || 'sales'; } catch(e) { activeTab = 'sales'; }
-    if (!['sales','clients','appointments','consultations','orders','projects','journey','email'].includes(activeTab)) activeTab = 'sales';
+    if (!['sales','clients','appointments','orders','projects','journey','email'].includes(activeTab)) activeTab = 'sales';
     render();
   }
 
@@ -124,8 +124,7 @@ poojascouture.com.au`
       <div class="animate-fade-in stagger-1" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
         <button class="tab-btn tab-btn-icon ${activeTab==='sales'?'active':''}" data-tab="sales" data-tooltip="Sales"><img src="/assets/29_money_cash.png" alt="Sales"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='clients'?'active':''}" data-tab="clients" data-tooltip="Clients"><img src="/assets/06_crown_jeweled.png" alt="Clients"></button>
-        <button class="tab-btn tab-btn-icon ${activeTab==='appointments'?'active':''}" data-tab="appointments" data-tooltip="Appointments"><img src="/assets/20_calendar.png" alt="Appointments"></button>
-        <button class="tab-btn tab-btn-icon ${activeTab==='consultations'?'active':''}" data-tab="consultations" data-tooltip="Consultations"><img src="/assets/13_user_profiles.png" alt="Consultations"></button>
+        <button class="tab-btn tab-btn-icon ${activeTab==='appointments'?'active':''}" data-tab="appointments" data-tooltip="Consultations"><img src="/assets/13_user_profiles.png" alt="Consultations"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='email'?'active':''}" data-tab="email" data-tooltip="Email"><img src="/assets/25_envelope.png" alt="Email"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='orders'?'active':''}" data-tab="orders" data-tooltip="Pipeline"><img src="/assets/21_thread_spool.png" alt="Pipeline"></button>
         <button class="tab-btn tab-btn-icon ${activeTab==='projects'?'active':''}" data-tab="projects" data-tooltip="Projects"><img src="/assets/22_folder.png" alt="Projects"></button>
@@ -159,7 +158,6 @@ poojascouture.com.au`
     else if (activeTab === 'email') renderEmailCentre(contentContainer, actionContainer);
     else if (activeTab === 'projects') renderProjects(contentContainer, actionContainer);
     else if (activeTab === 'sales') renderSales(contentContainer, actionContainer);
-    else if (activeTab === 'consultations') renderConsultations(contentContainer, actionContainer);
   }
 
   // ==========================================
@@ -456,6 +454,11 @@ poojascouture.com.au`
               <option value="Other">Other</option>
             </select>
           </div>
+          <div class="form-group">
+            <label class="form-label">Consultation Meeting (optional)</label>
+            <input type="datetime-local" name="meetingDate" class="form-input">
+            <div class="text-xs text-muted mt-1">If set, this also books an appointment on the schedule -- leave blank if this lead hasn't got a meeting time yet.</div>
+          </div>
           <div class="form-group m-0">
             <label class="form-label">Consultation Notes</label>
             <textarea name="notes" class="form-textarea" placeholder="Fabric/colour preferences, garments discussed, anything to remember before quoting..."></textarea>
@@ -479,8 +482,21 @@ poojascouture.com.au`
           budget: fd.get('budget'),
           consultationStatus: 'New'
         };
-        await Store.create(Store.COLLECTIONS.CLIENTS, clientData);
-        Utils.showToast('Consultation saved.');
+        const createdClient = await Store.create(Store.COLLECTIONS.CLIENTS, clientData);
+        const meetingDate = fd.get('meetingDate');
+        if (meetingDate && createdClient) {
+          await Store.create(Store.COLLECTIONS.APPOINTMENTS, {
+            clientId: createdClient.id,
+            clientName: createdClient.name,
+            date: meetingDate,
+            type: 'Consultation',
+            status: 'Scheduled',
+            notes: fd.get('notes')
+          });
+          Utils.showToast('Consultation saved and meeting scheduled.');
+        } else {
+          Utils.showToast('Consultation saved.');
+        }
         renderSubTab();
         return true;
       }
@@ -658,8 +674,10 @@ poojascouture.com.au`
              showing, before shipping. -->
         <span id="tidycal-sync-status" class="text-xs text-muted" style="position:absolute; top:100%; left:50%; transform:translateX(-50%); white-space:nowrap; margin-top:2px;"></span>
       </div>
-      <button class="btn btn-primary btn-icon" id="btn-add-appt" title="Schedule Appointment">📅</button>`;
+      <button class="btn btn-secondary btn-icon" id="btn-add-appt" title="Schedule Follow-up (existing client)"><img src="/assets/20_calendar.png" alt="Schedule"></button>
+      <button class="btn btn-primary btn-icon" id="btn-add-consultation" title="New Consultation"><img src="/assets/26_plus_symbol.png" alt="New Consultation"></button>`;
     Utils.$('#btn-add-appt').addEventListener('click', () => showAppointmentModal());
+    Utils.$('#btn-add-consultation').addEventListener('click', () => showConsultationModal());
 
     // Sort/filter state lives on the header row itself now, not a
     // separate dropdown bar above the table.
@@ -675,7 +693,34 @@ poojascouture.com.au`
         ${label} ${sortArrow(col)}
       </th>`;
 
+    const allClientsForKPI = Store.getAll(Store.COLLECTIONS.CLIENTS);
+    const leadsForKPI = allClientsForKPI.filter(cl => !!cl.consultationStatus);
+    const convertedForKPI = leadsForKPI.filter(cl => cl.consultationStatus === 'Converted').length;
+    const conversionRateForKPI = leadsForKPI.length ? Math.round((convertedForKPI / leadsForKPI.length) * 100) : 0;
+
     container.innerHTML = `
+      <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon gold"><img src="assets/13_user_profiles.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
+          <div class="stat-card-value">${leadsForKPI.length}</div>
+          <div class="stat-card-label">Total Leads</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon blue"><img src="assets/26_plus_symbol.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
+          <div class="stat-card-value">${leadsForKPI.filter(cl => cl.consultationStatus === 'New').length}</div>
+          <div class="stat-card-label">New</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon green">✅</span></div>
+          <div class="stat-card-value">${convertedForKPI}</div>
+          <div class="stat-card-label">Converted to Order</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-header"><span class="stat-card-icon purple"><img src="assets/34_growth_chart_doc.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
+          <div class="stat-card-value">${conversionRateForKPI}%</div>
+          <div class="stat-card-label">Conversion Rate</div>
+        </div>
+      </div>
       <div class="card p-0">
         <div class="card-header flex-wrap gap-4">
           <div class="text-muted text-sm font-mono" id="appt-count"></div>
@@ -688,8 +733,9 @@ poojascouture.com.au`
                 ${headerCell('Date & Time', 'date')}
                 ${headerCell('Type', 'type')}
                 ${headerCell('Status', 'status')}
+                <th>Pipeline</th>
                 <th>Notes</th>
-                <th style="width:130px;text-align:right">Actions</th>
+                <th style="width:150px;text-align:right">Actions</th>
               </tr>
             </thead>
             <tbody id="appts-table-body"></tbody>
@@ -730,22 +776,34 @@ poojascouture.com.au`
       const tbody = Utils.$('#appts-table-body');
       tbody.innerHTML = '';
       if (filtered.length===0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-muted">
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-muted">
           <div class="empty-state"><div class="empty-state-icon">📅</div>
           <div class="empty-state-title">No appointments found</div></div></td></tr>`;
         return;
       }
+      const clientsForPipeline = Store.getAll(Store.COLLECTIONS.CLIENTS);
+      const pipelineStages = ['New', 'Quote Sent', 'Follow-up Required', 'Converted', 'Not Proceeding'];
       filtered.forEach(a => {
+        const linkedClient = a.clientId ? clientsForPipeline.find(cl => cl.id === a.clientId) : null;
+        const pipelineStatus = linkedClient ? linkedClient.consultationStatus : null;
         const tr = Utils.createElement('tr');
         tr.innerHTML = `
           <td class="font-medium">${Utils.sanitizeHTML(a.clientName)}</td>
           <td class="font-mono">${Utils.formatDateTime(a.date)}</td>
           <td><span class="badge ${a.type==='Fitting'?'badge-purple':a.type==='Pickup'?'badge-success':'badge-gold'}">${a.type}</span></td>
           <td><span class="badge ${a.status==='Completed'?'badge-success':a.status==='Scheduled'?'badge-info':a.status==='No-Show'?'badge-warning':'badge-danger'}">${a.status}</span></td>
+          <td>
+            ${pipelineStatus ? `
+              <select class="form-select form-select-sm consultation-status-select" data-client-id="${linkedClient.id}" style="width:auto">
+                ${pipelineStages.map(s => `<option value="${s}" ${pipelineStatus === s ? 'selected' : ''}>${s}</option>`).join('')}
+              </select>
+            ` : '<span class="text-muted text-xs">—</span>'}
+          </td>
           <td class="text-muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${Utils.sanitizeHTML(a.notes||'—')}</td>
           <td>
             <div class="table-actions justify-end">
               ${!a.clientId ? `<button class="btn btn-icon btn-ghost sm" title="Create Client from this booking" onclick="CRM.createClientFromBooking('${a.id}')">👤➕</button>` : ''}
+              ${pipelineStatus && pipelineStatus !== 'Converted' ? `<button class="btn btn-icon btn-ghost sm consultation-convert-btn" data-client-id="${linkedClient.id}" title="Convert to Order">➡️</button>` : ''}
               ${a.status==='Scheduled'?`<button class="btn btn-icon btn-ghost sm" title="Send Reminder" onclick="CRM.sendFittingReminder('${a.id}')">✉️</button>`:''}
               ${a.status==='Scheduled'?`<button class="btn btn-icon btn-ghost sm" title="Mark Complete" onclick="CRM.completeAppointment('${a.id}')">✓</button>`:''}
               <button class="btn btn-icon btn-ghost sm" title="Edit" onclick="CRM.editAppointment('${a.id}')">✏️</button>
@@ -754,6 +812,20 @@ poojascouture.com.au`
           </td>
         `;
         tbody.appendChild(tr);
+      });
+
+      tbody.querySelectorAll('.consultation-status-select').forEach(sel => {
+        sel.onchange = async () => {
+          await Store.update(Store.COLLECTIONS.CLIENTS, sel.dataset.clientId, { consultationStatus: sel.value });
+          Utils.showToast('Pipeline status updated.');
+          renderSubTab();
+        };
+      });
+      tbody.querySelectorAll('.consultation-convert-btn').forEach(btn => {
+        btn.onclick = async () => {
+          await Store.update(Store.COLLECTIONS.CLIENTS, btn.dataset.clientId, { consultationStatus: 'Converted' });
+          showOrderModal(null, btn.dataset.clientId);
+        };
       });
     };
 
@@ -926,123 +998,6 @@ poojascouture.com.au`
   // ==========================================
   // ORDERS KANBAN
   // ==========================================
-
-  function renderConsultations(container, actions) {
-    actions.innerHTML = `<button class="btn btn-primary" onclick="CRM.showConsultationModal()">+ New Consultation</button>`;
-
-    const allClients = Store.getAll(Store.COLLECTIONS.CLIENTS);
-    const leads = allClients.filter(c => !!c.consultationStatus);
-
-    const stages = [
-      { id: 'all',                  title: 'All',                 icon: '13_user_profiles.png' },
-      { id: 'New',                  title: 'New' },
-      { id: 'Quote Sent',           title: 'Quote Sent' },
-      { id: 'Follow-up Required',   title: 'Follow-up Required' },
-      { id: 'Converted',            title: 'Converted' },
-      { id: 'Not Proceeding',       title: 'Not Proceeding' }
-    ];
-    const counts = stages.reduce((acc, s) => {
-      acc[s.id] = s.id === 'all' ? leads.length : leads.filter(l => l.consultationStatus === s.id).length;
-      return acc;
-    }, {});
-    const converted = counts['Converted'] || 0;
-    const conversionRate = leads.length ? Math.round((converted / leads.length) * 100) : 0;
-
-    container.innerHTML = `
-      <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon gold"><img src="assets/13_user_profiles.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
-          <div class="stat-card-value">${leads.length}</div>
-          <div class="stat-card-label">Total Consultations</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon blue"><img src="assets/26_plus_symbol.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
-          <div class="stat-card-value">${counts['New'] || 0}</div>
-          <div class="stat-card-label">New</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon green">✅</span></div>
-          <div class="stat-card-value">${converted}</div>
-          <div class="stat-card-label">Converted to Order</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-header"><span class="stat-card-icon purple"><img src="assets/34_growth_chart_doc.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
-          <div class="stat-card-value">${conversionRate}%</div>
-          <div class="stat-card-label">Conversion Rate</div>
-        </div>
-      </div>
-
-      <div class="card p-4 mb-4 animate-fade-in stagger-1">
-        <div class="d-flex flex-wrap gap-2 items-center">
-          ${stages.map(s => `
-            <button class="btn btn-sm ${s.id === 'all' ? 'btn-primary' : 'btn-secondary'} consultation-filter-chip" data-stage="${s.id}">
-              ${s.title} <span class="text-xs opacity-70">(${counts[s.id] || 0})</span>
-            </button>
-          `).join('')}
-        </div>
-      </div>
-
-      <div id="consultation-list" class="d-grid gap-3 animate-fade-in stagger-2"></div>
-    `;
-
-    function renderList(filterStage) {
-        const filtered = filterStage === 'all' ? leads : leads.filter(l => l.consultationStatus === filterStage);
-        const listEl = Utils.$('#consultation-list', container);
-        if (filtered.length === 0) {
-          listEl.innerHTML = `<div class="card p-5 text-center text-muted">No consultations in this stage yet.</div>`;
-          return;
-        }
-        listEl.innerHTML = filtered.map(l => `
-          <div class="card p-4">
-            <div class="d-flex justify-between items-start flex-wrap gap-2">
-              <div>
-                <div class="d-flex items-center gap-2">
-                  <strong>${Utils.sanitizeHTML(l.name)}</strong>
-                  <span class="badge">${Utils.sanitizeHTML(l.eventType || 'Other')}</span>
-                  ${l.whoFor === 'Family Order' ? '<span class="badge badge-purple">Family Order</span>' : ''}
-                </div>
-                <div class="text-xs text-muted mt-1">
-                  ${Utils.sanitizeHTML(l.phone || '')} ${l.email && !l.email.endsWith('@update-me.local') ? '· ' + Utils.sanitizeHTML(l.email) : ''}
-                  ${l.eventDate ? '· Event: ' + Utils.formatDate(l.eventDate) : ''}
-                  ${l.budget ? '· Budget: ' + Utils.sanitizeHTML(l.budget) : ''}
-                  ${l.source ? '· via ' + Utils.sanitizeHTML(l.source) : ''}
-                </div>
-                ${l.notes ? `<div class="text-xs mt-2">${Utils.sanitizeHTML(l.notes)}</div>` : ''}
-              </div>
-              <div class="d-flex gap-2 items-center flex-wrap">
-                <select class="form-select form-select-sm consultation-status-select" data-client-id="${l.id}" style="width:auto">
-                  ${stages.filter(s => s.id !== 'all').map(s => `<option value="${s.id}" ${l.consultationStatus === s.id ? 'selected' : ''}>${s.title}</option>`).join('')}
-                </select>
-                ${l.consultationStatus !== 'Converted' ? `<button class="btn btn-sm btn-primary consultation-convert-btn" data-client-id="${l.id}">Convert to Order</button>` : ''}
-              </div>
-            </div>
-          </div>
-        `).join('');
-
-        listEl.querySelectorAll('.consultation-status-select').forEach(sel => {
-          sel.onchange = async () => {
-            await Store.update(Store.COLLECTIONS.CLIENTS, sel.dataset.clientId, { consultationStatus: sel.value });
-            Utils.showToast('Status updated.');
-            renderSubTab();
-          };
-        });
-        listEl.querySelectorAll('.consultation-convert-btn').forEach(btn => {
-          btn.onclick = async () => {
-            await Store.update(Store.COLLECTIONS.CLIENTS, btn.dataset.clientId, { consultationStatus: 'Converted' });
-            showOrderModal(null, btn.dataset.clientId);
-          };
-        });
-    }
-
-    renderList('all');
-    container.querySelectorAll('.consultation-filter-chip').forEach(chip => {
-      chip.onclick = () => {
-        container.querySelectorAll('.consultation-filter-chip').forEach(c => c.classList.replace('btn-primary', 'btn-secondary'));
-        chip.classList.replace('btn-secondary', 'btn-primary');
-        renderList(chip.dataset.stage);
-      };
-    });
-  }
 
   function renderOrders(container, actions) {
     actions.innerHTML = ``;
