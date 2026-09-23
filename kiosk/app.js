@@ -169,9 +169,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       garmentStrip.innerHTML = '<div class="text-xs text-muted p-2">No garment photos in the catalog yet -- add a product photo in Stock & Inventory first.</div>';
       return;
     }
+    // Gallery THUMBNAILS show the AI model photo when one exists --
+    // more appealing for a customer to browse -- falling back to the
+    // plain garment photo when no model photo has been generated yet
+    // (same primary-display logic as the Product Details view).
+    // The GENERATION CALL below still always sends the raw garment
+    // photo (product.photoUrl), never the model photo, regardless of
+    // which one is shown here -- sending a photo that already has a
+    // different model wearing the garment as the "garment reference"
+    // would confuse the generation with two people instead of one,
+    // and the raw photo is the more accurate source for fabric/
+    // structure fidelity anyway.
     garmentStrip.innerHTML = products.map(p => `
       <div class="kiosk-garment-chip" data-product-id="${p.id}" title="${Utils.sanitizeHTML(p.title || '')}">
-        <img src="${Utils.sanitizeHTML(p.photoUrl)}" alt="${Utils.sanitizeHTML(p.title || '')}">
+        <img src="${Utils.sanitizeHTML(p.modelPhotoUrl || p.photoUrl)}" alt="${Utils.sanitizeHTML(p.title || '')}">
       </div>
     `).join('');
 
