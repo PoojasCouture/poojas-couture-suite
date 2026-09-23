@@ -4774,6 +4774,7 @@ div[style*="border:1px solid var(--pc-"] {
    re-tuning needed when "bigger" is wanted; it's fluid at every size. */
 .brand-header h2.font-display {
   font-size: clamp(1.15rem, 1.6vw + 1rem, 1.85rem);
+  padding: 0 var(--sp-2);
 }
 
 /* ---------- Overview Dashboard loading skeleton ---------- */
