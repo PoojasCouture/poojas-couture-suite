@@ -1595,10 +1595,26 @@ const Products = (() => {
       ? `<div class="d-flex justify-between text-sm mb-1"><span class="text-muted">${label}</span><span>${Utils.sanitizeHTML(String(value))}</span></div>`
       : '';
 
+    // Primary display: the AI model photo once one exists (it's the
+    // photo a customer/staff member actually wants to see -- the
+    // garment worn, not just laid flat), falling back to the plain
+    // garment photo if no model photo has been generated yet. The
+    // original garment photo stays visible too, as a small reference
+    // icon beside the primary image, whenever a model photo exists to
+    // replace it as the main display.
+    const primaryPhotoUrl = p.modelPhotoUrl || p.photoUrl;
+    const hasBothPhotos = !!(p.modelPhotoUrl && p.photoUrl);
+
     const content = `
       <div class="d-flex gap-4 mb-4">
-        <div style="width:96px;height:96px;border-radius:8px;overflow:hidden;background:var(--pc-bg-card);flex-shrink:0;display:flex;align-items:center;justify-content:center;${p.photoUrl ? 'cursor:zoom-in' : ''}" ${p.photoUrl ? `onclick="Products.openPhotoLightbox('${Utils.sanitizeHTML(p.photoUrl)}')"` : ''}>
-          ${p.photoUrl ? `<img src="${Utils.sanitizeHTML(p.photoUrl)}" style="width:100%;height:100%;object-fit:cover;">` : '<span style="font-size:28px;">📷</span>'}
+        <div style="position:relative;flex-shrink:0;">
+          <div style="width:96px;height:96px;border-radius:8px;overflow:hidden;background:var(--pc-bg-card);display:flex;align-items:center;justify-content:center;${primaryPhotoUrl ? 'cursor:zoom-in' : ''}" ${primaryPhotoUrl ? `onclick="Products.openPhotoLightbox('${Utils.sanitizeHTML(primaryPhotoUrl)}')"` : ''}>
+            ${primaryPhotoUrl ? `<img src="${Utils.sanitizeHTML(primaryPhotoUrl)}" style="width:100%;height:100%;object-fit:cover;">` : '<span style="font-size:28px;">📷</span>'}
+          </div>
+          ${hasBothPhotos ? `
+          <div title="Original garment photo" style="position:absolute;bottom:-8px;right:-8px;width:34px;height:34px;border-radius:6px;overflow:hidden;border:2px solid var(--pc-bg-dark);background:var(--pc-bg-card);cursor:zoom-in;" onclick="event.stopPropagation();Products.openPhotoLightbox('${Utils.sanitizeHTML(p.photoUrl)}')">
+            <img src="${Utils.sanitizeHTML(p.photoUrl)}" style="width:100%;height:100%;object-fit:cover;">
+          </div>` : ''}
         </div>
         <div>
           <div class="font-mono text-xs text-gold">${Utils.sanitizeHTML(p.sku || '—')}</div>
