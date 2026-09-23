@@ -61,12 +61,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   showWorkspace();
 
+  // ---------- Explicit photo cleanup ----------
+  // Nothing here was ever written to localStorage/sessionStorage/the
+  // HTTP cache to begin with -- the captured photo only ever lived as
+  // a plain JS variable, and the generated result only as a data: URL
+  // in the DOM, both of which vanish on navigation regardless. This
+  // function makes that an explicit guarantee rather than an implicit
+  // side effect of leaving the page, given it's a real customer's
+  // photo -- clears the in-memory variable, blanks the canvas pixel
+  // buffer, and clears every <img> src holding photo data.
+  function clearAllPhotoData() {
+    capturedPhotoDataUrl = null;
+    const cnv = el('kiosk-canvas');
+    if (cnv) {
+      const ctx = cnv.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, cnv.width, cnv.height);
+      cnv.width = 0;
+      cnv.height = 0;
+    }
+    const resultImg = el('kiosk-result-img');
+    if (resultImg) resultImg.src = '';
+    const frameImg = document.querySelector('#kiosk-camera-frame img');
+    if (frameImg) frameImg.src = '';
+  }
+
   // ---------- Logout ----------
   const btnLogout = el('btn-logout');
   if (btnLogout) btnLogout.addEventListener('click', async () => {
     stopCamera();
+    clearAllPhotoData();
     await Store.logout();
     window.location.href = '../index.html';
+  });
+
+  // Also clear on tab close / navigating away without clicking Exit --
+  // covers a customer or staff member just closing the browser tab.
+  window.addEventListener('pagehide', () => {
+    stopCamera();
+    clearAllPhotoData();
   });
 
   // ---------- Camera ----------
@@ -202,5 +234,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   el('btn-result-close').addEventListener('click', () => {
     el('kiosk-result-overlay').classList.add('d-none');
+    // Clear the generated result once viewed -- no reason to keep
+    // holding it in the DOM after the customer's seen it.
+    el('kiosk-result-img').src = '';
   });
 });
