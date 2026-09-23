@@ -46,6 +46,7 @@ const EXT_BY_MIME = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'we
 const MAX_BASE64_LEN = 15 * 1024 * 1024 * 1.4; // ~15MB raw, accounting for base64 inflation
 
 const GEMINI_MODEL = 'gemini-3.1-flash-image'; // standard Nano Banana 2, not Lite -- see file header
+// (redeploy trigger 24 Sep 2026 -- forcing Cloudflare to pick up the updated GEMINI_API_KEY env var, which only applies on the next deploy, not retroactively)
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
