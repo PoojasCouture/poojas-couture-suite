@@ -44,7 +44,7 @@ const Products = (() => {
     },
     'Groom Set': {
       parentSku: 'GRM',
-      subcategories: { 'Groom Pants': 'GRP', 'Groom SAFA / Crown': 'GSF', 'Groom Sword': 'GSW' }
+      subcategories: { 'Groom Pants': 'GRP', 'Groom SAFA / Crown': 'GSF', 'Groom Sword': 'GSW', 'Groom Jacket': 'GRJ', 'Groom Shirt': 'GRS' }
     },
     'Footwear': {
       parentSku: null,
