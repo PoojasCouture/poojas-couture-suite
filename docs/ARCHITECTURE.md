@@ -19,12 +19,13 @@ index.html, css/app.css, js/*.js       — main app (Sales, Stock, Accounting, H
 shipping/                              — Logistics portal (own index.html + app.js)
 tailor/                                — Karigar Workstation (own index.html + app.js)
 ai-team/                               — AI Team portal (own index.html + app.js)
+kiosk/                                 — Customer-facing Try-On Kiosk (own index.html + app.js)
 functions/api/                         — Cloudflare Pages Functions (server-side)
 assets/                                — shared icon PNGs, used by all portals
 docs/                                  — this documentation set, plus source-of-work reference material
 ```
 
-Each of the four portals loads its own `app.js`, but all four share: `js/store.js` (data layer), `js/access.js` (access control), `css/app.css` (styling), `js/theme.js` (light/dark), `assets/*.png` (icons).
+Each of the five portals loads its own `app.js`, but all five share: `js/store.js` (data layer), `js/access.js` (access control), `css/app.css` (styling), `js/theme.js` (light/dark), `assets/*.png` (icons).
 
 ## 3. Data layer — `js/store.js`
 
@@ -37,7 +38,7 @@ Single generic data-access module used by every portal. Key behaviors:
 
 ## 4. Access control — `js/access.js` (centralized, fixed 13 Sep 2026)
 
-`window.AccessControl.getRoleAccess(role, hasCrmPerm, hasSocialCrmPerm)` is the single source of truth for "which role can open which portal/tab." Loaded and called from all four portals (`js/app.js`, `shipping/app.js`, `tailor/app.js`, `ai-team/app.js`) — confirmed by direct grep, not assumed.
+`window.AccessControl.getRoleAccess(role, hasCrmPerm, hasSocialCrmPerm)` is the single source of truth for "which role can open which portal/tab." Loaded and called from all five portals (`js/app.js`, `shipping/app.js`, `tailor/app.js`, `ai-team/app.js`, `kiosk/app.js`) — confirmed by direct grep, not assumed.
 
 This replaced an earlier state (documented in an August 2026 handoff) where the same logic was hand-duplicated in at least 5 separate places (Supabase RLS, `landingRouteFor()`, two different ACCESS maps in the main app, and `ai-team/app.js`'s own `ALLOWED_ROLES`) — a role change required touching all five, and missing even one produced a confusing partial-failure bug. **This is the reference example for what "logic in the center" means for this codebase**, and the standard other duplicated logic should be measured against.
 
@@ -53,7 +54,13 @@ These have not had the same treatment as access control. Flagging them here rath
 Everything else in this app runs on Supabase/Cloudflare's existing infrastructure with no per-action cost. Two exceptions, both used deliberately and sparingly:
 
 - **`ANTHROPIC_API_KEY`** (Claude, vision only — understands an image, does not generate one): used by `product-photo-intake.js` to pre-fill Category/Title/Description from a garment photo, and by `ai-team.js`.
-- **`GEMINI_API_KEY`** (Google Gemini, `gemini-3.1-flash-image` / "Nano Banana 2" — genuine image *generation*): used by `generate-model-photo.js` to produce a photo of a model wearing an uploaded garment. **This is the one place in the app where a single button click spends real, ongoing money** against the business's own Gemini API billing. Standard tier chosen deliberately over the cheaper Lite tier — Lite trades away garment fidelity for speed/cost, which matters more here than the small price difference, since the whole point of a boutique's product photo is showing real fabric/embroidery detail.
+- **`GEMINI_API_KEY`** (Google Gemini, `gemini-3.1-flash-image` / "Nano Banana 2" — genuine image *generation*): used by two functions, both real, ongoing per-call cost, both admin/operations only:
+  - `generate-model-photo.js` — one garment photo in, a model wearing it out.
+  - `generate-customer-tryon.js` *(added 24 Sep 2026)* — two images in (a live-captured customer photo + a catalog garment photo), one composite out. Same model, same documented multi-image blending capability, extended to a second input image. Powers the Try-On Kiosk portal (`/kiosk/`).
+
+  Standard tier chosen deliberately over the cheaper Lite tier for both — Lite trades away garment fidelity for speed/cost, which matters more here than the small price difference, since the whole point is showing real fabric/embroidery detail (and, for the kiosk, a recognizable result of the actual customer).
+
+  **Note this key actually failed silently in practice once already**: Cloudflare Pages environment variables only take effect on the *next deploy*, not retroactively -- updating the key value in the dashboard did nothing until a fresh commit was pushed to force a redeploy. If a Gemini call starts failing with a quota/billing error right after a key rotation, check whether a deploy has actually happened since, before assuming the new key/billing setup itself is wrong.
 
 Both keys are set as Cloudflare Pages environment variables (Settings → Environment variables, encrypted), never in the codebase. Both endpoints gate to admin/operations only, and Gemini's endpoint additionally never fires automatically — explicit click only, given the cost.
 

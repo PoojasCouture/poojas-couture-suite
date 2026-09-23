@@ -6,7 +6,7 @@
 
 ## 1. What this system is
 
-An internal enterprise-management suite for Pooja's Couture, a Sydney-based bridal and occasion-wear couture boutique with an offshore (India-based) karigar/vendor production pipeline. One Supabase backend, one Cloudflare Pages deployment, five separate front-end portals sharing the same database and access-control logic.
+An internal enterprise-management suite for Pooja's Couture, a Sydney-based bridal and occasion-wear couture boutique with an offshore (India-based) karigar/vendor production pipeline. One Supabase backend, one Cloudflare Pages deployment, six separate front-end portals sharing the same database and access-control logic.
 
 ## 2. Portals and who uses them
 
@@ -16,6 +16,7 @@ An internal enterprise-management suite for Pooja's Couture, a Sydney-based brid
 | Tailor (Karigar) Workstation | `/tailor/` | Karigar/vendor staff in India | View assigned production tasks, upload progress photos, mark shipped |
 | Shipping & Logistics | `/shipping/` | Shashank (India logistics hub) | Receive from karigars, dispatch internationally, payment gate, delivery clearance |
 | AI Team | `/ai-team/` | Admin, operations | Internal AI-assisted project/task collaboration tool |
+| Try-On Kiosk | `/kiosk/` | Admin, operations | Customer-facing: camera capture + garment gallery, generates an AI photo of the customer wearing a selected garment |
 | Boutique gate screens | shared across all above | anyone hitting a portal while logged out | Session-expired / not-signed-in landing, redirects to main login |
 
 ## 3. Main app — modules and their actual scope
@@ -55,6 +56,13 @@ User management (create/reset password), audit log viewer, system diagnostics/me
 
 ### Boutique Settings
 Company details (name, ABN, address), GST registration, currency, superannuation rate — used across invoices and reports.
+
+### Try-On Kiosk *(added 24 Sep 2026)*
+Customer-facing AI try-on: staff captures a live photo of the customer via the browser's camera, customer picks a garment from the product catalog, and the system generates a photo of that customer wearing that garment (functions/api/generate-customer-tryon.js, same Gemini "Nano Banana 2" model as the model-photo feature, extended to two-image input). Genuinely new recurring cost per use, same as the model-photo feature. Admin/operations only -- meant to be run by staff handing a phone/device to a customer, not an open public page.
+
+**Privacy, stated plainly:** the customer's captured photo is sent to Google's API for one generation and is never stored -- no database row, no permanent file. Only the generated result is shown/returned. If the business later wants to keep or email results, that's a deliberate future decision, not current behavior.
+
+**Staged roadmap, per Himanshu's own plan:** this in-app version is Stage 1 (single photo, click-and-wait generation). Stage 2 would be the same technology packaged as a standalone kiosk device/app. Stage 3 -- true live, real-time video AR draping (garment moving with the customer as they move, matching what specialized vendors like AI Vastra/MirrAR build) -- is a fundamentally different, much larger computer-vision engineering effort and is NOT what this feature does; don't conflate the two when scoping future work here.
 
 ## 4. Known limitations (intentional, not bugs)
 

@@ -840,7 +840,7 @@ const App = (() => {
     const hasSocialCrmPerm = !!(user.permissions && user.permissions.socialCrm);
     // Deny-all default for unrecognized roles -- see navigate() for why
     // falling back to admin access was a real security gap.
-    const DENY_ALL = { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:false, aiTeam:false };
+    const DENY_ALL = { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, tailorPortal:false, logisticsPortal:false, kioskPortal:false, aiTeam:false };
     const _raw = getRoleAccess(appRole, hasCrmPerm, hasSocialCrmPerm);
     // This function has always keyed the AI Team tab as `aiTeam` (not
     // 'ai-team', which is what navigate() and the shared table use) —
@@ -868,6 +868,7 @@ const App = (() => {
           let show = true;
           if (href.includes('tailor'))   show = access.tailorPortal;
           if (href.includes('shipping')) show = access.logisticsPortal;
+          if (href.includes('kiosk'))    show = access.kioskPortal;
           a.style.display = show ? '' : 'none';
           if (show) anyVisible = true;
         });

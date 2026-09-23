@@ -18,11 +18,16 @@
    ============================================================ */
 window.AccessControl = (function () {
 
+  // kioskPortal (added 24 Sep 2026): the customer-facing AI try-on
+  // kiosk. Admin/operations only, same as generate-model-photo.js --
+  // every use of this portal triggers a real, paid Gemini generation,
+  // so it's gated to staff who'd actually be running it for a
+  // customer, not opened up broadly.
   const ROLE_ACCESS_TABLE = {
-    admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  'ai-team':true,  tailorPortal:true,  logisticsPortal:true  },
-    operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, 'ai-team':false, tailorPortal:true,  logisticsPortal:true  },
-    tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false, tailorPortal:true,  logisticsPortal:false },
-    logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false, tailorPortal:false, logisticsPortal:true  }
+    admin:      { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:true,  admin:true,  settings:true,  'ai-team':true,  tailorPortal:true,  logisticsPortal:true,  kioskPortal:true  },
+    operations: { dashboard:true,  products:true,  crm:true,  hrm:true,  accounting:false, admin:false, settings:false, 'ai-team':false, tailorPortal:true,  logisticsPortal:true,  kioskPortal:true  },
+    tailor:     { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false, tailorPortal:true,  logisticsPortal:false, kioskPortal:false },
+    logistics:  { dashboard:false, products:false, crm:false, hrm:false, accounting:false, admin:false, settings:false, 'ai-team':false, tailorPortal:false, logisticsPortal:true,  kioskPortal:false }
   };
 
   // social_crm depends on the logged-in user's own permissions object
@@ -35,7 +40,7 @@ window.AccessControl = (function () {
         dashboard: hasCrmPerm, products: hasCrmPerm, crm: hasCrmPerm,
         hrm: false, accounting: false, admin: false, settings: false,
         'ai-team': hasSocialCrmPerm,
-        tailorPortal: false, logisticsPortal: false
+        tailorPortal: false, logisticsPortal: false, kioskPortal: false
       };
     }
     return ROLE_ACCESS_TABLE[role] || null;
