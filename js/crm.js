@@ -699,7 +699,7 @@ poojascouture.com.au`
     const conversionRateForKPI = leadsForKPI.length ? Math.round((convertedForKPI / leadsForKPI.length) * 100) : 0;
 
     container.innerHTML = `
-      <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+      <div class="d-grid gap-4 mb-6 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
         <div class="stat-card consultation-kpi-card" data-pipeline-filter="leads" style="cursor:pointer">
           <div class="stat-card-header"><span class="stat-card-icon gold"><img src="assets/13_user_profiles.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${leadsForKPI.length}</div>
@@ -1079,7 +1079,7 @@ poojascouture.com.au`
 
     container.innerHTML = `
       <!-- Summary strip -->
-      <div class="d-grid gap-4 mb-5 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+      <div class="d-grid gap-4 mb-6 animate-fade-in" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
         <div class="stat-card" style="cursor:pointer" onclick="document.querySelector('.order-filter-chip[data-stage=&quot;all&quot;]').click()">
           <div class="stat-card-header"><span class="stat-card-icon gold"><img src="assets/21_thread_spool.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${orders.length}</div>
