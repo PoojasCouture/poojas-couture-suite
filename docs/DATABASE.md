@@ -35,7 +35,7 @@ Retail/ready-made sales (Stock & Inventory), distinct from custom `orders`. A `s
 ## 2. Inventory & production
 
 ### `products` (3 rows)
-Ready-made stock. Self-referencing via `parent_product_id` (an accessory belonging to a set). Linked to `vendors` and `shipments`.
+Ready-made stock. Self-referencing via `parent_product_id` (an accessory belonging to a set). Linked to `vendors` and `shipments`. `model_photo_url` (added 23 Sep 2026, nullable) holds an AI-generated photo of a model wearing the garment — separate from `photo_url` (the plain garment shot) — see Architecture doc §6 for the real per-call cost behind it.
 
 ### `vendors` (1 row)
 Karigar/tailor/supplier records. Has its own `app_role` (tailor portal login) and `permissions` JSONB — same shape as `employees.permissions`, worth keeping in sync if the permission model changes on one side.

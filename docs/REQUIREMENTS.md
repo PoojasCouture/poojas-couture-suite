@@ -37,6 +37,10 @@ Tabs, in display order: **Sales** (default landing tab) → **Clients** → **Co
 ### Stock & Inventory
 Ready-made product catalog (bridal sets, accessories), vendor management, borrower/checkout tracking for items lent for shoots, sale recording, shade card colour pickers (Manish + Neelam thread cards, transcribed codes with interpolated approximate hex — **not individually colour-verified**, physical card is the source of truth for actual production).
 
+**AI photo intake** (product-photo-intake.js): upload a garment photo, Claude analyzes it and pre-fills Category/Title/Description. Never touches price/cost/quantity — those aren't visible in a photo.
+
+**AI model-photo generation** *(added 23 Sep 2026)*: once a garment photo exists, "Generate Model Photo" calls Google's Gemini API (gemini-3.1-flash-image / "Nano Banana 2") to produce a photo of a model (male/female) wearing that exact garment, stored alongside the product. **Genuinely new recurring cost** — every call spends real money against the business's own Gemini API billing, unlike the rest of this app. Admin/operations only, never triggered automatically.
+
 ### Accounting & Finance
 Invoicing (database-enforced: hard constraints on `total = subtotal + gst + shipping`, `amount_paid <= total`, no negatives), expense logging, GST tracking, financial reports.
 
