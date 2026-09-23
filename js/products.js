@@ -1035,6 +1035,24 @@ const Products = (() => {
           </div>
         </div>
 
+        <div class="form-group" id="pf-model-photo-group" style="${p.photoUrl ? '' : 'display:none;'}">
+          <label class="form-label">AI Model Photo <span class="text-xs text-muted">(optional -- generates a photo of a model wearing this exact garment)</span></label>
+          <div class="d-flex items-center gap-3 flex-wrap">
+            <div id="pf-model-photo-preview" style="width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--pc-bg-subtle,#f3f3f3);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+              ${p.modelPhotoUrl ? `<img src="${Utils.sanitizeHTML(p.modelPhotoUrl)}" style="width:100%;height:100%;object-fit:cover;">` : '<span style="font-size:22px;">🧍</span>'}
+            </div>
+            <select id="pf-model-gender" class="form-select form-select-sm" style="width:auto">
+              <option value="female">Female model</option>
+              <option value="male">Male model</option>
+            </select>
+            <button type="button" class="btn btn-secondary btn-sm" id="pf-model-photo-btn">
+              ${p.modelPhotoUrl ? 'Regenerate' : 'Generate Model Photo'}
+            </button>
+            <span class="text-xs text-muted" id="pf-model-photo-status"></span>
+          </div>
+          <input type="hidden" name="modelPhotoUrl" id="pf-model-photo-url" value="${Utils.sanitizeHTML(p.modelPhotoUrl || '')}">
+        </div>
+
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">SKU / Item Code</label>
@@ -1222,6 +1240,7 @@ const Products = (() => {
           parentProductId: fd.get('parentProductId') || null,
           description: fd.get('description').trim(),
           photoUrl: fd.get('photoUrl') || null,
+          modelPhotoUrl: fd.get('modelPhotoUrl') || null,
           costPrice: parseFloat(fd.get('costPrice')) || 0,
           price: parseFloat(fd.get('price')) || 0,
           status: status,
@@ -1470,10 +1489,89 @@ const Products = (() => {
             if (photoPreview) photoPreview.innerHTML = `<img src="${result.photoUrl}" style="width:100%;height:100%;object-fit:cover;">`;
             photoBtn.textContent = 'Replace Photo';
             photoStatus.textContent = 'Filled in from photo — review before saving.';
+            const modelGroup = document.querySelector('#pf-model-photo-group');
+            if (modelGroup) modelGroup.style.display = '';
           } catch (err) {
             photoStatus.textContent = 'Something went wrong reading that photo. Try again.';
           } finally {
             photoBtn.disabled = false;
+          }
+        });
+      }
+
+      // Wire "Generate Model Photo" -- takes the already-uploaded garment
+      // photo, sends it to the new AI-generation endpoint (real per-call
+      // cost, admin/operations only -- see generate-model-photo.js),
+      // and shows the result. Requires a garment photo to already be
+      // uploaded (via "Fill from Photo" above) -- there's nothing to
+      // generate a model shot from otherwise.
+      const modelPhotoBtn = document.querySelector('#pf-model-photo-btn');
+      const modelGenderSel = document.querySelector('#pf-model-gender');
+      const modelPhotoStatus = document.querySelector('#pf-model-photo-status');
+      const modelPhotoPreview = document.querySelector('#pf-model-photo-preview');
+      const modelPhotoUrlHidden = document.querySelector('#pf-model-photo-url');
+      if (modelPhotoPreview) {
+        modelPhotoPreview.style.cursor = 'zoom-in';
+        modelPhotoPreview.addEventListener('click', () => {
+          const previewImg = modelPhotoPreview.querySelector('img');
+          if (previewImg && previewImg.src) openPhotoLightbox(previewImg.src);
+        });
+      }
+      if (modelPhotoBtn) {
+        modelPhotoBtn.addEventListener('click', async () => {
+          const currentPhotoUrl = photoUrlHidden ? photoUrlHidden.value : '';
+          if (!currentPhotoUrl) {
+            modelPhotoStatus.textContent = 'Upload a garment photo first.';
+            return;
+          }
+
+          modelPhotoStatus.textContent = 'Fetching garment photo…';
+          modelPhotoBtn.disabled = true;
+
+          try {
+            // Re-fetch the already-uploaded garment photo and convert to
+            // base64 -- the generation endpoint needs the actual bytes,
+            // not just a URL it would then have to fetch itself.
+            const imgRes = await fetch(currentPhotoUrl);
+            const imgBlob = await imgRes.blob();
+            const imageBase64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(imgBlob);
+            });
+
+            modelPhotoStatus.textContent = 'Generating model photo… (10-20s)';
+            const client = Store.getClient();
+            const { data: sessionData } = await client.auth.getSession();
+            const authToken = sessionData?.session?.access_token;
+            if (!authToken) {
+              modelPhotoStatus.textContent = 'Session expired — please refresh and try again.';
+              modelPhotoBtn.disabled = false;
+              return;
+            }
+
+            const res = await fetch('/api/generate-model-photo', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: authToken, imageBase64, gender: modelGenderSel ? modelGenderSel.value : 'female' })
+            });
+            const result = await res.json();
+
+            if (!res.ok || !result.ok) {
+              modelPhotoStatus.textContent = result.error || 'Could not generate a model photo. Try again.';
+              modelPhotoBtn.disabled = false;
+              return;
+            }
+
+            if (modelPhotoUrlHidden) modelPhotoUrlHidden.value = result.photoUrl;
+            if (modelPhotoPreview) modelPhotoPreview.innerHTML = `<img src="${result.photoUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+            modelPhotoBtn.textContent = 'Regenerate';
+            modelPhotoStatus.textContent = 'Generated — review before saving.';
+          } catch (err) {
+            modelPhotoStatus.textContent = 'Something went wrong generating that photo. Try again.';
+          } finally {
+            modelPhotoBtn.disabled = false;
           }
         });
       }
