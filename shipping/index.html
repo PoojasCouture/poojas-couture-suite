@@ -44,7 +44,16 @@
          phones wider than ~400px CSS pixels (85vw exceeded the old
          fixed 340px offset there). */
       right: -100%;
-      width: 320px;
+      /* ~20% of screen width, and a min-width matching the sidebar's
+         own collapsed-rail width (72px) exactly -- the literal
+         reference point given -- rather than a wider 'readability'
+         floor that would defeat the comparison. Labels are dropped
+         to a tooltip (title attribute) at this width, same as the
+         collapsed sidebar's own icon+tooltip pattern, so icon+number
+         alone need to fit, not icon+label+number. */
+      width: 20vw;
+      min-width: 72px;
+      max-width: 110px;
       height: 100vh;
       background: var(--pc-bg-card, #12122a);
       border-left: 1px solid var(--pc-border, #2a2a4a);
@@ -90,7 +99,7 @@
 
     /* Mobile full-width */
     @media (max-width: 600px) {
-      #kpi-drawer { width: 85vw; }
+      #kpi-drawer { width: 20vw; min-width: 72px; max-width: 100px; }
       .nav-sidebar { display: none; }
       .main-content { margin-left: 0 !important; }
     }
@@ -127,9 +136,9 @@
   <!-- KPI Drawer -->
   <div id="kpi-overlay"></div>
   <div id="kpi-drawer">
-    <div class="d-flex justify-between items-center mb-4">
-      <div class="font-display text-md text-gold"><i class="ph ph-chart-bar"></i> KPI Dashboard</div>
-      <button id="kpi-close-btn" class="btn btn-secondary btn-sm"><i class="ph ph-x"></i></button>
+    <div class="d-flex flex-column items-center mb-3" style="gap:8px;">
+      <span class="text-gold" style="font-size:18px;" title="KPI Dashboard"><i class="ph ph-chart-bar"></i></span>
+      <button id="kpi-close-btn" class="btn btn-secondary btn-sm" title="Close" style="width:32px;height:32px;padding:0;"><i class="ph ph-x"></i></button>
     </div>
     <div id="kpi-content">
       <div class="text-xs text-muted text-center p-4">Loading...</div>

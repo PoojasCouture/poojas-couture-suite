@@ -266,32 +266,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       { icon: '🎯', label: 'Delivered (mo)', value: deliveredMonth, color: '#34d399', urgent: false },
     ];
 
-    // Compact vertical row-list per direct feedback -- matching the
-    // sidebar's own collapsed icon-strip convention: narrow, compact
-    // rows stacked one after another, not a grid of square tiles.
-    // Each row is a bit wider than the sidebar's 72px icon rail
-    // specifically so the label and number stay legible, but the row
-    // itself stays compact-height like a sidebar link, not a padded
-    // square box. The drawer already sits on the right side of the
-    // screen, and each row spans its full width, so this reads as
-    // properly aligned there without needing separate alignment rules.
+    // Narrow icon-rail pattern, matching the collapsed sidebar exactly
+    // per direct instruction (~20% screen width, sidebar's own 72px as
+    // the literal reference): icon + number visible, label dropped to
+    // a tooltip (title attribute) -- same as how the collapsed sidebar
+    // shows icons alone with the label only on hover, not inline text
+    // at this width.
     strip.innerHTML = '<div style="display:flex;flex-direction:column;gap:6px;">' +
       kpis.map(function(k, i) {
-        return '<div class="kpi-tile" style="' +
-          'display:flex;align-items:center;justify-content:space-between;gap:10px;' +
+        return '<div class="kpi-tile" title="' + k.label + '" style="' +
+          'display:flex;flex-direction:column;align-items:center;gap:2px;' +
           'background:var(--pc-bg-card);' +
           'border:1px solid ' + (k.urgent ? k.color : 'var(--pc-border)') + ';' +
-          'border-radius:8px;padding:8px 12px;' +
+          'border-radius:8px;padding:8px 4px;cursor:default;' +
           'opacity:0;' +
           'animation:kpiIn 0.35s ease both;animation-delay:' + (i * 0.06).toFixed(2) + 's;' +
           'transition:transform 0.18s ease,box-shadow 0.18s ease;' +
           (k.urgent ? 'box-shadow:0 0 10px ' + k.color + '44;' : '') +
         '">' +
-          '<div style="display:flex;align-items:center;gap:8px;min-width:0;">' +
-            '<span style="font-size:16px;flex-shrink:0;">' + k.icon + '</span>' +
-            '<span style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:.3px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + k.label + '</span>' +
-          '</div>' +
-          '<div style="font-size:18px;font-weight:900;color:' + k.color + ';line-height:1;flex-shrink:0;">' + k.value + '</div>' +
+          '<span style="font-size:16px;">' + k.icon + '</span>' +
+          '<span style="font-size:15px;font-weight:900;color:' + k.color + ';line-height:1;">' + k.value + '</span>' +
         '</div>';
       }).join('') +
     '</div>';
