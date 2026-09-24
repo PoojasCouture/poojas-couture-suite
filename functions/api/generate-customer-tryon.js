@@ -65,10 +65,11 @@ export async function onRequestPost(context) {
   const userData = await userRes.json();
   const callerEmail = userData.email;
   if (!callerEmail) return jsonResponse({ error: 'Could not resolve caller identity' }, 401);
-  const empRes = await fetch(env.SUPABASE_URL + '/rest/v1/employees?email=eq.' + encodeURIComponent(callerEmail) + '&select=app_role', { headers: svcHeaders });
+  const empRes = await fetch(env.SUPABASE_URL + '/rest/v1/employees?email=eq.' + encodeURIComponent(callerEmail) + '&select=app_role,permissions', { headers: svcHeaders });
   const empRows = empRes.ok ? await empRes.json() : [];
   const role = empRows[0] ? empRows[0].app_role : null;
-  if (!['admin', 'operations'].includes(role)) {
+  const hasKioskPerm = !!(empRows[0] && empRows[0].permissions && empRows[0].permissions.kiosk === true);
+  if (!['admin', 'operations'].includes(role) && !hasKioskPerm) {
     return jsonResponse({ error: 'Not authorized to use this feature' }, 403);
   }
 
@@ -120,6 +121,16 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: 'Could not load the selected garment photo: ' + String(err) }, 502);
   }
 
+  // --- Optional customer-typed styling note, appended to the fixed
+  //     PROMPT (never replacing it) -- capped length, newlines and
+  //     control characters stripped so it can only add an instruction
+  //     line, not inject a differently-structured prompt. ---
+  const customNoteRaw = typeof body.customNote === 'string' ? body.customNote : '';
+  const customNote = customNoteRaw.replace(/[\r\n\t]+/g, ' ').replace(/[^\x20-\x7E]/g, '').trim().slice(0, 300);
+  const finalPrompt = customNote
+    ? PROMPT + ` Additional styling request from the customer (apply if reasonable, keep it realistic and keep the garment's real fabric/colour/embroidery unless the request explicitly asks to change one of those): "${customNote}"`
+    : PROMPT;
+
   // --- Call Gemini with BOTH images (documented multi-image blending) ---
   let generatedBytes, generatedMime;
   try {
@@ -133,7 +144,7 @@ export async function onRequestPost(context) {
             parts: [
               { inline_data: { mime_type: custMime, data: custCleanBase64 } },
               { inline_data: { mime_type: garmentMime, data: garmentCleanBase64 } },
-              { text: PROMPT }
+              { text: finalPrompt }
             ]
           }],
           generationConfig: { responseModalities: ['IMAGE'] }

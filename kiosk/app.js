@@ -112,6 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const garmentStrip = el('kiosk-garment-strip');
   const btnGenerate = el('btn-generate');
   const kioskStatus = el('kiosk-status');
+  const kioskCustomNote = el('kiosk-custom-note');
 
   async function startCamera() {
     try {
@@ -223,7 +224,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify({
           token: authToken,
           customerPhotoBase64: capturedPhotoDataUrl,
-          garmentPhotoUrl: selectedGarment.photoUrl
+          garmentPhotoUrl: selectedGarment.photoUrl,
+          customNote: kioskCustomNote ? kioskCustomNote.value.trim().slice(0, 300) : ''
         })
       });
       const result = await res.json();
