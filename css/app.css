@@ -1277,49 +1277,6 @@ p {
     transform: translateX(0);
   }
 
-  /* Real design gap, found via user feedback 24 Sep 2026: on mobile
-     there's no room to spare for a permanent narrow icon-only rail --
-     that's a desktop-only concept where the sidebar is always visible
-     alongside content. On mobile the sidebar should only ever be fully
-     hidden (default, off-canvas) or fully open as a full-width drawer
-     -- .collapsed carrying over from a desktop session (it's the same
-     localStorage-persisted class/toggle on both) should have NO visual
-     effect at this width. Overriding it back to full width whenever it
-     IS shown, so tapping the hamburger always opens the complete
-     drawer, never a narrow rail, regardless of collapsed state. */
-  /* #sidebar.collapsed (ID + class, specificity 1,1,0) deliberately
-     used instead of .sidebar.collapsed (0,2,0) -- the desktop-scoped
-     .sidebar.collapsed width rule (also 0,2,0) sits LATER in this file
-     than this mobile block, so at equal specificity IT would win
-     regardless of media query, undoing this override exactly the same
-     way the earlier .main-content bug worked in reverse. The ID
-     selector guarantees this wins regardless of file position, instead
-     of relying on order again. */
-  #sidebar.collapsed {
-    width: var(--sidebar-width, 260px);
-    transform: translateX(-100%);
-  }
-  #sidebar.collapsed.open {
-    transform: translateX(0);
-  }
-  #sidebar.collapsed .sidebar-wordmark,
-  #sidebar.collapsed .sidebar-brand-text,
-  #sidebar.collapsed .sidebar-section-title,
-  #sidebar.collapsed .sidebar-link-text {
-    opacity: 1;
-    width: auto;
-    pointer-events: all;
-  }
-  #sidebar.collapsed .sidebar-link {
-    justify-content: flex-start;
-    padding-left: var(--sp-4);
-    padding-right: var(--sp-4);
-  }
-  #sidebar.collapsed .sidebar-link-icon {
-    margin: 0;
-    font-size: inherit;
-  }
-
   /* Real bug, found via an actual mobile screenshot 24 Sep 2026: the
      desktop rule that pushes .main-content over by 72px when the
      sidebar is .collapsed (.sidebar.collapsed ~ .main-content) has
@@ -1334,14 +1291,17 @@ p {
      .main-content should never get a left margin here regardless of
      collapsed state. Matched selector specificity exactly so this
      reliably wins instead of guessing with !important. */
-  /* #sidebar-scoped for the same reason as the block above: this
-     rule's specificity (3 classes, 0,3,0) exactly matches the desktop
-     rule it's meant to override, and that desktop rule sits LATER in
-     this file (further down, unconditional) -- at equal specificity
-     the later one wins regardless of media query, meaning this
-     override may never have actually applied. Using #sidebar in place
-     of the leading .sidebar class guarantees this wins on specificity
-     (1,2,0 beats 0,3,0) rather than depending on file position. */
+  /* #sidebar-scoped for the same reason as above: this rule's
+     specificity (3 classes, 0,3,0) exactly matches the desktop rule it
+     overrides, which sits LATER in this file -- at equal specificity
+     that would win regardless of media query. #sidebar guarantees this
+     wins on specificity (1,2,0 beats 0,3,0) instead of depending on
+     file position. Kept even after reverting the mobile-inert collapse
+     attempt below: mobile uses overlay-style nav (the sidebar sits ON
+     TOP of content when shown, never pushes it aside), so main-content
+     never gets a left margin here regardless of collapsed state --
+     unlike desktop, where a collapsed-but-still-visible sidebar
+     legitimately needs content to shift over for it. */
   #sidebar.collapsed ~ .main-content,
   #sidebar.collapsed ~ * .main-content,
   .main-content {
