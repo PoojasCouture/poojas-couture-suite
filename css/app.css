@@ -1415,6 +1415,30 @@ p {
   font-size: 20px;
 }
 
+/* Uniform, centered icon rail (found via mobile screenshot 24 Sep 2026):
+   - Section titles were only given width:0 when collapsed, so their padding
+     stayed AND each word wrapped onto its own line -- huge, uneven vertical
+     gaps between icon groups. Remove them from layout entirely.
+   - Zero the between-section margin so every icon row is the same height.
+   - The nav's scrollbar took ~8px of the 72px rail, pushing icons left of
+     center. Hide the bar (still scrollable) so icons sit at true center.
+   - Footer avatar was offset right by footer/user padding + hidden text
+     gap; center it and hide the name/role block. */
+.sidebar.collapsed .sidebar-section-title { display: none; }
+.sidebar.collapsed .sidebar-section { margin-bottom: 0; }
+.sidebar.collapsed .sidebar-nav {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.sidebar.collapsed .sidebar-nav::-webkit-scrollbar { display: none; width: 0; }
+.sidebar.collapsed .sidebar-footer { padding: var(--sp-3) 0; }
+.sidebar.collapsed .sidebar-user {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+.sidebar.collapsed .sidebar-user-info { display: none; }
+
 /* Logo click cursor */
 .sidebar-brand {
   cursor: pointer;
