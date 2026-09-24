@@ -204,7 +204,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('kpi-overlay').classList.add('open');
     renderKPIDrawer();
   }
+  // Touch-safe tooltip for KPI tiles: shows on tap (auto-hides) and on
+  // mouse hover. Positioned to the LEFT of the tile since the drawer
+  // sits on the right edge of the screen.
+  const kpiTip = document.getElementById('kpi-tip');
+  let kpiTipTimer = null;
+  function showKpiTip(tile) {
+    if (!kpiTip || !tile) return;
+    const label = tile.getAttribute('data-tooltip');
+    if (!label) return;
+    const r = tile.getBoundingClientRect();
+    kpiTip.textContent = label;
+    kpiTip.style.right = (window.innerWidth - r.left + 8) + 'px';
+    kpiTip.style.top = (r.top + r.height / 2) + 'px';
+    kpiTip.classList.add('show');
+    clearTimeout(kpiTipTimer);
+    kpiTipTimer = setTimeout(hideKpiTip, 2200);
+  }
+  function hideKpiTip() {
+    if (kpiTip) kpiTip.classList.remove('show');
+    clearTimeout(kpiTipTimer);
+  }
+  const kpiContentEl = document.getElementById('kpi-content');
+  if (kpiContentEl) {
+    kpiContentEl.addEventListener('click', e => showKpiTip(e.target.closest('.kpi-tile')));
+    kpiContentEl.addEventListener('mouseover', e => showKpiTip(e.target.closest('.kpi-tile')));
+    kpiContentEl.addEventListener('mouseleave', hideKpiTip);
+  }
   function closeKPI() {
+    hideKpiTip();
     document.getElementById('kpi-drawer').classList.remove('open');
     document.getElementById('kpi-overlay').classList.remove('open');
   }
@@ -271,10 +299,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // the literal reference): icon + number visible, label dropped to
     // a tooltip (title attribute) -- same as how the collapsed sidebar
     // shows icons alone with the label only on hover, not inline text
-    // at this width.
+    // at this width. Label lives in data-tooltip (not title=, which
+    // never shows on touch) and is shown by showKpiTip() above.
     strip.innerHTML = '<div style="display:flex;flex-direction:column;gap:6px;">' +
       kpis.map(function(k, i) {
-        return '<div class="kpi-tile" title="' + k.label + '" style="' +
+        return '<div class="kpi-tile" data-tooltip="' + k.label + '" aria-label="' + k.label + '" tabindex="0" style="' +
           'display:flex;flex-direction:column;align-items:center;gap:2px;' +
           'background:var(--pc-bg-card);' +
           'border:1px solid ' + (k.urgent ? k.color : 'var(--pc-border)') + ';' +

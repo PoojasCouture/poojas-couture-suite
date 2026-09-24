@@ -95,6 +95,22 @@
     .kpi-tile:hover .kpi-tile-value { color: var(--pc-gold, #d4af37); }
     .kpi-tile-label { font-size:10px; font-weight:700; color:var(--pc-text-muted,#888); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
     .kpi-tile-icon  { font-size:14px; margin-bottom:4px; }
+    /* JS-driven tooltip (touch-safe). Native title= tooltips need a mouse
+       hover and never show on phones; a CSS ::after tooltip would be
+       clipped here because #kpi-drawer has overflow-y:auto. So one fixed
+       element outside the drawer is positioned by JS on tap/hover. */
+    #kpi-tip {
+      position: fixed; z-index: 1100;
+      transform: translateY(-50%);
+      background: var(--pc-bg-card, #1a1a2e);
+      color: var(--pc-text, #fff);
+      border: 1px solid var(--pc-gold, #d4af37);
+      border-radius: 6px; padding: 6px 10px;
+      font-size: 12px; font-weight: 600; white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      opacity: 0; pointer-events: none; transition: opacity 0.15s;
+    }
+    #kpi-tip.show { opacity: 1; }
     .kpi-tile-value { font-size:24px; font-weight:900; color:var(--pc-text,#fff); line-height:1; transition:color 0.2s; }
 
     /* Mobile full-width */
@@ -135,6 +151,7 @@
 
   <!-- KPI Drawer -->
   <div id="kpi-overlay"></div>
+  <div id="kpi-tip" role="tooltip"></div>
   <div id="kpi-drawer">
     <div class="d-flex flex-column items-center mb-3" style="gap:8px;">
       <span class="text-gold" style="font-size:18px;" title="KPI Dashboard"><i class="ph ph-chart-bar"></i></span>
@@ -186,6 +203,6 @@
   <script src="../js/store.js?v=20260917b"></script>
     <script src="../js/access.js?v=20260924b"></script>
   <script src="../js/invoicing.js?v=20260727"></script>
-  <script src="app.js?v=20260917g"></script>
+  <script src="app.js?v=20260924e"></script>
 </body>
 </html>

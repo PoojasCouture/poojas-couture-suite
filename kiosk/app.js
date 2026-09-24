@@ -85,12 +85,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (frameImg) frameImg.src = '';
   }
 
-  // ---------- Logout ----------
+  // ---------- Exit to main app ----------
   const btnLogout = el('btn-logout');
   if (btnLogout) btnLogout.addEventListener('click', async () => {
+    // Returns to the main app WITHOUT logging out (staff stay signed in).
+    // Camera and photo data are still cleared first.
     stopCamera();
     clearAllPhotoData();
-    await Store.logout();
     window.location.href = '../index.html';
   });
 
