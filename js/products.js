@@ -1607,7 +1607,7 @@ const Products = (() => {
 
     const content = `
       <div class="d-flex gap-4 mb-4">
-        <div style="position:relative;flex-shrink:0;">
+        <div style="position:relative;flex-shrink:0;align-self:flex-start;">
           <div style="width:96px;height:96px;border-radius:8px;overflow:hidden;background:var(--pc-bg-card);display:flex;align-items:center;justify-content:center;${primaryPhotoUrl ? 'cursor:zoom-in' : ''}" ${primaryPhotoUrl ? `onclick="Products.openPhotoLightbox('${Utils.sanitizeHTML(primaryPhotoUrl)}')"` : ''}>
             ${primaryPhotoUrl ? `<img src="${Utils.sanitizeHTML(primaryPhotoUrl)}" style="width:100%;height:100%;object-fit:cover;">` : '<span style="font-size:28px;">📷</span>'}
           </div>
