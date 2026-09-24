@@ -266,20 +266,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       { icon: '🎯', label: 'Delivered (mo)', value: deliveredMonth, color: '#34d399', urgent: false },
     ];
 
-    strip.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px;">' +
+    // Bigger tiles, more padding, larger icon/value text -- the drawer
+    // is a tall, full-height panel, and the grid now vertically
+    // centers within it (see #kpi-content flex rules), so the tiles
+    // themselves should scale up to fill that space intentionally
+    // rather than sitting small with dead space around them.
+    strip.innerHTML = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;width:100%;">' +
       kpis.map(function(k, i) {
         return '<div class="kpi-tile" style="' +
           'background:var(--pc-bg-card);' +
           'border:1px solid ' + (k.urgent ? k.color : 'var(--pc-border)') + ';' +
-          'border-radius:10px;padding:10px 8px;text-align:center;' +
+          'border-radius:14px;padding:22px 12px;text-align:center;' +
           'opacity:0;' +
           'animation:kpiIn 0.35s ease both;animation-delay:' + (i * 0.06).toFixed(2) + 's;' +
           'transition:transform 0.18s ease,box-shadow 0.18s ease;' +
           (k.urgent ? 'box-shadow:0 0 10px ' + k.color + '44;' : '') +
         '">' +
-          '<div style="font-size:13px;color:#888;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:4px;">' + k.label + '</div>' +
-          '<div style="font-size:11px;margin-bottom:4px;">' + k.icon + '</div>' +
-          '<div style="font-size:22px;font-weight:900;color:' + k.color + ';line-height:1;">' + k.value + '</div>' +
+          '<div style="font-size:13px;color:#888;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:10px;">' + k.label + '</div>' +
+          '<div style="font-size:26px;margin-bottom:10px;">' + k.icon + '</div>' +
+          '<div style="font-size:34px;font-weight:900;color:' + k.color + ';line-height:1;">' + k.value + '</div>' +
         '</div>';
       }).join('') +
     '</div>';
