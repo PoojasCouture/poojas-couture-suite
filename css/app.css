@@ -1277,6 +1277,22 @@ p {
     transform: translateX(0);
   }
 
+  /* Real bug, found via an actual mobile screenshot 24 Sep 2026: the
+     desktop rule that pushes .main-content over by 72px when the
+     sidebar is .collapsed (.sidebar.collapsed ~ .main-content) has
+     higher specificity (3 chained classes) than this plain
+     .main-content{margin-left:0} reset (1 class), so it was winning
+     regardless of this media query -- meaning whenever the sidebar
+     carried .collapsed on mobile, the content got shifted right by
+     72px of genuinely empty dead space, even though the sidebar itself
+     sits off-canvas (hidden) at that width when not .open. Mobile uses
+     overlay-style navigation (the sidebar drawer sits ON TOP of
+     content when open, it doesn't push content aside), so
+     .main-content should never get a left margin here regardless of
+     collapsed state. Matched selector specificity exactly so this
+     reliably wins instead of guessing with !important. */
+  .sidebar.collapsed ~ .main-content,
+  .sidebar.collapsed ~ * .main-content,
   .main-content {
     margin-left: 0;
   }
@@ -1450,24 +1466,16 @@ p {
      off-canvas state (that combination previously left the
      opened sidebar showing icon-only, with no text, on phones).
    ============================================================ */
-@media (max-width: 1024px) {
-  .sidebar.collapsed {
-    width: var(--sidebar-width, 260px);
-  }
-  .sidebar.collapsed .sidebar-wordmark,
-  .sidebar.collapsed .sidebar-brand-text,
-  .sidebar.collapsed .sidebar-section-title,
-  .sidebar.collapsed .sidebar-link-text {
-    opacity: 1;
-    width: auto;
-    pointer-events: all;
-  }
-  .sidebar.collapsed .sidebar-link {
-    justify-content: flex-start;
-    padding-left: var(--sp-4);
-    padding-right: var(--sp-4);
-  }
-}
+/* Real bug, found via an actual mobile screenshot 24 Sep 2026: this
+   block used to force .sidebar.collapsed back to full width with
+   visible text labels specifically on mobile widths, completely
+   undoing the collapse toggle -- clicking the logo to shrink to
+   icon-only did nothing below 1024px. There's a single, unified
+   collapse toggle (js/app.js wireSidebarCollapse -- one click handler,
+   one class, used identically on desktop and mobile), so there's no
+   legitimate reason mobile should behave differently here. Removed the
+   override entirely; mobile now correctly inherits the same narrow
+   icon-only .sidebar.collapsed rules as desktop. */
 
 /* ===== 3. components.css — cards, tables, modals, forms, badges ===== */
 /* ============================================================
