@@ -31,7 +31,19 @@
     /* ── KPI Drawer ─────────────────────────────────────── */
     #kpi-drawer {
       position: fixed;
-      top: 0; right: -340px;
+      top: 0;
+      /* right:-100% (not a fixed px value like -340px) -- for a
+         position:fixed element, a percentage offset resolves against
+         the VIEWPORT width, not the element's own width. This
+         guarantees the drawer is always fully off-screen regardless of
+         its actual rendered width at any breakpoint, instead of a
+         fixed offset that only worked for one specific width and
+         silently left part of the drawer visible whenever a later
+         media query changed the width without updating this to match
+         -- exactly what caused a permanent sliver peeking on-screen on
+         phones wider than ~400px CSS pixels (85vw exceeded the old
+         fixed 340px offset there). */
+      right: -100%;
       width: 320px;
       height: 100vh;
       background: var(--pc-bg-card, #12122a);
