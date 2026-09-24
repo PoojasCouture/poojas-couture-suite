@@ -1783,8 +1783,8 @@ div[style*="border:1px solid var(--pc-"] {
 
 .btn-icon {
   position: relative;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border-radius: var(--radius-md);
   font-size: var(--text-md);
