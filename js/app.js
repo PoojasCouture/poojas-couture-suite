@@ -342,7 +342,7 @@ const App = (() => {
             <div class="text-xs font-semibold text-gold">${Utils.sanitizeHTML(alert.title)}</div>
             <div class="text-xs text-muted mt-1 font-light">${Utils.sanitizeHTML(alert.desc)}</div>
           </div>
-          <button class="btn btn-secondary btn-sm" style="font-size: 10px; padding: 2px 6px;">Manage</button>
+          <button class="btn btn-secondary btn-sm" style="flex-shrink:0;">Manage</button>
         `;
         Utils.$('button', item).addEventListener('click', alert.action);
         feed.appendChild(item);
