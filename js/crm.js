@@ -4536,8 +4536,8 @@ poojascouture.com.au`
                 <div class="text-xs font-semibold text-gold">🧾 Invoice ${Utils.sanitizeHTML(invoice.invoiceNumber)}</div>
                 <div class="d-flex gap-2 items-center">
                   <span class="badge ${invoice.status === 'Paid' ? 'badge-success' : invoice.status === 'Partially Paid' ? 'badge-warning' : 'badge-muted'} text-xs">${invoice.status}</span>
-                  ${invoice.status !== 'Paid' && subOrders.length > 0 ? `<button class="btn btn-secondary" style="font-size:10px;padding:3px 10px" onclick="CRM.syncInvoiceFromOrders('${subOrders[0].id}')" title="Recalculate invoice from current order prices">🔄 Sync</button>` : ''}
-                  <button class="btn btn-secondary" style="font-size:10px;padding:3px 10px" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${invoice.id}'),200)">✏️ Edit</button>
+                  ${invoice.status !== 'Paid' && subOrders.length > 0 ? `<button class="btn-sm-safe" onclick="CRM.syncInvoiceFromOrders('${subOrders[0].id}')" title="Recalculate invoice from current order prices">🔄 Sync</button>` : ''}
+                  <button class="btn-sm-safe" onclick="App.closeModal();setTimeout(()=>CRM.showEditInvoiceModal('${invoice.id}'),200)">✏️ Edit</button>
                 </div>
               </div>
               <!-- Totals -->
@@ -4555,7 +4555,7 @@ poojascouture.com.au`
                   const rolloverDiv = m.rollover > 0 ? '<div class="text-xs" style="color:#a78bfa">Includes ' + Utils.formatCurrency(m.rollover) + ' rolled from previous milestone</div>' : '';
                   const paidDiv = (m.paid && m.paidAmount > 0) ? '<div class="text-xs text-success">✓ Paid: ' + Utils.formatCurrency(m.paidAmount) + '</div>' : '';
                   const actionBtn = !m.paid
-                    ? '<button class="btn btn-primary" style="font-size:10px;padding:3px 10px" onclick="App.closeModal();setTimeout(()=>CRM.recordMilestonePayment(\''+proj.id+'\','+idx+'),200)">💳 Record Payment</button>'
+                    ? '<button class="btn-sm-safe primary" onclick="App.closeModal();setTimeout(()=>CRM.recordMilestonePayment(\''+proj.id+'\','+idx+'),200)">💳 Record Payment</button>'
                     : '<span class="badge badge-success text-xs">Paid</span>';
                   return '<div class="p-2 rounded-md" style="background:rgba(255,255,255,0.02);border:1px solid var(--pc-border)">' +
                     '<div class="d-flex justify-between items-center">' +

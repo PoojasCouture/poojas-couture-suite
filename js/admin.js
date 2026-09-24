@@ -95,6 +95,7 @@ const Admin = (() => {
                 <th style="text-align: center;" title="Social CRM Studio"><span class="perm-header-icon" style="color:rgb(220,140,90);--glow:rgba(220,140,90,0.65)"><i class="ph ph-sparkle"></i></span></th>
                 <th style="text-align: center;" title="Tailor Portal"><span class="perm-header-icon" style="color:rgb(200,150,190);--glow:rgba(200,150,190,0.65)"><i class="ph ph-needle"></i></span></th>
                 <th style="text-align: center;" title="Shipping Portal"><span class="perm-header-icon" style="color:rgb(90,110,210);--glow:rgba(90,110,210,0.65)"><i class="ph ph-airplane-tilt"></i></span></th>
+                <th style="text-align: center;" title="Try-On Kiosk -- role-based (Admin &amp; Operations only), not set per user"><span class="perm-header-icon" style="color:rgb(236,182,118);--glow:rgba(236,182,118,0.65)"><i class="ph ph-camera"></i></span></th>
                 <th style="width: 100px; text-align: right;">Save</th>
               </tr>
             </thead>
@@ -155,6 +156,9 @@ const Admin = (() => {
         <td style="text-align: center;">
           <input type="checkbox" class="perm-chk" data-emp="${emp.id}" data-perm="shipping" ${perms.shipping ? 'checked' : ''} ${emp.id === 'e-1' ? 'disabled' : ''}>
         </td>
+        <td style="text-align: center;" title="Role-based access -- set by System Role, not by checkbox">
+          ${hasKioskAccess(emp) ? '<i class="ph ph-check" style="color:var(--pc-success, #4caf82);font-size:16px;"></i>' : '<i class="ph ph-minus" style="color:var(--pc-text-muted);font-size:16px;"></i>'}
+        </td>
         <td>
           <div class="table-actions justify-end">
             <button class="btn btn-secondary btn-sm" onclick="Admin.savePermissions('${emp.id}')" ${emp.id === 'e-1' ? 'disabled' : ''}>
@@ -166,6 +170,16 @@ const Admin = (() => {
 
       tbody.appendChild(tr);
     });
+  }
+
+  // Kiosk access is role-based (see js/access.js), not a per-user
+  // checkbox like the other columns -- this reads the same table so
+  // the Admin Centre display can never disagree with the real gate.
+  function hasKioskAccess(emp) {
+    const role = (emp.appRole || emp.app_role || '').toLowerCase();
+    if (!window.AccessControl) return false;
+    const access = AccessControl.getRoleAccess(role, false, false);
+    return !!(access && access.kioskPortal);
   }
 
   async function savePermissions(empId) {
@@ -616,6 +630,10 @@ const Admin = (() => {
     const grantedPerms = Object.entries(permLabels)
       .filter(([key]) => perms[key])
       .map(([, label]) => label);
+    // Kiosk is role-based, not a permissions-object checkbox (see
+    // hasKioskAccess) -- appended here so it still shows up as a real
+    // granted portal instead of looking absent from this list.
+    if (hasKioskAccess(emp)) grantedPerms.push('Try-On Kiosk (role-based)');
 
     App.showModal({
       title: 'User Details',

@@ -1841,6 +1841,35 @@ div[style*="border:1px solid var(--pc-"] {
   font-size: var(--text-xs);
 }
 
+/* Safe small button for compact inline actions (invoice Sync/Edit/Record
+   Payment, dashboard alert Manage buttons, etc). Several of these were
+   previously hand-sized with fixed px inline styles (e.g.
+   "font-size:10px;padding:3px 10px") that render a pill too small for
+   the label at some cascade/zoom states, clipping or spilling the text.
+   This uses the same rem-based sizing as .btn-sm so it always sizes to
+   its own text, just slightly tighter for dense rows. */
+.btn-sm-safe {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  line-height: 1.5;
+  cursor: pointer;
+  border: 1px solid var(--pc-border-light);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--pc-text);
+  flex-shrink: 0;
+}
+.btn-sm-safe:hover { background: rgba(255, 255, 255, 0.1); }
+[data-theme="light"] .btn-sm-safe { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.12); }
+[data-theme="light"] .btn-sm-safe:hover { background: rgba(0,0,0,0.10); }
+.btn-sm-safe.primary { background: var(--pc-gradient-gold); color: var(--pc-text-inverse); border-color: transparent; }
+
 .btn-lg {
   padding: var(--sp-3) var(--sp-7);
   font-size: var(--text-md);
