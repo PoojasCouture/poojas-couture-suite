@@ -95,7 +95,7 @@ const Admin = (() => {
                 <th style="text-align: center;" title="Social CRM Studio"><span class="perm-header-icon" style="color:rgb(220,140,90);--glow:rgba(220,140,90,0.65)"><i class="ph ph-sparkle"></i></span></th>
                 <th style="text-align: center;" title="Tailor Portal"><span class="perm-header-icon" style="color:rgb(200,150,190);--glow:rgba(200,150,190,0.65)"><i class="ph ph-needle"></i></span></th>
                 <th style="text-align: center;" title="Shipping Portal"><span class="perm-header-icon" style="color:rgb(90,110,210);--glow:rgba(90,110,210,0.65)"><i class="ph ph-airplane-tilt"></i></span></th>
-                <th style="text-align: center;" title="Try-On Kiosk -- role-based (Admin &amp; Operations only), not set per user"><span class="perm-header-icon" style="color:rgb(236,182,118);--glow:rgba(236,182,118,0.65)"><i class="ph ph-camera"></i></span></th>
+                <th style="text-align: center;" title="Try-On Kiosk (also auto-granted to Admin &amp; Operations roles)"><span class="perm-header-icon" style="color:rgb(236,182,118);--glow:rgba(236,182,118,0.65)"><i class="ph ph-camera"></i></span></th>
                 <th style="width: 100px; text-align: right;">Save</th>
               </tr>
             </thead>
@@ -117,7 +117,7 @@ const Admin = (() => {
       const avatarBg = Utils.getAvatarColor(emp.name);
 
       // Default permissions if missing
-      const perms = emp.permissions || { crm: false, hrm: false, accounting: false, admin: false, socialCrm: false, tailor: false, shipping: false };
+      const perms = emp.permissions || { crm: false, hrm: false, accounting: false, admin: false, socialCrm: false, tailor: false, shipping: false, kiosk: false };
 
       tr.innerHTML = `
         <td>
@@ -156,8 +156,8 @@ const Admin = (() => {
         <td style="text-align: center;">
           <input type="checkbox" class="perm-chk" data-emp="${emp.id}" data-perm="shipping" ${perms.shipping ? 'checked' : ''} ${emp.id === 'e-1' ? 'disabled' : ''}>
         </td>
-        <td style="text-align: center;" title="Role-based access -- set by System Role, not by checkbox">
-          ${hasKioskAccess(emp) ? '<i class="ph ph-check" style="color:var(--pc-success, #4caf82);font-size:16px;"></i>' : '<i class="ph ph-minus" style="color:var(--pc-text-muted);font-size:16px;"></i>'}
+        <td style="text-align: center;">
+          <input type="checkbox" class="perm-chk" data-emp="${emp.id}" data-perm="kiosk" ${perms.kiosk ? 'checked' : ''} ${emp.id === 'e-1' ? 'disabled' : ''}>
         </td>
         <td>
           <div class="table-actions justify-end">
@@ -514,6 +514,7 @@ const Admin = (() => {
               <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_socialCrm"> Social CRM Studio</label>
               <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_tailor"> Tailor Portal</label>
               <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_shipping"> Shipping Portal</label>
+              <label class="d-flex items-center gap-2"><input type="checkbox" name="perm_kiosk"> Try-On Kiosk</label>
             </div>
           </div>
           <div id="add-user-error" class="text-xs mt-2" style="color: var(--pc-danger, #c85a5a); display:none;"></div>
@@ -550,7 +551,8 @@ const Admin = (() => {
       admin: !!fd.get('perm_admin'),
       socialCrm: !!fd.get('perm_socialCrm'),
       tailor: !!fd.get('perm_tailor'),
-      shipping: !!fd.get('perm_shipping')
+      shipping: !!fd.get('perm_shipping'),
+      kiosk: !!fd.get('perm_kiosk')
     };
 
     if (!name || !email || !password) {
@@ -625,15 +627,15 @@ const Admin = (() => {
     const perms = emp.permissions || {};
     const permLabels = {
       crm: 'Sales Dashboard (CRM)', hrm: 'Human Capital (HRM)', accounting: 'Accounting & Finance',
-      admin: 'Admin Center', socialCrm: 'Social CRM Studio', tailor: 'Tailor Portal', shipping: 'Shipping Portal'
+      admin: 'Admin Center', socialCrm: 'Social CRM Studio', tailor: 'Tailor Portal', shipping: 'Shipping Portal', kiosk: 'Try-On Kiosk'
     };
     const grantedPerms = Object.entries(permLabels)
       .filter(([key]) => perms[key])
       .map(([, label]) => label);
-    // Kiosk is role-based, not a permissions-object checkbox (see
-    // hasKioskAccess) -- appended here so it still shows up as a real
-    // granted portal instead of looking absent from this list.
-    if (hasKioskAccess(emp)) grantedPerms.push('Try-On Kiosk (role-based)');
+    // Kiosk can also be granted purely by System Role (Admin/Operations
+    // always have it -- see hasKioskAccess) even with the checkbox off;
+    // note that case separately so real access is never invisible here.
+    if (!perms.kiosk && hasKioskAccess(emp)) grantedPerms.push('Try-On Kiosk (via System Role)');
 
     App.showModal({
       title: 'User Details',

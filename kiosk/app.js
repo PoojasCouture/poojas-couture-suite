@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const appRole = (user.appRole || user.app_role || '').toLowerCase();
     const perms = user.permissions || {};
     const access = (window.AccessControl && AccessControl.getRoleAccess(appRole, !!perms.crm, !!perms.socialCrm)) || {};
-    return access.kioskPortal === true;
+    return access.kioskPortal === true || perms.kiosk === true;
   }
 
   function showGate(message, allowLogin) {

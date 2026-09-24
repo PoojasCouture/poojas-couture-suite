@@ -868,7 +868,7 @@ const App = (() => {
           let show = true;
           if (href.includes('tailor'))   show = access.tailorPortal;
           if (href.includes('shipping')) show = access.logisticsPortal;
-          if (href.includes('kiosk'))    show = access.kioskPortal;
+          if (href.includes('kiosk'))    show = access.kioskPortal || !!(user.permissions && user.permissions.kiosk);
           a.style.display = show ? '' : 'none';
           if (show) anyVisible = true;
         });
