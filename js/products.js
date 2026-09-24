@@ -243,7 +243,7 @@ const Products = (() => {
       </div>
 
       <!-- Summary stat cards -->
-      <div class="d-grid gap-4 mb-6 animate-fade-in stagger-1" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
+      <div class="d-grid gap-4 mb-6 animate-fade-in stagger-1 stock-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
         <div class="stat-card" style="cursor:pointer" onclick="Products.showReport('all')">
           <div class="stat-card-header"><span class="stat-card-icon gold"><img src="assets/22_folder.png" alt="" style="width:24px;height:24px;object-fit:contain;"></span></div>
           <div class="stat-card-value">${products.length}</div>

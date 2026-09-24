@@ -1629,6 +1629,20 @@ div[style*="border:1px solid var(--pc-"] {
 .stat-card-icon.red    { background: var(--pc-danger-bg);    color: var(--pc-danger);  }
 .stat-card-icon.purple { background: var(--pc-purple-bg);    color: var(--pc-purple);  }
 .stat-card-icon.amber  { background: var(--pc-warning-bg);   color: var(--pc-warning); }
+/* 'gray' was used (Stock > Sold card) but never defined, so that icon had no chip. */
+.stat-card-icon.gray   { background: rgba(255,255,255,0.06); color: var(--pc-text-muted); }
+
+/* Stock & Inventory KPI cards on phones: 2 per row, compact, last (odd) card
+   full width -- instead of one giant card per row filling the screen. */
+@media (max-width: 600px) {
+  .stock-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: var(--sp-3) !important; }
+  .stock-kpi-grid .stat-card { padding: var(--sp-3); }
+  .stock-kpi-grid .stat-card-header { margin-bottom: var(--sp-2); }
+  .stock-kpi-grid .stat-card-icon { width: 36px; height: 36px; }
+  .stock-kpi-grid .stat-card-value { font-size: 1.35rem; }
+  .stock-kpi-grid .stat-card-label { font-size: var(--text-xs, 12px); }
+  .stock-kpi-grid .stat-card:last-child { grid-column: 1 / -1; }
+}
 
 .stat-card-trend {
   display: flex;
