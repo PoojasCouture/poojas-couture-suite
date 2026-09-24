@@ -1441,6 +1441,13 @@ p {
   justify-content: center;
   padding-left: 0;
   padding-right: 0;
+  /* .sidebar-link's base rule sets gap: var(--sp-3) between the icon
+     and text -- when collapsed the text gets width:0, but the GAP is
+     still reserved between it and the icon regardless (CSS gap applies
+     to a flex child's slot, not its rendered width), shifting the icon
+     visibly left of true center within the 72px rail. Zeroing the gap
+     specifically here removes that phantom offset. */
+  gap: 0;
 }
 
 .sidebar.collapsed .sidebar-link-icon {
