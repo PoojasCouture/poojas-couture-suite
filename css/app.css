@@ -1439,6 +1439,15 @@ p {
 }
 .sidebar.collapsed .sidebar-user-info { display: none; }
 
+/* Kiosk logo: two stacked assets (dark-text-for-light-bg, light-text-
+   for-dark-bg), toggled by data-theme. logo-wordmark-light.png is white
+   text and was invisible against the kiosk's cream light-theme
+   background -- fixed by showing the correct asset per theme instead of
+   using one static (light-only) logo everywhere. */
+.portal-kiosk .logo-for-dark { display: none; }
+html[data-theme="dark"] .portal-kiosk .logo-for-light { display: none; }
+html[data-theme="dark"] .portal-kiosk .logo-for-dark { display: inline-block; }
+
 /* Logo click cursor */
 .sidebar-brand {
   cursor: pointer;
