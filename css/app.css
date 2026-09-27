@@ -3460,6 +3460,15 @@ div[style*="border:1px solid var(--pc-"] {
      member-info flex item, pushing the icon left of true center
      (found via screenshot 25 Sep 2026) -- remove it here. */
   gap: 0;
+  /* Every card (not just .active) reserves a 3px left border for the
+     active-state accent bar, even when transparent -- that's a real,
+     permanent 3px of asymmetric space eaten from the left side only,
+     which is why the icon still sits slightly off-center even with the
+     two fixes above (found via pixel measurement of a follow-up
+     screenshot). .active still reads fine from its background tint,
+     gold border-color and glow alone, so it's safe to drop the accent
+     bar's width entirely here rather than compensate for it. */
+  border-left-width: 0;
 }
 
 /* Footer ("<- Back to Main App" / "Powered by Claude AI") had no
