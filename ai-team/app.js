@@ -934,6 +934,13 @@ Compile into one final cohesive deliverable. Organise by function with short hea
 // ── CINEMATIC REEL BUILDER — UI functions ──
 
 let reelBuilderOpen = false;
+// Stashed at render time so rbGenerateSceneVideo() (called from a plain
+// onclick, no closure over renderReelOutput's locals) can read each
+// scene's description + overall vibe/look context without re-parsing
+// the DOM.
+let rbCurrentTimeline = [];
+let rbCurrentVibe = '';
+let rbCurrentLookName = '';
 
 function openReelBuilder() {
   reelBuilderOpen = true;
@@ -1299,7 +1306,8 @@ function renderReelOutput(data, driveUrls, lookName, sourceInfo) {
       <div class="rb-output-title">Reel Brief — ${escapeHtml(lookName !== 'Not specified' ? lookName : 'Pooja\'s Couture')}</div>
       <span style="font-size:10px;color:var(--pc-text-muted);letter-spacing:0.06em;text-transform:uppercase;font-weight:600;">45s · 9:16 · Instagram Reel</span>
     </div>
-    ${sourceNote}`;
+    ${sourceNote}
+    <div class="rb-source-note">🎬 Each timeline row below has a real "Generate Video Clip" button (Google Veo, ~8s each). These are separate downloadable clips, not one auto-stitched 45s Reel — assemble them per the Edit Instructions section. Posting to Instagram isn't automated yet; download and post manually for now.</div>`;
 
   // ── Section 1: Creative Direction
   const s1 = document.createElement('div');
@@ -1323,12 +1331,20 @@ function renderReelOutput(data, driveUrls, lookName, sourceInfo) {
   s2.innerHTML = `<div class="rb-section-label"><span>⏱</span> 45-Second Timeline</div>`;
   const tlDiv = document.createElement('div');
   tlDiv.className = 'rb-timeline';
-  tl.forEach(row => {
+  tl.forEach((row, sceneIdx) => {
     const tagCls = tagClasses[row.tag] || '';
     const rowEl = document.createElement('div');
     rowEl.className = 'rb-tl-row';
+    const sceneVideoId = 'rb-scene-video-' + sceneIdx;
     rowEl.innerHTML = `<div class="rb-tl-time">${escapeHtml(row.time || '')}</div>
-      <div class="rb-tl-desc"><span class="rb-tl-tag ${tagCls}">${escapeHtml(row.tag || '')}</span>${escapeHtml(row.description || '')}</div>`;
+      <div class="rb-tl-desc">
+        <span class="rb-tl-tag ${tagCls}">${escapeHtml(row.tag || '')}</span>${escapeHtml(row.description || '')}
+        <div class="rb-scene-video-row">
+          <button class="rb-scene-gen-btn" onclick="rbGenerateSceneVideo(${sceneIdx}, this)">🎬 Generate Video Clip (~8s)</button>
+          <span class="rb-scene-video-status" id="rb-scene-status-${sceneIdx}"></span>
+        </div>
+        <div id="${sceneVideoId}"></div>
+      </div>`;
     tlDiv.appendChild(rowEl);
   });
   s2.appendChild(tlDiv);
@@ -1447,6 +1463,99 @@ function renderReelOutput(data, driveUrls, lookName, sourceInfo) {
   outerWrapper._reelData = data;
   outerWrapper._reelLookName = lookName;
   outerWrapper._reelDriveUrl = driveUrl;
+  rbCurrentTimeline = tl;
+  rbCurrentVibe = cd.vibe || '';
+  rbCurrentLookName = lookName !== 'Not specified' ? lookName : '';
+}
+
+// ---------------------------------------------------------------------
+// Reel Builder: real AI video generation, one scene at a time.
+//
+// IMPORTANT, STATED PLAINLY IN THE UI TOO: this generates one ~8-second
+// Veo clip per timeline row, NOT one final stitched 45-second Reel.
+// There is no video-editing/concatenation step in this stack (Cloudflare
+// Workers cannot run ffmpeg) -- each scene's clip is generated and
+// downloaded separately, then assembled outside the app (e.g. CapCut/
+// Premiere/InShot) using the Edit Instructions section above as the cut
+// guide. See functions/api/generate-reel-scene.js for the full reasoning.
+//
+// Real, new cost per click (Veo billing, separate from and higher than
+// the Nano Banana image generation already used elsewhere in this app).
+// ---------------------------------------------------------------------
+async function rbGenerateSceneVideo(sceneIdx, btnEl) {
+  const row = rbCurrentTimeline[sceneIdx];
+  const statusEl = document.getElementById('rb-scene-status-' + sceneIdx);
+  const videoSlot = document.getElementById('rb-scene-video-' + sceneIdx);
+  if (!row) return;
+
+  const authToken = await getAuthToken();
+  if (!authToken) {
+    if (statusEl) statusEl.innerHTML = '<span class="rb-scene-err">Session expired -- sign out and back in.</span>';
+    return;
+  }
+
+  const promptParts = [
+    rbCurrentVibe ? `Visual style: ${rbCurrentVibe}.` : '',
+    rbCurrentLookName ? `Look: ${rbCurrentLookName}.` : '',
+    `Scene: ${row.description || ''}`,
+    'Premium South Asian bridal couture boutique content -- cinematic, elegant, real fabric movement and lighting, no on-screen text or logos.'
+  ].filter(Boolean);
+  const prompt = promptParts.join(' ');
+
+  btnEl.disabled = true;
+  btnEl.textContent = '⏳ Starting…';
+  if (statusEl) statusEl.textContent = '';
+
+  let jobId;
+  try {
+    const startRes = await fetch('/api/generate-reel-scene', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: authToken, prompt, aspectRatio: '9:16', sceneIndex: sceneIdx })
+    });
+    const startData = await startRes.json();
+    if (!startRes.ok || !startData.ok) {
+      throw new Error(startData.error || ('HTTP ' + startRes.status));
+    }
+    jobId = startData.id;
+  } catch (err) {
+    btnEl.disabled = false;
+    btnEl.textContent = '🎬 Generate Video Clip (~8s)';
+    if (statusEl) statusEl.innerHTML = '<span class="rb-scene-err">' + escapeHtml('Could not start: ' + err.message) + '</span>';
+    return;
+  }
+
+  btnEl.textContent = '⏳ Generating (can take a minute+)…';
+  if (statusEl) statusEl.textContent = '';
+
+  const poll = async () => {
+    let data;
+    try {
+      const res = await fetch('/api/reel-scene-status?id=' + encodeURIComponent(jobId) + '&token=' + encodeURIComponent(authToken));
+      data = await res.json();
+    } catch {
+      setTimeout(poll, 5000);
+      return;
+    }
+    if (data.status === 'processing') {
+      setTimeout(poll, 5000);
+      return;
+    }
+    if (data.status === 'ready' && data.videoUrl) {
+      btnEl.textContent = '🎬 Regenerate Clip';
+      btnEl.disabled = false;
+      if (videoSlot) {
+        videoSlot.innerHTML = `<video class="rb-scene-video" src="${data.videoUrl}" controls playsinline></video>
+          <a class="rb-scene-download" href="${data.videoUrl}" download target="_blank">⬇ Download clip</a>`;
+      }
+      return;
+    }
+    // failed
+    btnEl.textContent = '🎬 Try Again';
+    btnEl.disabled = false;
+    if (statusEl) statusEl.innerHTML = '<span class="rb-scene-err">' + escapeHtml(data.error || 'Generation failed.') + '</span>';
+  };
+  setTimeout(poll, 4000);
 }
 
 function rbSwitchCaption(ver) {
