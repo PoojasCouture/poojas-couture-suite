@@ -3456,6 +3456,10 @@ div[style*="border:1px solid var(--pc-"] {
   justify-content: center;
   padding-left: 0;
   padding-right: 0;
+  /* gap still reserves space between the avatar and the now-width:0
+     member-info flex item, pushing the icon left of true center
+     (found via screenshot 25 Sep 2026) -- remove it here. */
+  gap: 0;
 }
 
 /* Footer ("<- Back to Main App" / "Powered by Claude AI") had no
