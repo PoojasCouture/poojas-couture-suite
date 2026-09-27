@@ -3424,7 +3424,6 @@ div[style*="border:1px solid var(--pc-"] {
 
 .portal-ai-team #sidebar.collapsed .sidebar-wordmark,
 .portal-ai-team #sidebar.collapsed .brand-sub,
-.portal-ai-team #sidebar.collapsed .team-label,
 .portal-ai-team #sidebar.collapsed .member-info,
 .portal-ai-team #sidebar.collapsed .status-box {
   opacity: 0;
@@ -3433,6 +3432,15 @@ div[style*="border:1px solid var(--pc-"] {
   pointer-events: none;
   transition: opacity 0.2s, width 0.2s;
 }
+
+/* .team-label ("Your Team" / "Project History") is a block-level text
+   label, not an inline span like the ones above -- width:0 alone left
+   its padding and text in place, so at 0 width each word wrapped onto
+   its own line (found via mobile screenshot 25 Sep 2026), producing a
+   tall column of single-letter-wide text and the huge, uneven gaps
+   between icon groups. Remove it from layout entirely instead, exactly
+   like the main app's .sidebar-section-title fix. */
+.portal-ai-team #sidebar.collapsed .team-label { display: none; }
 
 .portal-ai-team #sidebar.collapsed .brand-top-row {
   justify-content: center;
@@ -3446,6 +3454,24 @@ div[style*="border:1px solid var(--pc-"] {
 
 .portal-ai-team #sidebar.collapsed .member-btn {
   justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Footer ("<- Back to Main App" / "Powered by Claude AI") had no
+   collapsed treatment at all -- same wrapping problem as team-label,
+   just never addressed. Keep the back-arrow as a centered icon-only
+   button; hide the "Powered by" line entirely (no icon equivalent for
+   it, and it isn't essential once collapsed). */
+.portal-ai-team #sidebar.collapsed .back-link-text,
+.portal-ai-team #sidebar.collapsed .powered-label {
+  display: none;
+}
+.portal-ai-team #sidebar.collapsed .back-link {
+  justify-content: center;
+  padding: var(--sp-2);
+}
+.portal-ai-team #sidebar.collapsed .sidebar-footer {
   padding-left: 0;
   padding-right: 0;
 }
