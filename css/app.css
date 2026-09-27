@@ -4612,6 +4612,23 @@ div[style*="border:1px solid var(--pc-"] {
   color: rgb(220,140,90); text-decoration: underline;
 }
 
+/* "Generate All Clips" -- one click runs every scene's own generation
+   in sequence (not parallel), so a real, billable Veo job only ever
+   fires one at a time. Used both by the standalone Reel Builder and by
+   an auto-delegated reel inside the team pipeline (runCreatorReelDelegation). */
+.portal-ai-team .rb-generate-all-row {
+  display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  margin-top: var(--sp-3); padding-top: var(--sp-3);
+  border-top: 1px dashed var(--pc-border);
+}
+.portal-ai-team .rb-generate-all-btn {
+  font-size: var(--text-sm); font-weight: 600; padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-md); border: none;
+  background: var(--pc-gradient-gold); color: var(--pc-text-inverse); cursor: pointer;
+}
+.portal-ai-team .rb-generate-all-btn:disabled { opacity: 0.6; cursor: default; }
+.portal-ai-team .rb-timeline-inline { margin-top: var(--sp-3); }
+
 /* ── CTA banner (final frame) ── */
 .portal-ai-team .rb-cta-banner {
   display: flex;

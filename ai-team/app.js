@@ -762,6 +762,74 @@ async function sendMessage() {
   updateSaveButton();
 }
 
+// ── Auto-delegation → real, grounded Reel production (Priya → creator) ──
+//
+// Pulls any Google Drive folder link(s) out of the owner's original
+// request text. Matches submitReelBrief()'s own real-photos-only rule:
+// if the owner didn't paste a folder link, this returns [] and the
+// delegation falls back to a normal text reply rather than guessing at
+// garments that were never actually shown to the model.
+function extractDriveFolderUrls(text) {
+  const matches = String(text || '').match(/https:\/\/drive\.google\.com\/drive\/folders\/[A-Za-z0-9_-]+(?:\?[^\s,]*)?/g);
+  return matches ? [...new Set(matches)] : [];
+}
+
+async function runCreatorReelDelegation(task, strategicTake, driveUrls) {
+  const authToken = await getAuthToken();
+  if (!authToken) return null;
+
+  let imageData;
+  try {
+    const imgRes = await fetch('/api/drive-folder-images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: authToken, driveUrls })
+    });
+    imageData = await imgRes.json();
+    if (!imgRes.ok || !imageData.images || imageData.images.length === 0) return null;
+  } catch {
+    return null;
+  }
+
+  const textPrompt = [
+    `You have been shown ${imageData.count} real photo(s) pooled from ${imageData.foldersSucceeded || driveUrls.length} Drive folder(s) -- look at them directly.`,
+    `STRATEGIC DIRECTIVE FROM PRIYA (DELIVERY LEAD): ${strategicTake}`,
+    `YOUR SPECIFIC TASK, AS DELEGATED: ${task}`,
+    'REQUESTED_VIBE: Let Dia decide based on the directive, the task, and the actual photos.'
+  ].join('\n');
+  const content = [
+    ...imageData.images.map(img => ({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.base64 } })),
+    { type: 'text', text: textPrompt }
+  ];
+
+  let raw = '';
+  try {
+    raw = await callClaude(REEL_BUILDER_SYSTEM, [{ role: 'user', content }], 3500);
+    const data = extractAndParseJSON(raw);
+    if (!data || !data.timeline || !data.timeline.length) return null;
+    return { data, imageCount: imageData.count, driveUrls };
+  } catch (err) {
+    console.error('Auto-delegated reel brief failed to parse:', err, raw);
+    return null;
+  }
+}
+
+// Compact inline version of renderReelOutput()'s Section 2 -- timeline
+// rows + real per-scene video generation -- embedded inside a
+// delegation contribution card instead of replacing the whole chat.
+function renderReelDelegationHtml(result, idPrefix) {
+  const cd = result.data.creativeDirection || {};
+  const tl = result.data.timeline || [];
+  const vibe = cd.vibe || '';
+  rbTimelineRegistry[idPrefix] = { tl, vibe, lookName: '' };
+  const tagClasses = { HOOK: 'hook', CTA: 'cta' };
+  return `<div class="rb-timeline rb-timeline-inline">
+    ${vibe ? `<p style="font-size:13px;margin:8px 0;"><strong>Vibe:</strong> ${escapeHtml(vibe)}</p>` : ''}
+    ${buildTimelineRowsHtml(tl, tagClasses, idPrefix)}
+    ${buildGenerateAllRowHtml(tl, idPrefix)}
+  </div>`;
+}
+
 async function runDelegationPipeline(text) {
   const msgs = document.getElementById('messages');
   if (histories.ceo.length === 0) msgs.innerHTML = '';
@@ -833,13 +901,36 @@ async function runDelegationPipeline(text) {
     const agent = MEMBERS[d.agent];
     const delegatedSystem = agent.system + `\n\nIMPORTANT CONTEXT: Delegated by Priya, Delivery Lead. Directive: "${plan.strategic_take || text}"\n\nYour task: ${d.task}\n\nRespond with your actual finished deliverable — not a confirmation.`;
 
+    // ── Full grounded reel, not a text blurb, when Priya delegates a
+    // Reels/video task to creator (Dia) AND the owner's original request
+    // actually included real Drive folder link(s). Reels are Dia's
+    // (creator's) job in this app -- see ORCHESTRATOR_SYSTEM's own team
+    // list -- so this fires on 'creator' regardless of which words the
+    // owner used ("designer", "creative team", etc.) to describe it.
+    // Deliberately does NOT fall back to a guessed/ungrounded reel when
+    // no Drive links are present -- see submitReelBrief()'s own reasoning
+    // for why that would reintroduce exactly the guessing problem this
+    // app has already been fixed for once. Falls through to the normal
+    // text-delegation path below in that case.
+    const driveUrlsFromRequest = d.agent === 'creator' ? extractDriveFolderUrls(text) : [];
+    let reelDelegationResult = null;
+    if (driveUrlsFromRequest.length > 0) {
+      reelDelegationResult = await runCreatorReelDelegation(d.task, plan.strategic_take || text, driveUrlsFromRequest);
+    }
+
     let output;
-    try {
-      output = await callClaude(delegatedSystem, [{ role: 'user', content: d.task }]);
+    if (reelDelegationResult) {
+      const sceneCount = (reelDelegationResult.data.timeline || []).length;
+      output = `Produced a full Reel Brief (${sceneCount}-scene timeline, captions, hashtags, music direction) grounded in ${reelDelegationResult.imageCount} real photo(s) from the Drive folder(s) provided. Real video clips can be generated per scene below -- each is a genuine cost, so none were generated automatically.`;
       setAgentStatus(d.agent, 'done');
-    } catch (e) {
-      output = '(This contribution failed to generate. Please retry.)';
-      setAgentStatus(d.agent, 'error');
+    } else {
+      try {
+        output = await callClaude(delegatedSystem, [{ role: 'user', content: d.task }]);
+        setAgentStatus(d.agent, 'done');
+      } catch (e) {
+        output = '(This contribution failed to generate. Please retry.)';
+        setAgentStatus(d.agent, 'error');
+      }
     }
     contributions.push({ agent: d.agent, task: d.task, output });
     statusEl.className = 'd-status done';
@@ -848,15 +939,16 @@ async function runDelegationPipeline(text) {
     const details = document.createElement('details');
     details.className = 'agent-contribution';
     details.open = true; // expanded so user immediately sees output
-    const imagePrompt = agent.canGenerateImages ? extractImagePrompt(output) : null;
+    const imagePrompt = (!reelDelegationResult && agent.canGenerateImages) ? extractImagePrompt(output) : null;
     const cleanOutput = imagePrompt ? stripImageTag(output) : output;
+    const idPrefix = 'deleg-' + i;
     details.innerHTML = `
       <summary>
         <span style="font-size:14px">${agent.emoji}</span>
         <span>${agent.name} — contribution ready</span>
         <span class="chevron">▼</span>
       </summary>
-      <div class="contribution-body" id="contrib-body-${i}">${formatText(cleanOutput)}</div>`;
+      <div class="contribution-body" id="contrib-body-${i}">${formatText(cleanOutput)}${reelDelegationResult ? renderReelDelegationHtml(reelDelegationResult, idPrefix) : ''}</div>`;
 
     const detailsWrapper = document.createElement('div');
     detailsWrapper.className = 'msg ai';
@@ -938,9 +1030,10 @@ let reelBuilderOpen = false;
 // onclick, no closure over renderReelOutput's locals) can read each
 // scene's description + overall vibe/look context without re-parsing
 // the DOM.
-let rbCurrentTimeline = [];
-let rbCurrentVibe = '';
-let rbCurrentLookName = '';
+// Keyed by idPrefix ('rb' for the standalone Reel Builder, 'deleg-N' for
+// an auto-delegated reel produced inside the team pipeline below) so
+// multiple reels' scene data can coexist without overwriting each other.
+const rbTimelineRegistry = {};
 
 function openReelBuilder() {
   reelBuilderOpen = true;
@@ -1331,23 +1424,9 @@ function renderReelOutput(data, driveUrls, lookName, sourceInfo) {
   s2.innerHTML = `<div class="rb-section-label"><span>⏱</span> 45-Second Timeline</div>`;
   const tlDiv = document.createElement('div');
   tlDiv.className = 'rb-timeline';
-  tl.forEach((row, sceneIdx) => {
-    const tagCls = tagClasses[row.tag] || '';
-    const rowEl = document.createElement('div');
-    rowEl.className = 'rb-tl-row';
-    const sceneVideoId = 'rb-scene-video-' + sceneIdx;
-    rowEl.innerHTML = `<div class="rb-tl-time">${escapeHtml(row.time || '')}</div>
-      <div class="rb-tl-desc">
-        <span class="rb-tl-tag ${tagCls}">${escapeHtml(row.tag || '')}</span>${escapeHtml(row.description || '')}
-        <div class="rb-scene-video-row">
-          <button class="rb-scene-gen-btn" onclick="rbGenerateSceneVideo(${sceneIdx}, this)">🎬 Generate Video Clip (~8s)</button>
-          <span class="rb-scene-video-status" id="rb-scene-status-${sceneIdx}"></span>
-        </div>
-        <div id="${sceneVideoId}"></div>
-      </div>`;
-    tlDiv.appendChild(rowEl);
-  });
+  tlDiv.innerHTML = buildTimelineRowsHtml(tl, tagClasses, 'rb') + buildGenerateAllRowHtml(tl, 'rb');
   s2.appendChild(tlDiv);
+  rbTimelineRegistry['rb'] = { tl, vibe: cd.vibe || '', lookName: lookName !== 'Not specified' ? lookName : '' };
   panel.appendChild(s2);
 
   // ── Section 3: Music Direction
@@ -1463,9 +1542,56 @@ function renderReelOutput(data, driveUrls, lookName, sourceInfo) {
   outerWrapper._reelData = data;
   outerWrapper._reelLookName = lookName;
   outerWrapper._reelDriveUrl = driveUrl;
-  rbCurrentTimeline = tl;
-  rbCurrentVibe = cd.vibe || '';
-  rbCurrentLookName = lookName !== 'Not specified' ? lookName : '';
+}
+
+// Shared by the standalone Reel Builder AND the auto-delegation pipeline
+// below -- builds the same timeline-row markup (time/tag/description +
+// a real "Generate Video Clip" button per scene) regardless of where
+// the reel came from. idPrefix keeps element ids (and the registry
+// entry each button reads from) unique per reel instance.
+function buildTimelineRowsHtml(tl, tagClasses, idPrefix) {
+  return tl.map((row, sceneIdx) => {
+    const tagCls = tagClasses[row.tag] || '';
+    return `<div class="rb-tl-row">
+      <div class="rb-tl-time">${escapeHtml(row.time || '')}</div>
+      <div class="rb-tl-desc">
+        <span class="rb-tl-tag ${tagCls}">${escapeHtml(row.tag || '')}</span>${escapeHtml(row.description || '')}
+        <div class="rb-scene-video-row">
+          <button class="rb-scene-gen-btn" onclick="rbGenerateSceneVideo('${idPrefix}', ${sceneIdx}, this)">🎬 Generate Video Clip (~8s)</button>
+          <span class="rb-scene-video-status" id="${idPrefix}-scene-status-${sceneIdx}"></span>
+        </div>
+        <div id="${idPrefix}-scene-video-${sceneIdx}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// A single "Generate All Clips" convenience button that just clicks each
+// scene's own button in sequence (one Veo job at a time, not parallel --
+// keeps real spend visible/paced rather than firing N jobs at once).
+function buildGenerateAllRowHtml(tl, idPrefix) {
+  if (!tl || tl.length < 2) return '';
+  return `<div class="rb-generate-all-row">
+    <button class="rb-generate-all-btn" onclick="generateAllSceneVideos('${idPrefix}', this)">🎬 Generate All ${tl.length} Clips</button>
+    <span class="rb-scene-video-status" id="${idPrefix}-generate-all-status"></span>
+  </div>`;
+}
+
+async function generateAllSceneVideos(idPrefix, btnEl) {
+  const reg = rbTimelineRegistry[idPrefix];
+  if (!reg) return;
+  btnEl.disabled = true;
+  const statusEl = document.getElementById(idPrefix + '-generate-all-status');
+  for (let i = 0; i < reg.tl.length; i++) {
+    if (statusEl) statusEl.textContent = `Scene ${i + 1} of ${reg.tl.length}…`;
+    const sceneBtn = document.querySelector(`.rb-scene-gen-btn[onclick*="rbGenerateSceneVideo('${idPrefix}', ${i},"]`);
+    if (sceneBtn && !sceneBtn.disabled) {
+      await rbGenerateSceneVideo(idPrefix, i, sceneBtn);
+    }
+  }
+  if (statusEl) statusEl.textContent = 'All scenes done.';
+  btnEl.disabled = false;
+  btnEl.textContent = '🎬 Regenerate All Clips';
 }
 
 // ---------------------------------------------------------------------
@@ -1482,10 +1608,11 @@ function renderReelOutput(data, driveUrls, lookName, sourceInfo) {
 // Real, new cost per click (Veo billing, separate from and higher than
 // the Nano Banana image generation already used elsewhere in this app).
 // ---------------------------------------------------------------------
-async function rbGenerateSceneVideo(sceneIdx, btnEl) {
-  const row = rbCurrentTimeline[sceneIdx];
-  const statusEl = document.getElementById('rb-scene-status-' + sceneIdx);
-  const videoSlot = document.getElementById('rb-scene-video-' + sceneIdx);
+async function rbGenerateSceneVideo(idPrefix, sceneIdx, btnEl) {
+  const reg = rbTimelineRegistry[idPrefix];
+  const row = reg && reg.tl[sceneIdx];
+  const statusEl = document.getElementById(idPrefix + '-scene-status-' + sceneIdx);
+  const videoSlot = document.getElementById(idPrefix + '-scene-video-' + sceneIdx);
   if (!row) return;
 
   const authToken = await getAuthToken();
@@ -1495,8 +1622,8 @@ async function rbGenerateSceneVideo(sceneIdx, btnEl) {
   }
 
   const promptParts = [
-    rbCurrentVibe ? `Visual style: ${rbCurrentVibe}.` : '',
-    rbCurrentLookName ? `Look: ${rbCurrentLookName}.` : '',
+    reg.vibe ? `Visual style: ${reg.vibe}.` : '',
+    reg.lookName ? `Look: ${reg.lookName}.` : '',
     `Scene: ${row.description || ''}`,
     'Premium South Asian bridal couture boutique content -- cinematic, elegant, real fabric movement and lighting, no on-screen text or logos.'
   ].filter(Boolean);
@@ -1528,34 +1655,38 @@ async function rbGenerateSceneVideo(sceneIdx, btnEl) {
   btnEl.textContent = '⏳ Generating (can take a minute+)…';
   if (statusEl) statusEl.textContent = '';
 
-  const poll = async () => {
-    let data;
-    try {
-      const res = await fetch('/api/reel-scene-status?id=' + encodeURIComponent(jobId) + '&token=' + encodeURIComponent(authToken));
-      data = await res.json();
-    } catch {
-      setTimeout(poll, 5000);
-      return;
-    }
-    if (data.status === 'processing') {
-      setTimeout(poll, 5000);
-      return;
-    }
-    if (data.status === 'ready' && data.videoUrl) {
-      btnEl.textContent = '🎬 Regenerate Clip';
-      btnEl.disabled = false;
-      if (videoSlot) {
-        videoSlot.innerHTML = `<video class="rb-scene-video" src="${data.videoUrl}" controls playsinline></video>
-          <a class="rb-scene-download" href="${data.videoUrl}" download target="_blank">⬇ Download clip</a>`;
+  await new Promise((resolve) => {
+    const poll = async () => {
+      let data;
+      try {
+        const res = await fetch('/api/reel-scene-status?id=' + encodeURIComponent(jobId) + '&token=' + encodeURIComponent(authToken));
+        data = await res.json();
+      } catch {
+        setTimeout(poll, 5000);
+        return;
       }
-      return;
-    }
-    // failed
-    btnEl.textContent = '🎬 Try Again';
-    btnEl.disabled = false;
-    if (statusEl) statusEl.innerHTML = '<span class="rb-scene-err">' + escapeHtml(data.error || 'Generation failed.') + '</span>';
-  };
-  setTimeout(poll, 4000);
+      if (data.status === 'processing') {
+        setTimeout(poll, 5000);
+        return;
+      }
+      if (data.status === 'ready' && data.videoUrl) {
+        btnEl.textContent = '🎬 Regenerate Clip';
+        btnEl.disabled = false;
+        if (videoSlot) {
+          videoSlot.innerHTML = `<video class="rb-scene-video" src="${data.videoUrl}" controls playsinline></video>
+            <a class="rb-scene-download" href="${data.videoUrl}" download target="_blank">⬇ Download clip</a>`;
+        }
+        resolve();
+        return;
+      }
+      // failed
+      btnEl.textContent = '🎬 Try Again';
+      btnEl.disabled = false;
+      if (statusEl) statusEl.innerHTML = '<span class="rb-scene-err">' + escapeHtml(data.error || 'Generation failed.') + '</span>';
+      resolve();
+    };
+    setTimeout(poll, 4000);
+  });
 }
 
 function rbSwitchCaption(ver) {
